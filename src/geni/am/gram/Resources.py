@@ -48,6 +48,8 @@ class Slice:
    def __str__(self):
       return resource_image(self, "Slice");
 
+   # Getters
+
    def getSliceURN(self):  # String Slice URN
        return self._slice_urn
 
@@ -70,8 +72,30 @@ class Slice:
    def getManifestRSpec(self): 
        return self._manifest_rspec
 
+   # Setters
+
+   def setSliceURN(self, slice_urn):  # String Slice URN
+       rself._slice_urn = slice_urn
+
+   def setSAURN(self, sa_urn): # String Slice Authority URN
+       self._sa_urn = sa_urn
+
+   def setUserURN(self, user_urn): # String User URN
+       self._user_urn = user_urn
+
    def setExpiration(selfexpiration): # Set expiration of slice
        self._expiration = expiration;
+
+   def setTenantID(self, tenant_id): # OpenStack tenant UUID
+       self._tenant_id = tenant_id
+
+   def setRouterID(self, router_id): # UUID of router of slice
+       self._router_id = router_id
+
+   # Manifest RSpec returned at time of slice / slivers creation
+   def setManifestRSpec(self, manifest_rspec): 
+       self._manifest_rspec = manifest_rspec
+
 
 # Base class for resource slivers
 class Sliver():
@@ -80,6 +104,8 @@ class Sliver():
         self._component_id = component_id;
         self._slice = slice;
         self._expiration = expiration;
+
+    # Getters
 
     def getUUID(self): # Return OpenStack UUID of resource
         return self._uuid;
@@ -92,6 +118,17 @@ class Sliver():
 
     def getExpiration(self):
         return self._expiration;
+
+    # Setters
+    def setUUID(self, uuid): # Return OpenStack UUID of resource
+        self._uuid = uuid;
+
+    # Return component_id of sliver (sliver_URN)
+    def setComponentID(self, component_id): 
+        self._component_id = component_id;
+
+    def setSlice(self, slice): # Return slice associated with sliver
+        self._slice = slice;
 
     def setExpiration(selfexpiration):
         self._expiration = expiration
@@ -120,6 +157,8 @@ class VirtualMachine(Sliver): #
 
     def __str__(self):
        return resource_image(self, "VM");
+
+    # Getters
 
     def getControlNetAddr(self): # IP Address of controller
         return self._control_net_addr;
@@ -151,6 +190,31 @@ class VirtualMachine(Sliver): #
     def getFlavor(self): # int flavor type
         return self._flavor
 
+    # Setters
+
+    def setControlNetAddr(self, control_net_addr): # IP Address of controller
+        self._control_net_addr = control_net_addr;
+
+    def setNodeName(self, node_name): # User supplied name of node
+        self._node_name = node_name;
+
+    def setInstalls(self, installs): # List of files to install on VM
+        self._installs = installs;
+
+    # List of commands to execute on VM startup
+    def setExecutes(self, executes) : 
+        self._executes = executes;
+
+    # String URN of authorized users
+    def setAuthorizedUserURNs(self, authorized_usr_urns): 
+        self._authorized_usr_urns = authorized_usr_urns;
+
+    def setImageID(self, image_id): # OpenStack UUID of image
+        self._image_id = image_id
+
+    def setFlavor(self, flavor): # int flavor type
+        self._flavor = flavor
+
     def setAllocationState(selfallocation_state):
         self._allocation_state = allocation_state
 
@@ -180,6 +244,8 @@ class NetworkInterface(Sliver):  # Was: NIC
      def __str__(self):
         return resource_image(self, "NIC");
 
+     # Getters
+
      def getName(self): # string user provided name of interface
          return self._name
 
@@ -201,6 +267,25 @@ class NetworkInterface(Sliver):  # Was: NIC
 
      def getLink(self): # NetworkLink associated with NIC
          return self._link
+
+     # Setters
+
+     def setName(self, name): # string user provided name of interface
+         self._name = name
+
+     # int number of device (2 = eth2, etc.)
+     def setDeviceNumber(self, device_number): 
+         self._device_number = device_number
+
+     def setMACAddress(self, mac_address): # string MAC address of NIC
+         self._mac_address = mac_address
+
+     def setIPAddress(self, ip_address): # string IP address of NIC
+         self._ip_address = ip_address
+
+     # string name corresponding to VETH in host O/S
+     def setVirtualEthName(self, virtual_eth_name): 
+         self._virtual_eth_name = virtual_eth_name
 
      # Link might not be defined at instantiation time, since
      # These classes refer to one another
@@ -226,6 +311,8 @@ class NetworkLink(Sliver): # was Link
      def __str__(self):
         return resource_image(self, "Link");
 
+     # Getters
+
      def getName(self): # string user provided name of link
          return self._name
 
@@ -240,6 +327,20 @@ class NetworkLink(Sliver): # was Link
 
      def getVLANTag(self): # Return vlan tag of traffic on this link
          return self._vlan_tag
+
+     # Setters
+
+     def setName(self, name): # string user provided name of link
+         self._name = name
+
+     def setSubnet(self, subnet): # int (10.0.x.0/24)
+         self._subnet = subnet
+
+     def setNetworkID(self, network_id): # OpenStack UUID of network of link
+         self._network_id = network_id
+
+     def setVLANTag(self, vlan_tag): # Return vlan tag of traffic on this link
+         self._vlan_tag = vlan_tag
 
      # NetworkInterfaces might not exist at construction time, since
      # Constructors reference one another
