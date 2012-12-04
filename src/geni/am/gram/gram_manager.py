@@ -1,6 +1,6 @@
 
 import config
-from Resources import Slice
+from resources import Slice
 import rspec_handler
 import open_stack_interface
 

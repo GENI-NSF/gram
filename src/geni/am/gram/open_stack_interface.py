@@ -2,7 +2,7 @@
 import subprocess
 import re
 
-import Resources
+import resources
 import config
 
 def assignResources(geni_slice) :

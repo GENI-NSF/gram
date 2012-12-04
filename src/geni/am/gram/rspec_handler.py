@@ -2,7 +2,7 @@
 from xml.dom.minidom import *
 
 import config
-from Resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
+from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec.   SAY MORE...
