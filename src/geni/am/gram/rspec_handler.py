@@ -212,10 +212,23 @@ def generateManifest(geni_slice, req_rspec) :
                     link_object = link_list[i]
                     break
             child.setAttribute('sliver_id', link_object.getSliverURN())
-            
-    config.logger.info('Manifest = %s' % manifest.toprettyxml(indent = '    '))
 
-    return manifest, sliver_list
+            # Add this link to the list of slivers in this rspec
+            _addSliverToList(sliver_list, link_object)
+            
+    manifest = manifest.toprettyxml(indent = '    ')
+    config.logger.info('Manifest = %s' % manifest)
+
+    # Create a clean version of the manifest without the extraneous
+    # spaces and newlines added my minidom
+    clean_manifest = ''
+    for line in manifest.split('\n') :
+        if line.strip() :
+            clean_manifest += line + '\n'
+
+    config.logger.info('Clean manifest = %s' % clean_manifest)
+
+    return clean_manifest, sliver_list
 
 
 def _addSliverToList(sliver_list, sliver_object) :
@@ -225,6 +238,8 @@ def _addSliverToList(sliver_list, sliver_object) :
         in this list and adds this item to the given sliver_list.
     """
     sliver_list_item = {}
-    sliver_list_item['geni_sliver_urn'] = sliver_object.getSliverURN
-    sliver_list_item['geni_allocation_state'] =  \
-        sliver_object.getAllocationState
+    sliver_list_item['geni_sliver_urn'] = sliver_object.getSliverURN()
+    sliver_list_item['geni_allocation_status'] =  \
+        sliver_object.getAllocationState()
+
+    sliver_list.append(sliver_list_item)

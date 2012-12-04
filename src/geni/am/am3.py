@@ -475,8 +475,8 @@ class ReferenceAggregateManager(object):
                              sliver.resource().id, slice_urn, sliver.urn())
 
         manifest = self.manifest_rspec(slice_urn)
-        result = dict(geni_rspec=manifest,
-                      geni_slivers=[s.status() for s in newslice.slivers()])
+        # result = dict(geni_rspec=manifest,
+        #              geni_slivers=[s.status() for s in newslice.slivers()])
         # return self.successResult(result)
         return gram_return
 
