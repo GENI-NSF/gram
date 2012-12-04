@@ -45,6 +45,7 @@ from geni.SecureXMLRPCServer import SecureXMLRPCServer
 from aggregate import Aggregate
 from fakevm import FakeVM
 
+from gram import gram_manager
 
 # See sfa/trust/rights.py
 # These are names of operations
@@ -113,7 +114,7 @@ class AM_API(object):
     ALREADY_EXISTS = 17
     # --- Non-standard errors below here. ---
     OUT_OF_RANGE = 19
-
+    
 
 class ApiErrorException(Exception):
     def __init__(self, code, output):
@@ -410,10 +411,13 @@ class ReferenceAggregateManager(object):
                                                         privileges)
         # If we get here, the credentials give the caller
         # all needed privileges to act on the given target.
+        gram_return = gram_manager.allocate(slice_urn, rspec, options)
+
         if slice_urn in self._slices:
             self.logger.error('Slice %s already exists.', slice_urn)
             return self.errorResult(AM_API.ALREADY_EXISTS,
                                     'Slice %s already exists' % (slice_urn))
+
 
         rspec_dom = None
         try:
@@ -473,7 +477,9 @@ class ReferenceAggregateManager(object):
         manifest = self.manifest_rspec(slice_urn)
         result = dict(geni_rspec=manifest,
                       geni_slivers=[s.status() for s in newslice.slivers()])
-        return self.successResult(result)
+        # return self.successResult(result)
+        return gram_return
+
 
     def Provision(self, urns, credentials, options):
         """Allocate slivers to the given slice according to the given RSpec.
@@ -529,6 +535,8 @@ class ReferenceAggregateManager(object):
                                                 privileges)
         # If we get here, the credentials give the caller
         # all needed privileges to act on the given target.
+        gram_manager.delete(urns, options)
+
         if the_slice.isShutdown():
             self.logger.info("Slice %s not deleted because it is shutdown",
                              the_slice.urn)
