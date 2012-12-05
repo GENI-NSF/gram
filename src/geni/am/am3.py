@@ -251,7 +251,7 @@ class ReferenceAggregateManager(object):
         self._am_type = "gcf"
         self._slices = dict()
         self._agg = Aggregate()
-        self._agg.add_resources([FakeVM(self._agg) for _ in range(3)])
+        self._agg.add_resources([FakeVM(self._agg) for _ in range(200)])
         self._my_urn = publicid_to_urn("%s %s %s" % (self._urn_authority, 'authority', 'am'))
         self.max_lease = datetime.timedelta(minutes=REFAM_MAXLEASE_MINUTES)
         self.max_alloc = datetime.timedelta(seconds=ALLOCATE_EXPIRATION_SECONDS)

@@ -233,7 +233,7 @@ def _createNetworkForLink(link_object) :
     gateway_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '1'
 
     cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
-        (tenant_uuid, gateway_addr, network_name, subnet_addr)
+        (tenant_uuid, gateway_addr, network_uuid, subnet_addr)
     output = _execCommand(cmd_string) 
     subnet_uuid = _getValueByPropertyName(output, 'id')
 
@@ -265,11 +265,11 @@ def _createVM(vm_object) :
     # Create network ports for this VM.  Each nic gets a network port
     for nic in vm_object.getNetworkInterfaces() :
         link_object = nic.getLink()
-        net_name = link_object.getName()
+        net_uuid = link_object.getNetworkUUID()
         nic_ip_addr = nic.getIPAddress()
         if nic_ip_addr != None :
             subnet_uuid = link_object.getSubnetUUID()
-            cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_name)
+            cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
             output = _execCommand(cmd_string) 
             nic.setPortUUID(_getValueByPropertyName(output, 'id'))
             

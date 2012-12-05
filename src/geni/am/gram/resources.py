@@ -53,12 +53,12 @@ class Slice:
       self._VMs = []    # VirtualMachines that belong to this slice
       self._NICs = []   # NetworkInterfaces that belong to this slice
       self._links = []  # NetworkLinks that belong to this slice
-      self._lastSubnetAssigned = 2 # If value is x then the last subnet
-                                   # address assinged to a link in the slice
-                                   # was 10.0.x.0/24.  Starts with 2 since
-                                   # 10.0.1.0/24 is for the control network
-                                   # and 10.0.2.0/24 is often used by the
-                                   # underlying virtualization technology
+      self._last_subnet_assigned = 2 # If value is x then the last subnet
+                                     # address assinged to a link in the slice
+                                     # was 10.0.x.0/24.  Starts with 2 since
+                                     # 10.0.1.0/24 is for the control network
+                                     # and 10.0.2.0/24 is often used by the
+                                     # underlying virtualization technology
    def __str__(self):
       return resource_image(self, "Slice");
    
@@ -123,8 +123,18 @@ class Slice:
       return self._VMs
 
    def generateSubnetAddress(self) :
-      self._lastSubnetAssigned += 1
-      return '10.0.%s.0/24' % self._lastSubnetAssigned
+      self._last_subnet_assigned += 1
+      #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
+      subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
+      last_subnet_assigned = int(subnet_num_file.readline().rstrip())
+      subnet_num_file.close()
+      subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
+      last_subnet_assigned += 1
+      subnet_num_file.write(str(last_subnet_assigned))
+      subnet_num_file.close()
+      return '10.0.%s.0/24' % last_subnet_assigned
+      #### END TEMP CODE
+      return '10.0.%s.0/24' % self._last_subnet_assigned
 
    def getSliceURN(self):  # String Slice URN
        return self._slice_urn
@@ -296,7 +306,7 @@ class NetworkInterface(Sliver):  # Was: NIC
          self._ip_address = None   # string IP address of NIC
          self._vm = myVM    # VirtualMachine associated with this NIC
          self._port_uuid = None # UUID of network port for this NIC
-         self._link = None
+         self._link = None  # NetworkLink associated with NIC
          Sliver.__init__(self, my_slice)
 
      def __str__(self):
@@ -327,9 +337,7 @@ class NetworkInterface(Sliver):  # Was: NIC
      def getLink(self): # NetworkLink associated with NIC
          return self._link
 
-     # Link might not be defined at instantiation time, since
-     # These classes refer to one another
-     def setLink(self, link) : # Set NetworkLink associated with NIC
+     def setLink(self, link) :
         self._link = link;
 
      def setHost(self, host): # Set VirtualMachine host for NIC
