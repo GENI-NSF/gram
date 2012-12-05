@@ -226,11 +226,11 @@ class Sliver():
 class _InstallItem :
    """
        The VirtualMachine class maintains a list of files to be installed
-       when teh VM starts up.  Itmes in this list belong to this class.
+       when the VM starts up.  Items in this list belong to this class.
    """
    def __init__(self, source, dest, file_type) :
-      self.source_url = source    # From where to get the file to be installed
-      self.destination = dest  # To where in VM's file system should the file go
+      self.source_url = source # From where to get the file to be installed
+      self.destination = dest  # Location in VM's file system file should go
       self.file_type = file_type  # File type.  E.g. tar.gz.
 
 

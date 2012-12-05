@@ -371,6 +371,9 @@ def _getUUIDByName(output_table, name) :
     # Split the output table into lines (rows of the table)
     output_lines = output_table.split('\n')
 
+    # Escape any non-alpanumerics in name
+    name = re.escape(name)
+
     # Find the row in the output table that has an entry for object name
     # Column 1 of this row will have the uuid for this object
     for i in range(len(output_lines)) :
@@ -403,6 +406,9 @@ def _getValueByPropertyName(output_table, property_name) :
     """
     # Split the output into lines (rows of the table)
     output_lines = output_table.split('\n')
+
+    # Escape any non-alpanumerics in property_name
+    name = re.escape(name)
 
     # Look for the row with property_name
     for i in range(len(output_lines)) :
