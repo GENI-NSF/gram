@@ -10,6 +10,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     def __init__(self, root_cert, urn_authority, url, server):
         ReferenceAggregateManager.__init__(self, root_cert, urn_authority, url)
         self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, url)
+        self._am_type = "gram"
         self._server = server
         self._v3_am._server = server
         
@@ -31,11 +32,22 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         # Allocate
-        ret_v3 = self._v3_am.Allocate(self, slice_urn, credentials, \
+        ret_allocate_v3 = self._v3_am.Allocate(slice_urn, credentials, \
                                           rspec, options)
+#        print "ALLOC_RET " + str(ret_allocate_v3)
+
+        if ret_allocate_v3['code']['geni_code'] != 0:
+            return ret_allocate_v3
+
+        manifest = ret_allocate_v3['value']['geni_rspec']
+
         # Provision
-        ret_v3 = self._v3_am.Provision(self, urns, credentials, options)
-        manifest = ret_v3['geni_rspec']
+        ret_provision_v3 = self._v3_am.Provision(urns, credentials, options)
+#        print "PROV_RET " + str(ret_provision_v3)
+
+        if ret_provision_v3['code']['geni_code'] != 0:
+            return ret_provision_v3
+
         # PerformOperationalAction(geni_start)
         action = 'geni_start'
         self._v3_am.PerformOperationalAction(urns, credentials, \
@@ -52,19 +64,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         ret_v3 = self._v3_am.Status(urns, credentials, options)
-        res_status = list()
-        resources = self._v3_am.catalog(slice_urn)
-        # This is a V3 slice, not a v2 slice
-        slice = self._v3_am._slices[slice_urn]
-        for res in resources:
-            res_status.append(dict(geni_urn=self.resource_urn(res),
-                                   geni_status = res.status,
-                                   geni_error=''))
-        slice_status = slice.status(resources)
-        result = dict(geni_urn=slice_urn,
-                      geni_status=slice_status,
-                      geni_resources=res_status)
-        return result
+#        print "SS RET = " + str(ret_v3)
+        return ret_v3
 
     def RenewSliver(self, slice_urn, credentials, expiration_time, options):
         credentials = [self.transform_credential(c) for c in credentials]
@@ -75,9 +76,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     def Shutdown(self, slice_urn, credentials, options):
         credentials = [self.transform_credential(c) for c in credentials]
-        self._v3_am.Shutdown(slice_urn, credentials, options)
-        return ReferenceAggregateManager.Shutdown(self, slice_urn, \
-                                                      credentials, options)
+        ret_v3 = self._v3_am.Shutdown(slice_urn, credentials, options)
+        return ret_v3
 
     def transform_credential(self, c):
         # Make these acceptable for V3 AM
