@@ -6,17 +6,20 @@ from am2 import AggregateManager, AggregateManagerServer
 from am3 import ReferenceAggregateManager as ReferenceAggregateManager_V3, Slice as Slice_V3
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
-    def __init__(self, root_cert, urn_authority, url):
+
+    def __init__(self, root_cert, urn_authority, url, server):
         ReferenceAggregateManager.__init__(self, root_cert, urn_authority, url)
-        self._v3_am = ReferenceAggregateManager(root_cert, urn_authority, url)
+        self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, url)
+        self._server = server
+        self._v3_am._server = server
         
     def GetVersion(self, options):
         return ReferenceAggregateManager.GetVersion(self, options)
 
     def ListResources(self, credentials, options):
         credentials = [self.transform_credential(c) for c in credentials]
-        ret_v3 = self._v3_am.Describe(slice_urn, credentials, options)
-        return self.transform_result(ret_v3)
+        ret_v3 = self._v3_am.ListResources(credentials, options)
+        return ret_v3
 
     def CreateSliver(self, slice_urn, credentials, rspec, users, options):
         credentials = [self.transform_credential(c) for c in credentials]
@@ -55,7 +58,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         result = dict(geni_urn=slice_urn,
                       geni_status=slice_status,
                       geni_resources=res_status)
-        return self.transform_result(ret_v3)
+        return result
 
     def RenewSliver(self, slice_urn, credentials, expiration_time, options):
         credentials = [self.transform_credential(c) for c in credentials]
@@ -70,13 +73,13 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         return ReferenceAggregateManager.Shutdown(self, slice_urn, \
                                                       credentials, options)
 
-    def transform_credential(c):
-        # In v3, we can have a string or a dictionary (geni_type, geni_version, geni_value)
-        # Here we want to just have strings
-        if isinstance(cred, str):
-            return c
-        elif isinstance(cred, dict) and cred.has_key('geni_value'):
-            return c['geni_value']
+    def transform_credential(self, c):
+        # Make these acceptable for V3 AM
+        # Create a dictionary [geni_type='geni_sfa', geni_version=3, geni_value=c
+        if isinstance(c, dict) and c.has_key('geni_value'):
+            c = c['geni_value']
+        if isinstance(c, str):
+            return dict(geni_type='geni_sfa', geni_version=3, geni_value=c)
         else:
             msg = "Bad Arguments: Received illegal credential %s" % str(c)
             raise Exception(msg)
@@ -97,9 +100,9 @@ class GramAggregateManagerServer(AggregateManagerServer):
                                                 base_name = base_name)
             server_url = "https://%s:%d/" % addr
             delegate=GramReferenceAggregateManager(trust_roots_dir, \
-                                                       base_name, server_url)
+                                                       base_name, server_url, \
+                                                       self._server)
             self._server.register_instance(AggregateManager(delegate))
-            delegate._server = self._server
 
 
 
