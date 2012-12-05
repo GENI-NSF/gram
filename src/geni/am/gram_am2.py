@@ -10,6 +10,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     def __init__(self, root_cert, urn_authority, url, server):
         ReferenceAggregateManager.__init__(self, root_cert, urn_authority, url)
         self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, url)
+        self._am_type = "gram"
         self._server = server
         self._v3_am._server = server
         
@@ -31,11 +32,22 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         # Allocate
-        ret_v3 = self._v3_am.Allocate(self, slice_urn, credentials, \
+        ret_allocate_v3 = self._v3_am.Allocate(slice_urn, credentials, \
                                           rspec, options)
+#        print "ALLOC_RET " + str(ret_allocate_v3)
+
+        if ret_allocate_v3['code']['geni_code'] != 0:
+            return ret_allocate_v3
+
+        manifest = ret_allocate_v3['value']['geni_rspec']
+
         # Provision
-        ret_v3 = self._v3_am.Provision(self, urns, credentials, options)
-        manifest = ret_v3['geni_rspec']
+        ret_provision_v3 = self._v3_am.Provision(urns, credentials, options)
+#        print "PROV_RET " + str(ret_provision_v3)
+
+        if ret_provision_v3['code']['geni_code'] != 0:
+            return ret_provision_v3
+
         # PerformOperationalAction(geni_start)
         action = 'geni_start'
         self._v3_am.PerformOperationalAction(urns, credentials, \
