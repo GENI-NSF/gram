@@ -87,9 +87,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     def Shutdown(self, slice_urn, credentials, options):
         credentials = [self.transform_credential(c) for c in credentials]
-        self._v3_am.Shutdown(slice_urn, credentials, options)
-        return ReferenceAggregateManager.Shutdown(self, slice_urn, \
-                                                      credentials, options)
+        ret_v3 = self._v3_am.Shutdown(slice_urn, credentials, options)
+        return ret_v3
 
     def transform_credential(self, c):
         # Make these acceptable for V3 AM
