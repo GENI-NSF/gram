@@ -17,8 +17,14 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         return ReferenceAggregateManager.GetVersion(self, options)
 
     def ListResources(self, credentials, options):
+        print  "OPTIONS = " + str(options)
         credentials = [self.transform_credential(c) for c in credentials]
-        ret_v3 = self._v3_am.ListResources(credentials, options)
+        if 'geni_slice_urn' in options:
+            slice_urn = options['geni_slice_urn']
+            slice_urns = [slice_urn]
+            ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
+        else:
+            ret_v3 = self._v3_am.ListResources(credentials, options)
         return ret_v3
 
     def CreateSliver(self, slice_urn, credentials, rspec, users, options):
