@@ -411,7 +411,8 @@ class ReferenceAggregateManager(object):
                                                         privileges)
         # If we get here, the credentials give the caller
         # all needed privileges to act on the given target.
-        gram_return = gram_manager.allocate(slice_urn, rspec, options)
+        gram_return = gram_manager.allocate(slice_urn, credentials, rspec,
+                                            options)
 
         if slice_urn in self._slices:
             self.logger.error('Slice %s already exists.', slice_urn)
@@ -518,7 +519,7 @@ class ReferenceAggregateManager(object):
         result = dict(geni_rspec=self.manifest_rspec(the_slice.urn),
                       geni_slivers=[s.status() for s in slivers])
         # return self.successResult(result)
-        return gram_manager.provision(the_slice.urn, options)
+        return gram_manager.provision(the_slice.urn, credentials, options)
 
     def Delete(self, urns, credentials, options):
         """Stop and completely delete the named slivers and/or slice.

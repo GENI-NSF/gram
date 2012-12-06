@@ -16,7 +16,8 @@ vm_urn_prefix = sliver_urn_prefix + 'vm+'
 interface_urn_prefix = sliver_urn_prefix + 'interface+'
 link_urn_prefix = sliver_urn_prefix + 'link+'
 
-allocation_expiration_time =  10 * 60 # allocations expire in 10 mins
+allocation_expiration_minutes =  10      # allocations expire in 10 mins
+lease_expiration_minutes =  7 * 24 * 60  # resources can be leased for 7 days
 
 # Allocation states for slivers
 unallocated = 'geni_unallocated'

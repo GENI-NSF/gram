@@ -3,11 +3,12 @@ import config
 from resources import Slice
 import rspec_handler
 import open_stack_interface
+import utils
 
 slices = {}                # Collection of slice objects at this aggregate, 
                            # indexed by slice urn
 
-def allocate(slice_urn, rspec, options) :
+def allocate(slice_urn, creds, rspec, options) :
     """
         Request reservation of GRAM resources.  We assume that by the time we
         get here the caller's credentials have been verified by the gcf 
@@ -41,6 +42,11 @@ def allocate(slice_urn, rspec, options) :
         code = {'geni_code': config.REQUEST_PARSE_FAILED}
         return {'code': code, 'value': '', 'output': err_output}
 
+    # Set expiration times on the allocated resources
+    utils.AllocationTimesSetter(geni_slice, creds, ('geni_end_time' in options \
+                                                      and \
+                                                      options['geni_end_time']))
+
     # Generate a manifest rpsec
     geni_slice.setRequestRspec(rspec)
     manifest, sliver_list = rspec_handler.generateManifest(geni_slice, rspec)
@@ -51,7 +57,7 @@ def allocate(slice_urn, rspec, options) :
     return {'code': code, 'value': result_struct, 'output': ''}
         
 
-def provision(slice_urn, options) :
+def provision(slice_urn, creds, options) :
     """
         For now we provision all resources allocated by a slice.  In the
         future we'll have to provision individual slivers.
@@ -66,6 +72,12 @@ def provision(slice_urn, options) :
 
     # Provision OpenStack Resources
     open_stack_interface.provisionResources(geni_slice)
+
+
+    # Set expiration times on the provisioned resources
+    utils.ProvisionTimesSetter(geni_slice, creds, ('geni_end_time' in options \
+                                                      and \
+                                                      options['geni_end_time']))
 
     # Generate a manifest rpsec
     req_rspec = geni_slice.getRequestRspec()

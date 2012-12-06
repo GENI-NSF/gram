@@ -52,6 +52,7 @@ class Slice:
       self._expiration = None
       self._request_rspec = None
       self._manifest_rspec = None
+      self._slivers = {} # Map of sliverURNs to slivers
       self._VMs = []    # VirtualMachines that belong to this slice
       self._NICs = []   # NetworkInterfaces that belong to this slice
       self._links = []  # NetworkLinks that belong to this slice
@@ -65,7 +66,12 @@ class Slice:
       return resource_image(self, "Slice");
    
    # Called by slivers to add themselves to the slice
-   def _addSliver(self, sliver) :
+   def addSliver(self, sliver) :
+      sliver_urn = sliver.getSliverURN()
+      if sliver_urn != None :
+         self._slivers[sliver_urn] = sliver
+      else :
+         config.log.error('Adding sliver to slice; sliver does not have a URN')
       if sliver.__class__.__name__ == 'VirtualMachine' :
          self._VMs.append(sliver)
          return True
@@ -124,6 +130,9 @@ class Slice:
    def getVMs(self) :
       return self._VMs
 
+   def getSlivers(self) :
+      return self._slivers
+
    def generateSubnetAddress(self) :
       self._last_subnet_assigned += 1
       #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
@@ -171,12 +180,12 @@ class Sliver():
       self._sliver_urn = self._generateURN()    # URN of this sliver
       self._uuid = None     # OpenStack UUID of resource
       self._slice = my_slice # Slice associated with sliver
-      self._expiration = None
+      self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
       self._allocation_state = config.allocated  # API v3 allocation state
       self._operational_state = config.pending_allocation  # Operational state
-      my_slice._addSliver(self)  # Add this sliver to the list of slivers owned
-                                 # by the slice.
+      my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
+                                # by the slice.  sliver_urn must be set.
 
    # When a sliver is created it gets a sliver URN.
    def _generateURN(self) :
@@ -212,7 +221,7 @@ class Sliver():
    def getExpiration(self):
       return self._expiration;
 
-   def setExpiration(selfexpiration):
+   def setExpiration(self, expiration):
       self._expiration = expiration
 
    def setAllocationState(self, state) :
