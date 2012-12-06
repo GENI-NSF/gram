@@ -58,7 +58,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._manifest_by_slice_urn[slice_urn] = manifest
 #        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
 
-        # PerformOperationalAction(geni_start)
+         # PerformOperationalAction(geni_start)
         action = 'geni_start'
         self._v3_am.PerformOperationalAction(urns, credentials, \
                                                  action, options)
