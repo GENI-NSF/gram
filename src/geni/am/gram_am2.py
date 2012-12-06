@@ -64,8 +64,21 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         ret_v3 = self._v3_am.Status(urns, credentials, options)
-#        print "SS RET = " + str(ret_v3)
-        return ret_v3
+        print "RET_V3" + str(ret_v3)
+        ret_v2 = ret_v3
+        value = ret_v2['value']
+        value['geni_resources'] = value['geni_slivers']
+        slice_state = 'ready'
+        for res_status in value['geni_resources']:
+            state = 'ready'
+            if res_status['geni_operational_status'] != 'geni_ready':
+                state = 'pending'
+                slice_state = state
+            res_status['geni_status'] = state
+        value['geni_status'] = slice_state
+        ret_v2['value'] = value
+        print "SS RET = " + str(ret_v2)
+        return ret_v2
 
     def RenewSliver(self, slice_urn, credentials, expiration_time, options):
         credentials = [self.transform_credential(c) for c in credentials]
