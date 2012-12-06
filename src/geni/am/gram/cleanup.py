@@ -15,7 +15,11 @@ for i in range(1, len(sys.argv)) :
     
     print 'Cleaning up slice %s' % sys.argv[i]
 
-    tenant_name = 'geni:gpo:gcf+slice+' + sys.argv[i]
+    if ':' in sys.argv[i]:
+        tenant_name = sys.argv[i] # Assume it is a URN
+    else:
+        tenant_name = 'geni:gpo:gcf+slice+' + slice_namesys.argv[i]
+
     tenant_admin = 'admin-' + tenant_name
 
     # Figure out the uuid of this tenant
