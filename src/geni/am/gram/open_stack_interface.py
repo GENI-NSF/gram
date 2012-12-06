@@ -408,7 +408,7 @@ def _getValueByPropertyName(output_table, property_name) :
     output_lines = output_table.split('\n')
 
     # Escape any non-alpanumerics in property_name
-    name = re.escape(name)
+    property_name = re.escape(property_name)
 
     # Look for the row with property_name
     for i in range(len(output_lines)) :
