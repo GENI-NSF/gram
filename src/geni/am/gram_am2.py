@@ -13,19 +13,27 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._am_type = "gram"
         self._server = server
         self._v3_am._server = server
+
+        self._manifest_by_slice_urn = dict()
         
     def GetVersion(self, options):
         return ReferenceAggregateManager.GetVersion(self, options)
 
     def ListResources(self, credentials, options):
-        print  "OPTIONS = " + str(options)
+#        print  "OPTIONS = " + str(options)
         credentials = [self.transform_credential(c) for c in credentials]
         if 'geni_slice_urn' in options:
             slice_urn = options['geni_slice_urn']
             slice_urns = [slice_urn]
             ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
+
+            # Describe doesn't work yet. Use _manifest_by_slice_urn
+            manifest = self._manifest_by_slice_urn[slice_urn]
+            ret_v3 = self.successResult(manifest)
         else:
             ret_v3 = self._v3_am.ListResources(credentials, options)
+
+#        print "RET_V3 = " + str(type(ret_v3)) + " " + str(ret_v3)
         return ret_v3
 
     def CreateSliver(self, slice_urn, credentials, rspec, users, options):
@@ -39,8 +47,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         if ret_allocate_v3['code']['geni_code'] != 0:
             return ret_allocate_v3
 
-        manifest = ret_allocate_v3['value']['geni_rspec']
-
         # Provision
         ret_provision_v3 = self._v3_am.Provision(urns, credentials, options)
 #        print "PROV_RET " + str(ret_provision_v3)
@@ -48,7 +54,11 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         if ret_provision_v3['code']['geni_code'] != 0:
             return ret_provision_v3
 
-        # PerformOperationalAction(geni_start)
+        manifest = ret_provision_v3['value']['geni_rspec']
+        self._manifest_by_slice_urn[slice_urn] = manifest
+#        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
+
+         # PerformOperationalAction(geni_start)
         action = 'geni_start'
         self._v3_am.PerformOperationalAction(urns, credentials, \
                                                  action, options)
@@ -64,12 +74,13 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         ret_v3 = self._v3_am.Status(urns, credentials, options)
-        print "RET_V3" + str(ret_v3)
+#        print "RET_V3" + str(ret_v3)
         ret_v2 = ret_v3
         value = ret_v2['value']
         value['geni_resources'] = value['geni_slivers']
         slice_state = 'ready'
         for res_status in value['geni_resources']:
+            res_status['geni_urn'] = res_status['geni_sliver_urn']
             state = 'ready'
             if res_status['geni_operational_status'] != 'geni_ready':
                 state = 'pending'
@@ -77,7 +88,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             res_status['geni_status'] = state
         value['geni_status'] = slice_state
         ret_v2['value'] = value
-        print "SS RET = " + str(ret_v2)
+#        print "SS RET = " + str(ret_v2)
         return ret_v2
 
     def RenewSliver(self, slice_urn, credentials, expiration_time, options):

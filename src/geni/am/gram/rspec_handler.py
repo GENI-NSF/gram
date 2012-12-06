@@ -178,6 +178,7 @@ def generateManifest(geni_slice, req_rspec) :
 
             # Set the sliver URN for the node element
             child.setAttribute('sliver_id', vm_object.getSliverURN())
+            child.setAttribute('component_id', vm_object.getSliverURN())
             
             # For each child element of node, set appropriate attrbutes.
             # Child elements of node include sliver_type, services, 
