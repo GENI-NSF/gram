@@ -23,7 +23,26 @@ for i in range(1, len(sys.argv)) :
     print cmd_string
     output = open_stack_interface._execCommand(cmd_string)
     tenant_uuid = open_stack_interface._getUUIDByName(output, tenant_name)
+    if tenant_uuid == None :
+        # Tenant does not exist.  Exit!
+        print 'Cannot find tenant %s\n' % tenant_name
+        sys.exit(1)
 
+    # Figure out the uuid of the tenant admin
+    cmd_string = 'keystone user-list'
+    print cmd_string
+    output = open_stack_interface._execCommand(cmd_string)
+    tenant_admin_uuid = open_stack_interface._getUUIDByName(output,
+                                                            tenant_admin)
+    if tenant_admin_uuid == None :
+        # Tenant admin does not exist but tenant does.  Delete the tenant
+        # and then exit.
+        print 'Cannot find admin user for  %s\n' % tenant_name
+        cmd_string = 'keystone tenant-delete %s' % tenant_uuid
+        print cmd_string
+        open_stack_interface._execCommand(cmd_string)
+        sys.exit(1)
+                                                            
     # List all VMs owned by this tenant
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s list' % (tenant_admin, tenant_pwd, tenant_name)
     print cmd_string
@@ -54,11 +73,6 @@ for i in range(1, len(sys.argv)) :
         open_stack_interface._execCommand(cmd_string)
 
     # Delete the tenant admin account
-    cmd_string = 'keystone user-list'
-    print cmd_string
-    output = open_stack_interface._execCommand(cmd_string)
-    tenant_admin_uuid = open_stack_interface._getUUIDByName(output,
-                                                            tenant_admin)
     cmd_string = 'keystone user-delete %s' % tenant_admin_uuid
     print cmd_string
     open_stack_interface._execCommand(cmd_string)
