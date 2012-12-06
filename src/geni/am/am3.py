@@ -517,7 +517,8 @@ class ReferenceAggregateManager(object):
             sliver.setOperationalState(OPSTATE_GENI_NOT_READY)
         result = dict(geni_rspec=self.manifest_rspec(the_slice.urn),
                       geni_slivers=[s.status() for s in slivers])
-        return self.successResult(result)
+        # return self.successResult(result)
+        return gram_manager.provision(the_slice.urn, options)
 
     def Delete(self, urns, credentials, options):
         """Stop and completely delete the named slivers and/or slice.
@@ -535,8 +536,6 @@ class ReferenceAggregateManager(object):
                                                 privileges)
         # If we get here, the credentials give the caller
         # all needed privileges to act on the given target.
-        gram_manager.delete(urns, options)
-
         if the_slice.isShutdown():
             self.logger.info("Slice %s not deleted because it is shutdown",
                              the_slice.urn)
@@ -550,7 +549,9 @@ class ReferenceAggregateManager(object):
             if not slyce.slivers():
                 self.logger.debug("Deleting empty slice %r", slyce.urn)
                 del self._slices[slyce.urn]
-        return self.successResult([s.status() for s in slivers])
+        # return self.successResult([s.status() for s in slivers])
+        return gram_manager.delete(urns, options)
+
 
     def PerformOperationalAction(self, urns, credentials, action, options):
         """Peform the specified action on the set of objects specified by

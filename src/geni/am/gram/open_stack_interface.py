@@ -4,8 +4,9 @@ import re
 
 import resources
 import config
+import utils
 
-def assignResources(geni_slice) :
+def provisionResources(geni_slice) :
     """
         Allocate network and VM resources for this slice.
     """
@@ -61,6 +62,7 @@ def assignResources(geni_slice) :
             uuids = _createNetworkForLink(link)
             link.setNetworkUUID(uuids['network_uuid'])
             link.setSubnetUUID(uuids['subnet_uuid'])
+            link.setAllocationState(config.provisioned)
 
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
@@ -91,19 +93,26 @@ def assignResources(geni_slice) :
                                     vm.getName())
             else :
                 vm.setUUID(vm_uuid)
+                vm.setAllocationState(config.provisioned)
         
 
 def deleteAllResourcesForSlice(geni_slice) :
     """
         Deallocate all network and VM resources held by this slice.
     """
+    sliver_stat_list = utils.SliverList()  # Status list to be returned 
+
     # For each VM in the slice, delete the VM and its associated network ports
     for vm in geni_slice.getVMs() :
         _deleteVM(vm)
+        vm.setAllocationState(config.unallocated)
+        sliver_stat_list.addSliver(vm)
 
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
         _deleteNetworkLink(link)
+        link.setAllocationState(config.unallocated)
+        sliver_stat_list.addSliver(link)
 
     ### Delete tenant router.  This section is empty right now as we don't
     ### do per-tenant routers as yet.
@@ -114,6 +123,8 @@ def deleteAllResourcesForSlice(geni_slice) :
 
     # Delete the tenant
     _deleteTenantByUUID(geni_slice.getTenantUUID())
+
+    return sliver_stat_list.getSliverStatusList()
     
 
 
@@ -259,7 +270,7 @@ def _createVM(vm_object) :
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()
     os_image_id = _getImageUUID(vm_object.getOSImageName())
-    vm_flavor_id = _getFlavorID(vm_object.getFlavor())
+    vm_flavor_id = _getFlavorID(vm_object.getVMFlavor())
     vm_name = vm_object.getName()
 
     # Create network ports for this VM.  Each nic gets a network port
@@ -271,7 +282,7 @@ def _createVM(vm_object) :
             subnet_uuid = link_object.getSubnetUUID()
             cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
             output = _execCommand(cmd_string) 
-            nic.setPortUUID(_getValueByPropertyName(output, 'id'))
+            nic.setUUID(_getValueByPropertyName(output, 'id'))
             
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
@@ -281,15 +292,19 @@ def _createVM(vm_object) :
     
     # Now add to the cmd_string information about the NICs to be instantiated
     for nic in vm_object.getNetworkInterfaces() :
-        port_uuid = nic.getPortUUID()
+        port_uuid = nic.getUUID()
         if port_uuid != None :
             cmd_string += (' --nic port-id=%s' % port_uuid)
             
     # Issue the command to create the VM
     output = _execCommand(cmd_string) 
 
-    # Return the UUID of the VM that was created 
-    return  _getValueByPropertyName(output, 'id')
+    # Get the UUID of the VM that was created 
+    vm_uuid = _getValueByPropertyName(output, 'id')
+
+    # Pause this VM.  We'll resume it when it is provisioned
+
+    return vm_uuid
 
 
 def _deleteVM(vm_object) :
@@ -299,7 +314,7 @@ def _deleteVM(vm_object) :
     """
     # Delete ports associatd with the VM
     for nic in vm_object.getNetworkInterfaces() :
-        port_uuid = nic.getPortUUID()
+        port_uuid = nic.getUUID()
         cmd_string = 'quantum port-delete %s' % port_uuid
         _execCommand(cmd_string)
 
@@ -408,7 +423,7 @@ def _getValueByPropertyName(output_table, property_name) :
     output_lines = output_table.split('\n')
 
     # Escape any non-alpanumerics in property_name
-    name = re.escape(name)
+    name = re.escape(property_name)
 
     # Look for the row with property_name
     for i in range(len(output_lines)) :

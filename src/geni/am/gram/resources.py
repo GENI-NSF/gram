@@ -2,6 +2,7 @@
 # the aggregate can allocate and about which it maintains state
 
 import inspect
+import uuid
 
 import config
 
@@ -49,6 +50,7 @@ class Slice:
       self._sa_urn = None
       self._user_urn = None
       self._expiration = None
+      self._request_rspec = None
       self._manifest_rspec = None
       self._VMs = []    # VirtualMachines that belong to this slice
       self._NICs = []   # NetworkInterfaces that belong to this slice
@@ -137,51 +139,57 @@ class Slice:
       return '10.0.%s.0/24' % self._last_subnet_assigned
 
    def getSliceURN(self):  # String Slice URN
-       return self._slice_urn
+      return self._slice_urn
 
    def getSAURN(self): # String Slice Authority URN
-       return self._sa_urn
+      return self._sa_urn
 
    def getUserURN(self): # String User URN
-       return self._user_urn
+      return self._user_urn
 
    def getExpiration(self): # Date expiration of slice
-       return self._expiration
+      return self._expiration
 
    # Manifest RSpec returned at time of slice / slivers creation
    def getManifestRSpec(self): 
-       return self._manifest_rspec
+      return self._manifest_rspec
 
    def setExpiration(selfexpiration): # Set expiration of slice
-       self._expiration = expiration;
+      self._expiration = expiration;
 
+   def setRequestRspec(self, rspec) :
+      self._request_rspec = rspec
+      
+   def getRequestRspec(self) :
+      return self._request_rspec
+      
       
 
 # Base class for resource slivers
 class Sliver():
    def __init__(self, my_slice) :
-      self._sliver_urn = None    # URN of this sliver
-      self._component_id = None
+      self._sliver_urn = self._generateURN()    # URN of this sliver
       self._uuid = None     # OpenStack UUID of resource
-      self._slice = my_slice
+      self._slice = my_slice # Slice associated with sliver
       self._expiration = None
       self._name = None    # Experimenter specified name of the sliver
-      self._allocation_state = config.unallocated  # API v3 allocation state
+      self._allocation_state = config.allocated  # API v3 allocation state
       self._operational_state = config.pending_allocation  # Operational state
       my_slice._addSliver(self)  # Add this sliver to the list of slivers owned
                                  # by the slice.
 
-   # When a sliver gets a uuid, it also gets a sliver URN.  _assignURN is 
-   # called by the setUUID method of each slivere
-   def _assignURN(self, UUID) :
+   # When a sliver is created it gets a sliver URN.
+   def _generateURN(self) :
+      uuid_suffix = str(uuid.uuid4())
       if self.__class__.__name__ == 'VirtualMachine' :
-         self._sliver_urn = config.vm_urn_prefix + UUID
+         sliver_urn = config.vm_urn_prefix + uuid_suffix
       elif self.__class__.__name__ == 'NetworkInterface' :
-         self._sliver_urn = config.interface_urn_prefix + UUID
+         sliver_urn = config.interface_urn_prefix + uuid_suffix
       elif self.__class__.__name__ == 'NetworkLink' :
-         self._sliver_urn = config.link_urn_prefix + UUID
+         sliver_urn = config.link_urn_prefix + uuid_suffix
       else :
          config.logger.error('Unknown sliver type.  Cannot set URN')
+      return sliver_urn
       
    def setName(self, name) :
       self._name = name
@@ -191,17 +199,14 @@ class Sliver():
 
    def setUUID(self, uuid) :
       self._uuid = uuid
-      self._assignURN(uuid)    # Create a URN for this sliver based on UUID
-      self.setAllocationState(config.allocated)  # If we have a UUID, the
-                                                 # sliver must be allocated
 
    def getUUID(self) : 
-        return self._uuid
+      return self._uuid
 
    def getSliverURN(self): 
       return self._sliver_urn
 
-   def getSlice(self): # Return slice associated with sliver
+   def getSlice(self): 
       return self._slice;
 
    def getExpiration(self):
@@ -288,9 +293,6 @@ class VirtualMachine(Sliver): #
    def getVMFlavor(self) :
       return self._flavor
 
-   def getFlavor(self): # int flavor type
-      return self._flavor
-
    def addInstallItem(self, source, destination, file_type) :
       self._installs.append(_InstallItem(source, destination, file_type))
 
@@ -302,10 +304,9 @@ class VirtualMachine(Sliver): #
 class NetworkInterface(Sliver):  # Was: NIC
      def __init__(self, my_slice, myVM) :
          self._device_number = None
-         self._mac_address = None
+         self._mac_address = None  # string MAC address of NIC
          self._ip_address = None   # string IP address of NIC
          self._vm = myVM    # VirtualMachine associated with this NIC
-         self._port_uuid = None # UUID of network port for this NIC
          self._link = None  # NetworkLink associated with NIC
          Sliver.__init__(self, my_slice)
 
@@ -315,7 +316,10 @@ class NetworkInterface(Sliver):  # Was: NIC
      def getDeviceNumber(self): # int number of device (2 = eth2, etc.)
          return self._device_number
 
-     def getMACAddress(self): # string MAC address of NIC
+     def setMACAddress(self, mac_addr): 
+         self._mac_address = mac_addr
+
+     def getMACAddress(self): 
          return self._mac_address
 
      def setIPAddress(self, ip_addr): 
@@ -326,13 +330,6 @@ class NetworkInterface(Sliver):  # Was: NIC
 
      def getVM(self): 
          return self._vm
-
-     def setPortUUID(self, uuid) : 
-        self._port_uuid = uuid
-        self.setUUID(uuid)
-
-     def getPortUUID(self) : 
-        return self._port_uuid 
 
      def getLink(self): # NetworkLink associated with NIC
          return self._link
@@ -371,7 +368,6 @@ class NetworkLink(Sliver): # was Link
 
      def setNetworkUUID(self, uuid): 
          self._network_uuid = uuid
-         self.setUUID(uuid)
 
      def getNetworkUUID(self) : 
          return self._network_uuid

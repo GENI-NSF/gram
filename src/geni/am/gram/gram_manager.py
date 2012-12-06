@@ -41,12 +41,37 @@ def allocate(slice_urn, rspec, options) :
         code = {'geni_code': config.REQUEST_PARSE_FAILED}
         return {'code': code, 'value': '', 'output': err_output}
 
-    # Assign resources per this request
-    open_stack_interface.assignResources(geni_slice)
-
     # Generate a manifest rpsec
+    geni_slice.setRequestRspec(rspec)
     manifest, sliver_list = rspec_handler.generateManifest(geni_slice, rspec)
 
+    # Generate the return struct
+    code = {'geni_code': config.SUCCESS}
+    result_struct = {'geni_rspec': manifest, 'geni_slivers': sliver_list}
+    return {'code': code, 'value': result_struct, 'output': ''}
+        
+
+def provision(slice_urn, options) :
+    """
+        For now we provision all resources allocated by a slice.  In the
+        future we'll have to provision individual slivers.
+    """
+    # Find the slice object for this slice
+    if slice_urn not in slices :
+        #  Unknown slice.  Return error message
+        err_output = 'Search for slice %s failed' % slice_urn
+        code = {'geni_code': config.UNKNOWN_SLICE}
+        return {'code': code, 'value': '', 'output': err_output}
+    geni_slice = slices[slice_urn]    
+
+    # Provision OpenStack Resources
+    open_stack_interface.provisionResources(geni_slice)
+
+    # Generate a manifest rpsec
+    req_rspec = geni_slice.getRequestRspec()
+    manifest, sliver_list = rspec_handler.generateManifest(geni_slice,
+                                                           req_rspec)
+    
     # Generate the return struct
     code = {'geni_code': config.SUCCESS}
     result_struct = {'geni_rspec': manifest, 'geni_slivers': sliver_list}
@@ -60,10 +85,20 @@ def delete(urns, options) :
     """
     config.logger.info('Delete called for slice %r' % urns)
 
-    if urns[0] in slices :
-        open_stack_interface.deleteAllResourcesForSlice(slices[urns[0]])
-        del slices[urns[0]]    # 
-    else :
+    if urns[0] not in slices :
         config.logger.error('Asked to delete unknown slice %s' % urns[0])
-    
+        err_output = 'Search for slice %s failed' % slice_urn
+        code = {'geni_code': config.UNKNOWN_SLICE}
+        return {'code': code, 'value': '', 'output': err_output}
+
+    # We do have the slice.  Delete all resources held by the slice
+    sliver_status_list = \
+        open_stack_interface.deleteAllResourcesForSlice(slices[urns[0]])
+
+    # Remove slice from list of known slices
+    del slices[urns[0]]    
+
+    # Generate the return struct
+    code = {'geni_code': config.SUCCESS}
+    return {'code': code, 'value': sliver_status_list,  'output': ''}
 

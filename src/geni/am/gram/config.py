@@ -30,9 +30,13 @@ failed = 'geni_failed'
 
 
 # Error codes returned by this aggregate manager
-SUCCESS = 0    # This is a GENI standard
-SLICE_ALREADY_EXISTS =  100
-REQUEST_PARSE_FAILED = 200
+# GENI standard codes.
+SUCCESS = 0
+REQUEST_PARSE_FAILED = 1        # aka BADARGS
+UNKNOWN_SLICE = 12              # aka SEARCHFAILED
+SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
+
+# GRAM specific codes
 
 # Aggregate Manager software related configuration
 logger = logging.getLogger('gcf.am3.gram')

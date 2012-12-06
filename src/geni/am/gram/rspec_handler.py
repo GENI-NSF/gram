@@ -3,6 +3,7 @@ from xml.dom.minidom import *
 
 import config
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
+import utils
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec.   SAY MORE...
@@ -133,8 +134,8 @@ def generateManifest(geni_slice, req_rspec) :
            2. A list with information about each of the slivers corresponding
               to resources in the request rspec.
     """
-    manifest = Document()   # New xml document for the manifest
-    sliver_list = []        # List of slivers with info about the slivers
+    manifest = Document()                 # Manifest returned by this function
+    sliver_stat_list = utils.SliverList() # Sliver status list returned 
 
     # Use the request rspec as a model for the manifest i.e. start with the
     # request and add additional information to it to form the manifest
@@ -195,13 +196,19 @@ def generateManifest(geni_slice, req_rspec) :
                     if nic_object == None :
                         config.logger.error('Cannot find information about network interface %s' % nic_name)
                         continue
-                    child_of_node.setAttribute('ip_address', 
-                                               nic_object.getIPAddress())
+                    ip_address = nic_object.getIPAddress()
+                    if ip_address != None :
+                        ip_addr_elem = manifest.createElement('ip')
+                        ip_addr_elem.setAttribute('address', ip_address)
+                        child_of_node.appendChild(ip_addr_elem)
+                    mac_address = nic_object.getMACAddress()
+                    if mac_address != None :
+                        child_of_node.setAttribute('mac_address', mac_address)
                     child_of_node.setAttribute('sliver_id', 
                                                nic_object.getSliverURN())
 
             # Add this node to the list of slivers in this rspec
-            _addSliverToList(sliver_list, vm_object)
+            sliver_stat_list.addSliver(vm_object)
 
         elif child.nodeName == 'link' :
             # Find the NetworkLink object for this link
@@ -214,7 +221,7 @@ def generateManifest(geni_slice, req_rspec) :
             child.setAttribute('sliver_id', link_object.getSliverURN())
 
             # Add this link to the list of slivers in this rspec
-            _addSliverToList(sliver_list, link_object)
+            sliver_stat_list.addSliver(link_object)
             
     manifest = manifest.toprettyxml(indent = '    ')
     config.logger.info('Manifest = %s' % manifest)
@@ -228,18 +235,5 @@ def generateManifest(geni_slice, req_rspec) :
 
     config.logger.info('Clean manifest = %s' % clean_manifest)
 
-    return clean_manifest, sliver_list
+    return clean_manifest, sliver_stat_list.getSliverStatusList()
 
-
-def _addSliverToList(sliver_list, sliver_object) :
-    """
-        Some API calls return a list of slivers and information about
-        the slivers.  This is a helper function that creates an item
-        in this list and adds this item to the given sliver_list.
-    """
-    sliver_list_item = {}
-    sliver_list_item['geni_sliver_urn'] = sliver_object.getSliverURN()
-    sliver_list_item['geni_allocation_status'] =  \
-        sliver_object.getAllocationState()
-
-    sliver_list.append(sliver_list_item)
