@@ -6,7 +6,8 @@ import resources
 import config
 import utils
 
-def provisionResources(geni_slice) :
+# users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
+def provisionResources(geni_slice, users) :
     """
         Allocate network and VM resources for this slice.
     """
@@ -87,7 +88,7 @@ def provisionResources(geni_slice) :
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
             # Need to create an OpenStack VM for this node
-            vm_uuid = _createVM(vm)
+            vm_uuid = _createVM(vm, users)
             if vm_uuid == None :
                 config.logger.error('Failed to crate vm for node %s' %
                                     vm.getName())
@@ -265,7 +266,8 @@ def _deleteNetworkLink(link_object) :
     cmd_string = 'quantum net-delete %s' % net_uuid
     _execCommand(cmd_string)
 
-def _createVM(vm_object) :
+# users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
+def _createVM(vm_object, users) :
     slice_object = vm_object.getSlice()
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()

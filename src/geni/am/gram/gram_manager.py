@@ -71,7 +71,11 @@ def provision(slice_urn, creds, options) :
     geni_slice = slices[slice_urn]    
 
     # Provision OpenStack Resources
-    open_stack_interface.provisionResources(geni_slice)
+    if options.has_key('geni_users'):
+        users = options['geni_users']
+    else:
+        users = list()
+    open_stack_interface.provisionResources(geni_slice, users)
 
 
     # Set expiration times on the provisioned resources

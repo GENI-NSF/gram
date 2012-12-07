@@ -25,10 +25,14 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         if 'geni_slice_urn' in options:
             slice_urn = options['geni_slice_urn']
             slice_urns = [slice_urn]
-            ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
+
 
             # Describe doesn't work yet. Use _manifest_by_slice_urn
-            manifest = self._manifest_by_slice_urn[slice_urn]
+#            ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
+            if self._manifest_by_slice_urn.has_key(slice_urn):
+                manifest = self._manifest_by_slice_urn[slice_urn]
+            else:
+                manifest = '<rspec type="manifest"/>'
             ret_v3 = self.successResult(manifest)
         else:
             ret_v3 = self._v3_am.ListResources(credentials, options)
@@ -37,26 +41,31 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         return ret_v3
 
     def CreateSliver(self, slice_urn, credentials, rspec, users, options):
+#        print "CREDS = " + str(credentials)
+        print "RSPEC = " + str(rspec)
+#        print "USERS = " + str(users)
+#        print "OPTS = " + str(options)
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         # Allocate
         ret_allocate_v3 = self._v3_am.Allocate(slice_urn, credentials, \
                                           rspec, options)
-#        print "ALLOC_RET " + str(ret_allocate_v3)
+        print "ALLOC_RET " + str(ret_allocate_v3)
 
         if ret_allocate_v3['code']['geni_code'] != 0:
             return ret_allocate_v3
 
         # Provision
+        options['geni_users'] = users # In v3, users is an option
         ret_provision_v3 = self._v3_am.Provision(urns, credentials, options)
-#        print "PROV_RET " + str(ret_provision_v3)
+        print "PROV_RET " + str(ret_provision_v3)
 
         if ret_provision_v3['code']['geni_code'] != 0:
             return ret_provision_v3
 
         manifest = ret_provision_v3['value']['geni_rspec']
         self._manifest_by_slice_urn[slice_urn] = manifest
-#        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
+        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
 
          # PerformOperationalAction(geni_start)
         action = 'geni_start'
