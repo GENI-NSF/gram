@@ -183,9 +183,12 @@ def generateManifest(geni_slice, req_rspec) :
             # For each child element of node, set appropriate attrbutes.
             # Child elements of node include sliver_type, services, 
             # interface, etc.
+            sliver_type_set=False
             for child_of_node in child.childNodes :
                 if child_of_node.nodeName == 'sliver_type' :
-                    child_of_node.setAttribute('name', 'virtual-machine')
+                    sliver_type = child_of_node.attributes['name'].value
+                    child.setAttribute('name', sliver_type)
+                    sliver_type_set = True
                 elif child_of_node.nodeName == 'interface' :
                     # Find the NetworkInterface object for this interface
                     nic_name = child_of_node.attributes['client_id'].value
@@ -207,6 +210,11 @@ def generateManifest(geni_slice, req_rspec) :
                         child_of_node.setAttribute('mac_address', mac_address)
                     child_of_node.setAttribute('sliver_id', 
                                                nic_object.getSliverURN())
+            if not sliver_type_set:
+                sliver_type = "virtual-machine"
+                sliver_type_attribute = Element('sliver_type')
+                sliver_type_attribute.setAttribute('name', sliver_type)
+                child.appendChild(sliver_type_attribute)
 
             # Add this node to the list of slivers in this rspec
             sliver_stat_list.addSliver(vm_object)
