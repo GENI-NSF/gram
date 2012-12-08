@@ -243,7 +243,7 @@ def generateManifest(geni_slice, req_rspec) :
     config.logger.info('Manifest = %s' % manifest)
 
     # Create a clean version of the manifest without the extraneous
-    # spaces and newlines added my minidom
+    # spaces and newlines added by minidom
     clean_manifest = ''
     for line in manifest.split('\n') :
         if line.strip() :
