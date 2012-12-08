@@ -6,6 +6,41 @@ import resources
 import config
 import utils
 
+_control_net_uuid = None     # Layer 2 control network
+_control_subnet_uuid = None  # Layer 3 control network
+
+def init() :
+    """
+        Perform OpenStack related initialization.  Called once when the
+        GRAM AM starts up.
+    """
+    # Create the control network for the aggregate
+    cmd_string = 'quantum net-create %s' % config.control_net_name
+    output = _execCommand(cmd_string)
+    _control_net_uuid = _getValueByPropertyName(output, 'id')
+
+    # Create a subnet (L3 network) for the control network
+    cmd_string = 'quantum subnet-create %s %s' % (_control_net_uuid,
+                                                  config.control_net_ip)
+                                                  
+    output = _execCommand(cmd_string) 
+    _control_subnet_uuid = _getValueByPropertyName(output, 'id')
+
+    # Add an interface for this network to the external router
+    router_uuid = _getRouterUUID(config.external_router_name)
+
+
+def cleanup(signal, frame) :
+    """
+        Perform OpenStack related cleanup.  Called when the aggregate 
+        is shut down.
+    """
+    # Delete the control network
+    if _control_net_uuid != None :
+        cmd_string = 'quantum net_delete %s' % _control_net_uuid
+        _execCommand(cmd_string)
+        
+
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
 def provisionResources(geni_slice, users) :
     """
@@ -50,7 +85,7 @@ def provisionResources(geni_slice, users) :
 
         ### This section of code should be commented out when we have
         ### namespaces working.
-        router_name = 'externalRouter'
+        router_name = config.external_router_name
         geni_slice.setTenantRouterName(router_name)
         geni_slice.setTenantRouterUUID(_getRouterUUID(router_name))
 
@@ -218,7 +253,7 @@ def _createRouter(tenant_name, router_name) :
 
 def _createNetworkForLink(link_object) :
     """
-        Creates a network and subnet for the link.
+        Creates a network (L2) and subnet (L3) for the link.
         Creates an interface on the slice router for this link.
 
         Returns UUIDs for the network and subnet as a dictionary keyed by
@@ -276,6 +311,8 @@ def _createVM(vm_object, users) :
     vm_name = vm_object.getName()
 
     # Create network ports for this VM.  Each nic gets a network port
+    # Every VM gets a port on the control network.  Create this port.
+
     for nic in vm_object.getNetworkInterfaces() :
         link_object = nic.getLink()
         net_uuid = link_object.getNetworkUUID()
@@ -303,8 +340,6 @@ def _createVM(vm_object, users) :
 
     # Get the UUID of the VM that was created 
     vm_uuid = _getValueByPropertyName(output, 'id')
-
-    # Pause this VM.  We'll resume it when it is provisioned
 
     return vm_uuid
 

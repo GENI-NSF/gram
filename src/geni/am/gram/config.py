@@ -5,8 +5,14 @@ import logging
 default_VM_flavor = 'm1.small'  
 default_OS_image = 'cirros-0.3-x86_64'
 
+control_net_name = 'controlNetwork'
+control_net_ip = '172.16.0.0/12'
+
+external_router_name = 'externalRouter'
+
 tenant_admin_pwd = 'sliceMaster:-)'  # Password for the tenant's admin user
                                   # account
+
 
 # GENI interface related configuration
 default_execute_shell = 'sh'   # default shell to use for use by execute
