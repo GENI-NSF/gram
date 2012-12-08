@@ -4,6 +4,7 @@ from xml.dom.minidom import *
 import config
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import utils
+from geni.am.gram import gram_context
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec.   SAY MORE...
@@ -128,6 +129,8 @@ def parseRequestRspec(geni_slice, rspec) :
 
 
 def generateManifest(geni_slice, req_rspec) :
+
+
     """
         Returns a tuple that consists of:
            1. The manifest rspec for the specified request rspec (req_rspec)
@@ -179,6 +182,10 @@ def generateManifest(geni_slice, req_rspec) :
             # Set the sliver URN for the node element
             child.setAttribute('sliver_id', vm_object.getSliverURN())
             child.setAttribute('component_id', vm_object.getSliverURN())
+
+            # Set the component_manager_id (this AM's URN) for the node element
+            component_manager_id = gram_context.GRAM_AM_URN
+            child.setAttribute('component_manager_id', component_manager_id)
             
             # For each child element of node, set appropriate attrbutes.
             # Child elements of node include sliver_type, services, 

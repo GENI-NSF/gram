@@ -4,12 +4,18 @@
 from am2 import Slice, ReferenceAggregateManager
 from am2 import AggregateManager, AggregateManagerServer
 from am3 import ReferenceAggregateManager as ReferenceAggregateManager_V3, Slice as Slice_V3
+import base64
+import zlib
+import uuid
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
 
-    def __init__(self, root_cert, urn_authority, url, server):
-        ReferenceAggregateManager.__init__(self, root_cert, urn_authority, url)
-        self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, url)
+    def __init__(self, root_cert, urn_authority, url, certfile, server):
+
+        ReferenceAggregateManager.__init__(self, root_cert, urn_authority, 
+                                           certfile, url)
+        self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, 
+                                                   certfile, url)
         self._am_type = "gram"
         self._server = server
         self._v3_am._server = server
@@ -30,19 +36,49 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             # Describe doesn't work yet. Use _manifest_by_slice_urn
 #            ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
             if self._manifest_by_slice_urn.has_key(slice_urn):
-                manifest = self._manifest_by_slice_urn[slice_urn]
+                result = self._manifest_by_slice_urn[slice_urn]
             else:
-                manifest = '<rspec type="manifest"/>'
-            ret_v3 = self.successResult(manifest)
+                result = self.manifest_header() + self.manifest_footer()
         else:
-            ret_v3 = self._v3_am.ListResources(credentials, options)
+            result = self.advert_header()
+            component_manager_id = self._v3_am._my_urn
+            component_name = str(uuid.uuid4())
+            component_id = 'urn:publicid:geni:gpo:vm+' + component_name
+            exclusive = False
+            sliver_type = 'virtual-machine'
+            available = True
+            tmpl = '''  <node component_manager_id="%s"
+        component_name="%s"
+        component_id="%s"
+        exclusive="%s">
+    <sliver_type name="%s"/>
+    <available now="%s"/>
+  </node></rspec>
+  '''
+            result = self.advert_header() + \
+            (tmpl % (component_manager_id, component_name, \
+                         component_id, exclusive, sliver_type, available)) 
+
+#            result = self._v3_am.ListResources(credentials, options)
+#            if result['code'] != 0: return result
+#            result = result['value']
+
+        # Optionally compress the result
+        if 'geni_compressed' in options and options['geni_compressed']:
+            try:
+                result = base64.b64encode(zlib.compress(result))
+            except Exception, exc:
+                import traceback
+                self.logger.error("Error compressing and encoding resource list: %s", traceback.format_exc())
+                raise Exception("Server error compressing resource list", exc)
+
 
 #        print "RET_V3 = " + str(type(ret_v3)) + " " + str(ret_v3)
-        return ret_v3
+        return self.successResult(result)
 
     def CreateSliver(self, slice_urn, credentials, rspec, users, options):
 #        print "CREDS = " + str(credentials)
-        print "RSPEC = " + str(rspec)
+#        print "RSPEC = " + str(rspec)
 #        print "USERS = " + str(users)
 #        print "OPTS = " + str(options)
         credentials = [self.transform_credential(c) for c in credentials]
@@ -50,7 +86,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         # Allocate
         ret_allocate_v3 = self._v3_am.Allocate(slice_urn, credentials, \
                                           rspec, options)
-        print "ALLOC_RET " + str(ret_allocate_v3)
+#        print "ALLOC_RET " + str(ret_allocate_v3)
 
         if ret_allocate_v3['code']['geni_code'] != 0:
             return ret_allocate_v3
@@ -58,14 +94,14 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         # Provision
         options['geni_users'] = users # In v3, users is an option
         ret_provision_v3 = self._v3_am.Provision(urns, credentials, options)
-        print "PROV_RET " + str(ret_provision_v3)
+#        print "PROV_RET " + str(ret_provision_v3)
 
         if ret_provision_v3['code']['geni_code'] != 0:
             return ret_provision_v3
 
         manifest = ret_provision_v3['value']['geni_rspec']
         self._manifest_by_slice_urn[slice_urn] = manifest
-        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
+#        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
 
          # PerformOperationalAction(geni_start)
         action = 'geni_start'
@@ -77,6 +113,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         ret_v3 = self._v3_am.Delete(urns, credentials, options)
+        del self._manifest_by_slice_urn[slice_urn]
         return self.successResult(True)
 
     def SliverStatus(self, slice_urn, credentials, options):
@@ -131,6 +168,7 @@ class GramAggregateManagerServer(AggregateManagerServer):
         def __init__(self, addr, keyfile=None, certfile=None,
                  trust_roots_dir=None,
                  ca_certs=None, base_name=None):
+            
             AggregateManagerServer.__init__(self, addr, \
                                                 keyfile = keyfile, \
                                                 certfile = certfile, \
@@ -140,9 +178,7 @@ class GramAggregateManagerServer(AggregateManagerServer):
             server_url = "https://%s:%d/" % addr
             delegate=GramReferenceAggregateManager(trust_roots_dir, \
                                                        base_name, server_url, \
+                                                       certfile, 
                                                        self._server)
             self._server.register_instance(AggregateManager(delegate))
-
-
-
 

@@ -44,7 +44,7 @@ import geni.util.urn_util as urn
 from geni.SecureXMLRPCServer import SecureXMLRPCServer
 from aggregate import Aggregate
 from fakevm import FakeVM
-
+from geni.am.gram import gram_context
 from gram import gram_manager
 
 # See sfa/trust/rights.py
@@ -243,9 +243,13 @@ class ReferenceAggregateManager(object):
 
     # root_cert is a single cert or dir of multiple certs
     # that are trusted to sign credentials
-    def __init__(self, root_cert, urn_authority, url):
+    def __init__(self, root_cert, urn_authority, certfile, url):
         self._urn_authority = urn_authority
         self._url = url
+        self._certfile = certfile
+        self._component_manager_id = self.readURNFromCertfile(certfile)
+        gram_context.GRAM_AM_URN = self._component_manager_id
+#        print "CMID = " + self._component_manager_id
         self._cred_verifier = geni.CredentialVerifier(root_cert)
         self._api_version = 3
         self._am_type = "gcf"
@@ -817,6 +821,16 @@ class ReferenceAggregateManager(object):
                     value="",
                     output=output)
 
+    def readURNFromCertfile(self, certfile):
+            import sfa.trust.certificate
+            cert =  sfa.trust.certificate.Certificate()
+            cert.load_from_file(certfile)
+            san = cert.get_data('subjectAltName')
+            sans = san.split(', ');
+            urns = [s[4:] for s in filter(lambda x: 'publicid' in x, sans)]
+            urn = urns[0]
+            return urn
+
     def _naiveUTC(self, dt):
         """Converts dt to a naive datetime in UTC.
 
@@ -1210,6 +1224,7 @@ class AggregateManagerServer(object):
         # Decode the addr into a URL. Is there a pythonic way to do this?
         server_url = "https://%s:%d/" % addr
         delegate = ReferenceAggregateManager(trust_roots_dir, base_name,
+                                             certfile, 
                                              server_url)
         # FIXME: set logRequests=true if --debug
         self._server = SecureXMLRPCServer(addr, keyfile=keyfile,

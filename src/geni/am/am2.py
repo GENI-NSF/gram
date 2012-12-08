@@ -102,8 +102,9 @@ class ReferenceAggregateManager(object):
 
     # root_cert is a single cert or dir of multiple certs
     # that are trusted to sign credentials
-    def __init__(self, root_cert, urn_authority, url):
+    def __init__(self, root_cert, urn_authority, certfile, url):
         self._url = url
+        self._certfile = certfile
         self._api_version = 2
         self._slices = dict()
         self._agg = Aggregate()
@@ -675,6 +676,7 @@ class AggregateManagerServer(object):
         # Decode the addr into a URL. Is there a pythonic way to do this?
         server_url = "https://%s:%d/" % addr
         delegate = ReferenceAggregateManager(trust_roots_dir, base_name, 
+                                             certfile, 
                                              server_url)
         # FIXME: set logRequests=true if --debug
         self._server = SecureXMLRPCServer(addr, keyfile=keyfile,
