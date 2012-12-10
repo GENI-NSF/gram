@@ -5,7 +5,7 @@ import logging
 default_VM_flavor = 'm1.small'  
 default_OS_image = 'cirros-0.3-x86_64'
 
-control_net_name = 'controlNetwork'
+control_net_name = 'GRAM-controlNet'
 control_net_ip = '172.16.0.0/12'
 
 external_router_name = 'externalRouter'

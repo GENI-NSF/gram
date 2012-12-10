@@ -14,21 +14,35 @@ def init() :
         Perform OpenStack related initialization.  Called once when the
         GRAM AM starts up.
     """
-    # Create the control network for the aggregate
-    cmd_string = 'quantum net-create %s' % config.control_net_name
+    # Check to see if the aggregate already has a control network.  The
+    # control network is a quantum subnet with IP address specified in 
+    # config.py
+    cmd_string = 'quantum subnet-list'
     output = _execCommand(cmd_string)
-    _control_net_uuid = _getValueByPropertyName(output, 'id')
+    _control_subnet_uuid = _getUUIDByName(output, config.control_net_ip)
+    if _control_subnet_uuid == None :
+        # Control network does not exist.  Create it.
+        cmd_string = 'quantum net-create %s' % config.control_net_name
+        output = _execCommand(cmd_string)
+        _control_net_uuid = _getValueByPropertyName(output, 'id')
 
-    # Create a subnet (L3 network) for the control network
-    cmd_string = 'quantum subnet-create %s %s' % (_control_net_uuid,
-                                                  config.control_net_ip)
+        # Create a subnet (L3 network) for the control network
+        cmd_string = 'quantum subnet-create %s %s' % (_control_net_uuid,
+                                                      config.control_net_ip)
                                                   
-    output = _execCommand(cmd_string) 
-    _control_subnet_uuid = _getValueByPropertyName(output, 'id')
+        output = _execCommand(cmd_string) 
+        _control_subnet_uuid = _getValueByPropertyName(output, 'id')
 
-    # Add an interface for this network to the external router
-    router_uuid = _getRouterUUID(config.external_router_name)
-
+        # Add an interface for this network to the external router
+        router_uuid = _getRouterUUID(config.external_router_name)
+    else :
+        # Control network already exists.  Find out its network uuid.
+        cmd_string = 'quantum net-list'
+        output = _execCommand(cmd_string)
+        _control_net_uuid = _getUUIDByName(output, _control_subnet_uuid)
+        config.logger.info('Found control network %s and control subnet %s' %
+                           (_control_net_uuid, _control_subnet_uuid))
+        
 
 def cleanup(signal, frame) :
     """
