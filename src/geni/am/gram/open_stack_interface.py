@@ -6,42 +6,13 @@ import resources
 import config
 import utils
 
-_control_net_uuid = None     # Layer 2 control network
-_control_subnet_uuid = None  # Layer 3 control network
 
 def init() :
     """
         Perform OpenStack related initialization.  Called once when the
         GRAM AM starts up.
     """
-    # Check to see if the aggregate already has a control network.  The
-    # control network is a quantum subnet with IP address specified in 
-    # config.py
-    cmd_string = 'quantum subnet-list'
-    output = _execCommand(cmd_string)
-    _control_subnet_uuid = _getUUIDByName(output, config.control_net_ip)
-    if _control_subnet_uuid == None :
-        # Control network does not exist.  Create it.
-        cmd_string = 'quantum net-create %s' % config.control_net_name
-        output = _execCommand(cmd_string)
-        _control_net_uuid = _getValueByPropertyName(output, 'id')
-
-        # Create a subnet (L3 network) for the control network
-        cmd_string = 'quantum subnet-create %s %s' % (_control_net_uuid,
-                                                      config.control_net_ip)
-                                                  
-        output = _execCommand(cmd_string) 
-        _control_subnet_uuid = _getValueByPropertyName(output, 'id')
-
-        # Add an interface for this network to the external router
-        router_uuid = _getRouterUUID(config.external_router_name)
-    else :
-        # Control network already exists.  Find out its network uuid.
-        cmd_string = 'quantum net-list'
-        output = _execCommand(cmd_string)
-        _control_net_uuid = _getUUIDByName(output, _control_subnet_uuid)
-        config.logger.info('Found control network %s and control subnet %s' %
-                           (_control_net_uuid, _control_subnet_uuid))
+    return
         
 
 def cleanup(signal, frame) :
@@ -103,6 +74,15 @@ def provisionResources(geni_slice, users) :
         geni_slice.setTenantRouterName(router_name)
         geni_slice.setTenantRouterUUID(_getRouterUUID(router_name))
 
+        # Create a control network for this tenant
+        control_net_info = _createControlNetwork(geni_slice)
+        if ('control_net_name' in control_net_info) and \
+                ('control_net_uuid' in control_net_info) and \
+                ('control_subnet_uuid' in control_net_info) :
+            geni_slice.setControlNetInfo(control_net_info['control_net_name'],
+                                       control_net_info['control_net_uuid'],
+                                       control_net_info['control_subnet_uuid'])
+
 
     # For each link in the experimenter topology that does not have an
     # associated quantum network/subnet, set up a network and subnet
@@ -163,6 +143,9 @@ def deleteAllResourcesForSlice(geni_slice) :
         _deleteNetworkLink(link)
         link.setAllocationState(config.unallocated)
         sliver_stat_list.addSliver(link)
+
+    # Delete the control network for the slice.
+    _deleteControlNetwork(geni_slice)
 
     ### Delete tenant router.  This section is empty right now as we don't
     ### do per-tenant routers as yet.
@@ -265,6 +248,49 @@ def _createRouter(tenant_name, router_name) :
     return _getValueByPropertyName(output, 'id')
 
 
+def _createControlNetwork(slice_object) :
+    """
+        Create a control network for this tenant (slice).  This network
+        is connected to the external router
+    """
+    tenant_uuid = slice_object.getTenantUUID()
+
+    # Create the control network
+    control_net_name = 'cntrlNet-' + slice_object.getTenantName()
+    cmd_string = 'quantum net-create --tenant-id %s %s' % (tenant_uuid,
+                                                           control_net_name)
+    output = _execCommand(cmd_string)
+    control_net_uuid = _getValueByPropertyName(output, 'id')
+    
+    # Create a subnet (L3 network) for the control network
+    control_subnet_addr = slice_object.generateControlNetAddress()
+    gateway_addr = \
+        control_subnet_addr[0 : control_subnet_addr.rfind('0/24')] + '1'
+    cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
+        (tenant_uuid, gateway_addr, control_net_uuid, control_subnet_addr)
+    output = _execCommand(cmd_string) 
+    control_subnet_uuid = _getValueByPropertyName(output, 'id')
+
+    # Add an interface for this network to the external router
+    external_router_uuid = _getRouterUUID(config.external_router_name)
+    cmd_string = 'quantum router-interface-add %s %s' %  \
+        (config.external_router_name, control_subnet_uuid)
+    _execCommand(cmd_string) 
+
+    return {'control_net_name' : control_net_name, \
+                'control_net_uuid' : control_net_uuid, \
+                'control_subnet_uuid' : control_subnet_uuid}
+
+
+def _deleteControlNetwork(slice_object) :
+    
+    control_net_name, control_net_uuid, control_subnet_uuid =  \
+        slice_object.getControlNetInfo()
+    if control_net_uuid != None :
+        cmd_string = 'quantum net-delete %s' % control_net_uuid
+        _execCommand(cmd_string)
+        
+
 def _createNetworkForLink(link_object) :
     """
         Creates a network (L2) and subnet (L3) for the link.
@@ -325,8 +351,6 @@ def _createVM(vm_object, users) :
     vm_name = vm_object.getName()
 
     # Create network ports for this VM.  Each nic gets a network port
-    # Every VM gets a port on the control network.  Create this port.
-
     for nic in vm_object.getNetworkInterfaces() :
         link_object = nic.getLink()
         net_uuid = link_object.getNetworkUUID()
@@ -344,6 +368,12 @@ def _createVM(vm_object, users) :
                                                         vm_flavor_id))
     
     # Now add to the cmd_string information about the NICs to be instantiated
+    # First instantiate a NIC for the control network
+    control_net_name, control_net_uuid, control_subnet_uuid =  \
+        slice_object.getControlNetInfo()
+    if control_net_uuid != None :
+        cmd_string += ' --nic net-id=%s' % control_net_uuid
+
     for nic in vm_object.getNetworkInterfaces() :
         port_uuid = nic.getUUID()
         if port_uuid != None :

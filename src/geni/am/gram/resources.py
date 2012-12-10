@@ -47,7 +47,9 @@ class Slice:
       self._tenant_admin_uuid = None # UUID of the admin user
       self._router_name = None    # Name of router for this tenant (slice)
       self._router_uuid = None    # UUID of router for this tenant (slice)
-      self._sa_urn = None
+      self._control_net_name = None # Name of the control net for this slice
+      self._control_net_uuid = None # UUID of the control net
+      self._control_subnet_uuid = None # UUID of the control subnet
       self._user_urn = None
       self._expiration = None
       self._request_rspec = None
@@ -106,6 +108,15 @@ class Slice:
       return self._tenant_admin_name, self._tenant_admin_pwd, \
           self._tenant_admin_uuid
 
+   def setControlNetInfo(self, net_name, net_uuid, subnet_uuid) :
+      self._control_net_name = net_name
+      self._control_net_uuid = net_uuid
+      self._control_subnet_uuid = subnet_uuid
+
+   def getControlNetInfo(self) :
+      return self._control_net_name, self._control_net_uuid, \
+          self._control_subnet_uuid
+
    def setTenantRouterName(self, name) :
       self._router_name = name
 
@@ -141,17 +152,31 @@ class Slice:
       subnet_num_file.close()
       subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
       last_subnet_assigned += 1
+      if last_subnet_assigned == 256 :
+         last_subnet_assigned = 19
       subnet_num_file.write(str(last_subnet_assigned))
       subnet_num_file.close()
       return '10.0.%s.0/24' % last_subnet_assigned
       #### END TEMP CODE
       return '10.0.%s.0/24' % self._last_subnet_assigned
 
+   def generateControlNetAddress(self) :
+      #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
+      subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
+      last_subnet_assigned = int(subnet_num_file.readline().rstrip())
+      subnet_num_file.close()
+      subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
+      last_subnet_assigned += 1
+      if last_subnet_assigned == 256 :
+         last_subnet_assigned = 19
+      subnet_num_file.write(str(last_subnet_assigned))
+      subnet_num_file.close()
+      return '172.16.%s.0/24' % last_subnet_assigned 
+      #### END TEMP CODE
+     
+
    def getSliceURN(self):  # String Slice URN
       return self._slice_urn
-
-   def getSAURN(self): # String Slice Authority URN
-      return self._sa_urn
 
    def getUserURN(self): # String User URN
       return self._user_urn
