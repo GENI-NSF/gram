@@ -1,6 +1,7 @@
 
 import subprocess
 import re
+import time
 
 import resources
 import config
@@ -74,13 +75,16 @@ def provisionResources(geni_slice, users) :
         geni_slice.setTenantRouterName(router_name)
         geni_slice.setTenantRouterUUID(_getRouterUUID(router_name))
 
-        # Create a control network for this tenant
-        control_net_info = _createControlNetwork(geni_slice)
-        if ('control_net_name' in control_net_info) and \
-                ('control_net_uuid' in control_net_info) and \
-                ('control_subnet_uuid' in control_net_info) and \
-                ('control_net_addr' in control_net_info) :
-            geni_slice.setControlNetInfo(control_net_info)
+        # Create a control network for this tenant if it does not already
+        # exist
+        if geni_slice.getControlNetInfo() == None :
+            # Don't have a control network.  Create one.
+            control_net_info = _createControlNetwork(geni_slice)
+            if ('control_net_name' in control_net_info) and \
+                    ('control_net_uuid' in control_net_info) and \
+                    ('control_subnet_uuid' in control_net_info) and \
+                    ('control_net_addr' in control_net_info) :
+                geni_slice.setControlNetInfo(control_net_info)
 
     # For each link in the experimenter topology that does not have an
     # associated quantum network/subnet, set up a network and subnet
@@ -396,6 +400,23 @@ def _createVM(vm_object, users) :
 
     # Get the UUID of the VM that was created 
     vm_uuid = _getValueByPropertyName(output, 'id')
+
+    # Wait for the vm status to turn to 'active' and then reboot
+    cmd_string = 'nova show %s' % vm_uuid
+    output = _execCommand(cmd_string) 
+    vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
+    while (vm_state != 'active') :
+        config.logger.info('VM state is %s' % vm_state)
+        time.sleep(3)
+        cmd_string = 'nova show %s' % vm_uuid
+        output = _execCommand(cmd_string) 
+        vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
+
+    # Reboot the VM.  This seems to be necessary for the NICs to get IP addrs 
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, slice_object.getTenantName())
+    cmd_string += (' reboot %s' % vm_name)
+    _execCommand(cmd_string) 
 
     return vm_uuid
 

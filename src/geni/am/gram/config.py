@@ -3,7 +3,8 @@ import logging
 
 # OpenStack related configuration
 default_VM_flavor = 'm1.small'  
-default_OS_image = 'cirros-0.3-x86_64'
+# default_OS_image = 'cirros-0.3-x86_64'
+default_OS_image = 'cirros-4nic'
 
 external_router_name = 'externalRouter'
 

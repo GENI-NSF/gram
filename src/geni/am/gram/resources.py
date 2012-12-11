@@ -47,7 +47,7 @@ class Slice:
       self._tenant_admin_uuid = None # UUID of the admin user
       self._router_name = None    # Name of router for this tenant (slice)
       self._router_uuid = None    # UUID of router for this tenant (slice)
-      self._control_net_info = {} # name, uuid, ip addr, etc for control net
+      self._control_net_info = None  # name, uuid, ip addr, etc for control net
       self._user_urn = None
       self._expiration = None
       self._request_rspec = None
@@ -166,7 +166,7 @@ class Slice:
          last_subnet_assigned = 19
       subnet_num_file.write(str(last_subnet_assigned))
       subnet_num_file.close()
-      return '172.16.%s.0/24' % last_subnet_assigned 
+      return '10.10.%s.0/24' % last_subnet_assigned 
       #### END TEMP CODE
      
    def setControlNetAddress(self, addr) :
