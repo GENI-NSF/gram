@@ -5,6 +5,7 @@ import re
 import resources
 import config
 import utils
+import gen_metadata
 
 
 def init() :
@@ -380,6 +381,11 @@ def _createVM(vm_object, users) :
         % (admin_name, admin_pwd, slice_object.getTenantName())
     cmd_string += (' boot %s --image %s --flavor %s' % (vm_name, os_image_id,
                                                         vm_flavor_id))
+
+    # Add user meta data to create account, pass keys etc.
+    userdata_filename = '/tmp/userdata.sh'
+    gen_metadata.configMetadataSvcs(users, userdata_filename)
+    cmd_string += (' --user_data %s' % (userdata_filename))
     
     # Now add to the cmd_string information about the NICs to be instantiated
     # First add the NIC for the control network
