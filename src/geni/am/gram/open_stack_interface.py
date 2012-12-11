@@ -78,11 +78,9 @@ def provisionResources(geni_slice, users) :
         control_net_info = _createControlNetwork(geni_slice)
         if ('control_net_name' in control_net_info) and \
                 ('control_net_uuid' in control_net_info) and \
-                ('control_subnet_uuid' in control_net_info) :
-            geni_slice.setControlNetInfo(control_net_info['control_net_name'],
-                                       control_net_info['control_net_uuid'],
-                                       control_net_info['control_subnet_uuid'])
-
+                ('control_subnet_uuid' in control_net_info) and \
+                ('control_net_addr' in control_net_info) :
+            geni_slice.setControlNetInfo(control_net_info)
 
     # For each link in the experimenter topology that does not have an
     # associated quantum network/subnet, set up a network and subnet
@@ -279,13 +277,15 @@ def _createControlNetwork(slice_object) :
 
     return {'control_net_name' : control_net_name, \
                 'control_net_uuid' : control_net_uuid, \
-                'control_subnet_uuid' : control_subnet_uuid}
+                'control_subnet_uuid' : control_subnet_uuid, \
+                'control_net_addr' : control_subnet_addr}
 
 
 def _deleteControlNetwork(slice_object) :
-    
-    control_net_name, control_net_uuid, control_subnet_uuid =  \
-        slice_object.getControlNetInfo()
+    """
+        Delete the control network for this slice.
+    """
+    control_net_uuid = slice_object.getControlNetInfo()['control_net_uuid']
     if control_net_uuid != None :
         cmd_string = 'quantum net-delete %s' % control_net_uuid
         _execCommand(cmd_string)
@@ -351,6 +351,20 @@ def _createVM(vm_object, users) :
     vm_name = vm_object.getName()
 
     # Create network ports for this VM.  Each nic gets a network port
+    # First create a port for the control network
+    control_net_info = slice_object.getControlNetInfo()
+    control_net_addr = control_net_info['control_net_addr'] # subnet address
+    control_net_prefix = control_net_addr[0 : control_net_addr.rfind('0/24')]
+    control_nic_ipaddr = control_net_prefix + vm_object.getLastOctet()
+    vm_object.setControlNetAddr(control_nic_ipaddr)
+    control_net_uuid = control_net_info['control_net_uuid']
+    control_subnet_uuid = control_net_info['control_subnet_uuid']
+    cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' %  \
+       (tenant_uuid, control_subnet_uuid, control_nic_ipaddr, control_net_uuid)
+    output = _execCommand(cmd_string) 
+    control_port_uuid = _getValueByPropertyName(output, 'id')
+
+    # Now create ports for the experiment data networks
     for nic in vm_object.getNetworkInterfaces() :
         link_object = nic.getLink()
         net_uuid = link_object.getNetworkUUID()
@@ -368,12 +382,10 @@ def _createVM(vm_object, users) :
                                                         vm_flavor_id))
     
     # Now add to the cmd_string information about the NICs to be instantiated
-    # First instantiate a NIC for the control network
-    control_net_name, control_net_uuid, control_subnet_uuid =  \
-        slice_object.getControlNetInfo()
-    if control_net_uuid != None :
-        cmd_string += ' --nic net-id=%s' % control_net_uuid
-
+    # First add the NIC for the control network
+    cmd_string += ' --nic port-id=%s' % control_port_uuid
+    
+    # Now add the NICs for the experiment data network
     for nic in vm_object.getNetworkInterfaces() :
         port_uuid = nic.getUUID()
         if port_uuid != None :

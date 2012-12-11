@@ -47,9 +47,7 @@ class Slice:
       self._tenant_admin_uuid = None # UUID of the admin user
       self._router_name = None    # Name of router for this tenant (slice)
       self._router_uuid = None    # UUID of router for this tenant (slice)
-      self._control_net_name = None # Name of the control net for this slice
-      self._control_net_uuid = None # UUID of the control net
-      self._control_subnet_uuid = None # UUID of the control subnet
+      self._control_net_info = {} # name, uuid, ip addr, etc for control net
       self._user_urn = None
       self._expiration = None
       self._request_rspec = None
@@ -108,14 +106,11 @@ class Slice:
       return self._tenant_admin_name, self._tenant_admin_pwd, \
           self._tenant_admin_uuid
 
-   def setControlNetInfo(self, net_name, net_uuid, subnet_uuid) :
-      self._control_net_name = net_name
-      self._control_net_uuid = net_uuid
-      self._control_subnet_uuid = subnet_uuid
+   def setControlNetInfo(self, info) :
+      self._control_net_info = info
 
    def getControlNetInfo(self) :
-      return self._control_net_name, self._control_net_uuid, \
-          self._control_subnet_uuid
+      return self._control_net_info
 
    def setTenantRouterName(self, name) :
       self._router_name = name
@@ -174,6 +169,11 @@ class Slice:
       return '172.16.%s.0/24' % last_subnet_assigned 
       #### END TEMP CODE
      
+   def setControlNetAddress(self, addr) :
+      self._control_net_addr = addr
+
+   def getControlNetAddress(self) :
+      return self._control_net_addr 
 
    def getSliceURN(self):  # String Slice URN
       return self._slice_urn
@@ -288,7 +288,7 @@ class VirtualMachine(Sliver): #
    _next_octet = 100  # Last octet of an ip address.  Used when assigning
                       # ip addresses to the interfaces on the VM
    def __init__(self, my_slice) :
-      self._control_net_addr = None
+      self._control_net_addr = None  # IP address of VM on the control net
       self._installs = []    # Items to be installed on the VM on startup
       self._executes = []    # Scripts to be extecuted on the VM on startup
       self._network_interfaces = []   # Associated network interfaces
@@ -306,17 +306,20 @@ class VirtualMachine(Sliver): #
    def addNetworkInterface(self, netInterface) :
       self._network_interfaces.append(netInterface)
 
-   def getControlNetAddr(self): # IP Address of controller
-      return self._control_net_addr;
+   def setControlNetAddr(self, ip_addr) : 
+      self._control_net_addr = ip_addr
+
+   def getControlNetAddr(self): 
+      return self._control_net_addr 
 
    def getInstalls(self): # List of files to install on VM
-      return self._installs;
+      return self._installs 
 
    def getExecutes(self) : # List of commands to execute on VM startup
-      return self._executes;
+      return self._executes 
 
    def getNetworkInterfaces(self) :
-      return self._network_interfaces;
+      return self._network_interfaces 
 
    def getLastOctet(self) :
       return str(self._ip_last_octet)
