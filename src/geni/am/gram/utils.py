@@ -20,13 +20,15 @@ class SliverList :
         urn = sliver_object.getSliverURN()
         alloc_status = sliver_object.getAllocationState()
         expiration = sliver_object.getExpiration()
-        # oper_status = sliver_object.getOperationalState()
+        oper_status = sliver_object.getOperationalState()
         expiration = sliver_object.getExpiration()
         
         if urn != None :
             sliver_list_item['geni_sliver_urn'] = urn
         if alloc_status != None :
             sliver_list_item['geni_allocation_status'] =  alloc_status
+        if oper_status != None :
+            sliver_list_item['geni_operational_status'] =  oper_status
         if expiration != None :
             sliver_list_item['geni_expires'] = rfc3339format(expiration)
 
@@ -34,6 +36,17 @@ class SliverList :
 
 
     def getSliverStatusList(self) :
+        return self._sliver_list
+
+    def getStatusAllSlivers(self, geni_slice) :
+        vms = geni_slice.getVMs()
+        for i in range(0, len(vms)) :
+            self.addSliver(vms[i])
+
+        links = geni_slice.getNetworkLinks()
+        for i in range(0, len(links)) :
+            self.addSliver(links[i])
+
         return self._sliver_list
 
 

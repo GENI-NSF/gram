@@ -98,16 +98,44 @@ class GramManager :
                                        ('geni_end_time' in options \
                                             and options['geni_end_time']))
 
-        # Generate a manifest rpsec
+        # Generate a manifest rpsec 
         req_rspec = geni_slice.getRequestRspec()
         manifest, sliver_list = rspec_handler.generateManifest(geni_slice,
                                                                req_rspec)
     
+        # Save the manifest in the slice object.  THIS IS TEMPORARY.  WE
+        # SHOULD BE GENERATING THE SLICE MANIFEST AS NEEDED
+        geni_slice.setManifestRspec(manifest)
+
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
         result_struct = {'geni_rspec': manifest, 'geni_slivers': sliver_list}
         return {'code': code, 'value': result_struct, 'output': ''}
         
+
+    def describe(self, slice_urn, options) :
+        """
+            Describe the status of the resources allocated to this slice.
+        """
+        # Find the slice object
+        if slice_urn not in GramManager._slices :
+            config.logger.error('Asked to delete unknown slice %s' % urns[0])
+            err_output = 'Search for slice %s failed' % slice_urn
+            code = {'geni_code': config.UNKNOWN_SLICE}
+            return {'code': code, 'value': '', 'output': err_output}
+        slice_object = GramManager._slices[slice_urn]
+
+        open_stack_interface.updateOperationalStatus(slice_object)
+        
+        sliver_stat_list = utils.SliverList()
+        sliver_list = sliver_stat_list.getStatusAllSlivers(slice_object)
+
+        # Generate the return struct
+        code = {'geni_code': config.SUCCESS}
+        result_struct = {'geni_rspec': slice_object.getManifestRspec(), \
+                             'geni_slivers': sliver_list}
+        return {'code': code, 'value': result_struct, 'output': ''}
+
 
     def delete(self, urns, options) :
         """

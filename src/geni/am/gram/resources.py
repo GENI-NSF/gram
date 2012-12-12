@@ -51,7 +51,7 @@ class Slice:
       self._user_urn = None
       self._expiration = None
       self._request_rspec = None
-      self._manifest_rspec = None
+      self._manifest_rspec = None   ## TEMP: We should not be saving manifests
       self._slivers = {} # Map of sliverURNs to slivers
       self._VMs = []    # VirtualMachines that belong to this slice
       self._NICs = []   # NetworkInterfaces that belong to this slice
@@ -184,8 +184,10 @@ class Slice:
    def getExpiration(self): # Date expiration of slice
       return self._expiration
 
-   # Manifest RSpec returned at time of slice / slivers creation
-   def getManifestRSpec(self): 
+   def setManifestRspec(self, manifest) :
+      self._manifest_rspec = manifest
+
+   def getManifestRspec(self) : 
       return self._manifest_rspec
 
    def setExpiration(selfexpiration): # Set expiration of slice
@@ -208,7 +210,7 @@ class Sliver():
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
       self._allocation_state = config.allocated  # API v3 allocation state
-      self._operational_state = config.pending_allocation  # Operational state
+      self._operational_state = config.notready  # Operational state
       my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
                                 # by the slice.  sliver_urn must be set.
 

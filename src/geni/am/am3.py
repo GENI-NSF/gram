@@ -702,6 +702,9 @@ class ReferenceAggregateManager(object):
             return self.errorResult(AM_API.BAD_ARGS,
                                     'Bad Arguments: option geni_rspec_version does not have a version field.')
 
+
+        return self._gram_manager.describe(the_slice.urn, options)
+
         # Look to see what RSpec version the client requested
         # Error-check that the input value is supported.
         rspec_type = options['geni_rspec_version']['type']

@@ -29,7 +29,8 @@ allocated = 'geni_allocated'
 provisioned = 'geni_provisioned'
 
 # Operational states for slivers
-pending_allocation = 'geni_pending_allocation'
+notready = 'geni_notready'
+configuring = 'geni_configuring'
 ready = 'geni_ready'
 failed = 'geni_failed'
 
