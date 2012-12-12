@@ -61,16 +61,32 @@ for i in range(1, len(sys.argv)) :
         print cmd_string
         open_stack_interface._execCommand(cmd_string)
 
+    # Find all ports of this tenant
+    ports_cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    ports_output = open_stack_interface._execCommand(ports_cmd_string)
+    port_lines = ports_output.split('\n')
+    for i in range(3, len(port_lines)-2):
+        port_columns = port_lines[i].split('|')
+        port_id = port_columns[1].strip()
+        try:
+            delete_port_cmd = 'quantum port-delete %s' % port_id
+            print delete_port_cmd
+            open_stack_interface._execCommand(delete_port_cmd)
+        except Exception:
+            # Sometimes deleting one port automatically deletes another 
+            # so it is no longer there
+            # Also, some ports belong to the network:router_interface and
+            # can't be deleted from the port API
+            pass 
 
-    # Find the networks owned by this tenant
+    # Find the networks owned by this tenant and delete them
     cmd_string = 'quantum net-list -- --tenant_id %s' % tenant_uuid
     print cmd_string
-    output = open_stack_interface._execCommand(cmd_string)
-
-    # Delete the networks 
-    output_lines = output.split('\n')
-    for i in range(3, len(output_lines) - 2) :
-        columns = output_lines[i].split('|')
+    net_list_output = open_stack_interface._execCommand(cmd_string)
+#    print "NETS = " + net_list_output
+    net_list_output_lines = net_list_output.split('\n')
+    for i in range(3, len(net_list_output_lines) - 2) :
+        columns = net_list_output_lines[i].split('|')
         net_uuid = columns[1]
         cmd_string = 'quantum net-delete %s' % net_uuid
         print cmd_string

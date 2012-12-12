@@ -211,6 +211,7 @@ def generateManifest(geni_slice, req_rspec) :
                     if ip_address != None :
                         ip_addr_elem = manifest.createElement('ip')
                         ip_addr_elem.setAttribute('address', ip_address)
+                        ip_addr_elem.setAttribute('type', 'ip')
                         child_of_node.appendChild(ip_addr_elem)
                     mac_address = nic_object.getMACAddress()
                     if mac_address != None :

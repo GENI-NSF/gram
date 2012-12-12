@@ -6,6 +6,7 @@ import time
 import resources
 import config
 import utils
+import gen_metadata
 
 
 def init() :
@@ -113,7 +114,7 @@ def provisionResources(geni_slice, users) :
                 subnet_addr = link.getSubnet()
                 subnet_prefix = subnet_addr[0 : subnet_addr.rfind('0/24')]
                 nic.setIPAddress(subnet_prefix + vm.getLastOctet())
-                
+
     # For each VirtualMachine object in the slice, create an OpenStack
     # VM if such a VM has not already been created
     for vm in geni_slice.getVMs() :
@@ -345,6 +346,25 @@ def _deleteNetworkLink(link_object) :
     cmd_string = 'quantum net-delete %s' % net_uuid
     _execCommand(cmd_string)
 
+# Return dictionary of 'id' => {'mac_address'=>mac_address, , 'fixed_ips'=>fixed_ips}
+#  for each port associated ith a given tenant
+def _getPortsForTenant(tenant_uuid):
+    cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    output = _execCommand(cmd_string)
+    output_lines = output.split('\n')
+    ports_info = dict()
+    for i in range(3, len(output_lines)-2):
+        port_info_columns = output_lines[i].split('|');
+        port_id = port_info_columns[1].strip()
+        port_mac_address = port_info_columns[3].strip()
+        port_fixed_ips = port_info_columns[4].strip()
+        port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
+        ports_info[port_id] = port_info
+#    print 'ports for tenant ' + str(tenant_uuid)
+#    print str(ports_info)
+    return ports_info
+
+
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
 def _createVM(vm_object, users) :
     slice_object = vm_object.getSlice()
@@ -378,12 +398,26 @@ def _createVM(vm_object, users) :
             cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
             output = _execCommand(cmd_string) 
             nic.setUUID(_getValueByPropertyName(output, 'id'))
+
+    # Now grab and set the mac addresses from the port list
+    ports_info = _getPortsForTenant(tenant_uuid)
+    for nic in vm_object.getNetworkInterfaces() :
+        nic_uuid = nic._uuid
+#        print "NIC_UUID " + str(nic_uuid) +" LISTED " + str(ports_info.has_key(nic_uuid))
+        if ports_info.has_key(nic_uuid):
+            mac_address = ports_info[nic_uuid]['mac_address']
+            nic.setMACAddress(mac_address)
             
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
     cmd_string += (' boot %s --image %s --flavor %s' % (vm_name, os_image_id,
                                                         vm_flavor_id))
+
+    # Add user meta data to create account, pass keys etc.
+    userdata_filename = '/tmp/userdata.sh'
+    gen_metadata.configMetadataSvcs(users, userdata_filename)
+    cmd_string += (' --user_data %s' % (userdata_filename))
     
     # Now add to the cmd_string information about the NICs to be instantiated
     # First add the NIC for the control network

@@ -86,7 +86,7 @@ def _generateScriptInstalls(scriptFile, installItem) :
     scriptFile.write('fi \n\n')
 
 
-def _generateScriptExecutes(scriptFile, executeItem)
+def _generateScriptExecutes(scriptFile, executeItem) :
     """ Generate text for a script that handles an _ExecuteItem object by
         invoking its execution in the generated script
     """
@@ -96,7 +96,7 @@ def _generateScriptExecutes(scriptFile, executeItem)
         config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
 
 
-def _generateAccount(scriptFile, user)
+def _generateAccount(scriptFile, user) :
     """ Generate text for a script that creates a user account and adds SSH authentiation
     """
 
@@ -138,7 +138,7 @@ def _generateAccount(scriptFile, user)
 
 
 #def configMetadataSvcs(install_list, execute_list, users)
-def configMetadataSvcs(users)
+def configMetadataSvcs(users, scriptFilename = 'userdata.sh') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
             install_list: list of _InstallItem class objects to incorporate into the script
@@ -148,13 +148,13 @@ def configMetadataSvcs(users)
 
     # Open the script file for writing
     try:
-        scriptFile = open('userdata.sh', 'w')
+        scriptFile = open(scriptFilename, 'w')
     except IOError:
         config.logger.error("Failed to open file that creates sliver: %s" % pathToScript)
         return None
     
     # Make this file executable
-    os.chmod('userdata.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    os.chmod(scriptFilename, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     
     # Start of the script
     scriptFile.write('#!/bin/bash \n\n')
