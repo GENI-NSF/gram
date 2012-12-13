@@ -2,6 +2,8 @@
 import subprocess
 import re
 import time
+import tempfile
+import os
 
 import resources
 import config
@@ -419,6 +421,8 @@ def _createVM(vm_object, users) :
 
     # Add user meta data to create account, pass keys etc.
     # userdata_filename = '/tmp/userdata.sh'
+    userdata_file = tempfile.NamedTemporaryFile(delete=False)
+    userdata_filename = userdata_file.name
     # gen_metadata.configMetadataSvcs(users, userdata_filename)
     # cmd_string += (' --user_data %s' % (userdata_filename))
     
@@ -434,6 +438,9 @@ def _createVM(vm_object, users) :
             
     # Issue the command to create the VM
     output = _execCommand(cmd_string) 
+
+    # Delete the temp file
+    os.unlink(userdata_filename)
 
     # Get the UUID of the VM that was created 
     vm_uuid = _getValueByPropertyName(output, 'id')
