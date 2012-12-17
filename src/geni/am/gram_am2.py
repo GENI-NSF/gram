@@ -20,8 +20,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._server = server
         self._v3_am._server = server
 
-        self._manifest_by_slice_urn = dict()
-        
     def GetVersion(self, options):
         return ReferenceAggregateManager.GetVersion(self, options)
 
@@ -33,12 +31,11 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             slice_urns = [slice_urn]
 
 
-            # Describe doesn't work yet. Use _manifest_by_slice_urn
-#            ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
-            if self._manifest_by_slice_urn.has_key(slice_urn):
-                result = self._manifest_by_slice_urn[slice_urn]
-            else:
-                result = self.manifest_header() + self.manifest_footer()
+            ret_v3 = self._v3_am.Describe(slice_urns, credentials, options)
+#            print "LR.Describe = " + str(ret_v3)
+            if ret_v3['code']['geni_code'] != 0: return ret_v3
+            result = ret_v3['value']['geni_rspec']
+
         else:
             result = self.advert_header()
             component_manager_id = self._v3_am._my_urn
@@ -100,8 +97,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             return ret_provision_v3
 
         manifest = ret_provision_v3['value']['geni_rspec']
-        self._manifest_by_slice_urn[slice_urn] = manifest
-#        print "MANIFEST = " + str(type(manifest)) + " " + str(manifest) 
 
          # PerformOperationalAction(geni_start)
         action = 'geni_start'
@@ -113,7 +108,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         ret_v3 = self._v3_am.Delete(urns, credentials, options)
-        del self._manifest_by_slice_urn[slice_urn]
         return self.successResult(True)
 
     def SliverStatus(self, slice_urn, credentials, options):

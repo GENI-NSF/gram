@@ -2,6 +2,8 @@
 import subprocess
 import re
 import time
+import tempfile
+import os
 
 import resources
 import config
@@ -335,6 +337,9 @@ def _createNetworkForLink(link_object) :
                                                          subnet_uuid)
     output = _execCommand(cmd_string) 
     
+    # Set operational status
+    link_object.setOperationalState(config.ready)
+
     return {'network_uuid':network_uuid, 'subnet_uuid': subnet_uuid}
 
 
@@ -415,9 +420,11 @@ def _createVM(vm_object, users) :
                                                         vm_flavor_id))
 
     # Add user meta data to create account, pass keys etc.
-    userdata_filename = '/tmp/userdata.sh'
-    gen_metadata.configMetadataSvcs(users, userdata_filename)
-    cmd_string += (' --user_data %s' % (userdata_filename))
+    # userdata_filename = '/tmp/userdata.sh'
+    userdata_file = tempfile.NamedTemporaryFile(delete=False)
+    userdata_filename = userdata_file.name
+    # gen_metadata.configMetadataSvcs(users, userdata_filename)
+    # cmd_string += (' --user_data %s' % (userdata_filename))
     
     # Now add to the cmd_string information about the NICs to be instantiated
     # First add the NIC for the control network
@@ -432,25 +439,31 @@ def _createVM(vm_object, users) :
     # Issue the command to create the VM
     output = _execCommand(cmd_string) 
 
+    # Delete the temp file
+    os.unlink(userdata_filename)
+
     # Get the UUID of the VM that was created 
     vm_uuid = _getValueByPropertyName(output, 'id')
 
     # Wait for the vm status to turn to 'active' and then reboot
-    cmd_string = 'nova show %s' % vm_uuid
-    output = _execCommand(cmd_string) 
-    vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
-    while (vm_state != 'active') :
-        config.logger.info('VM state is %s' % vm_state)
-        time.sleep(3)
+    while True :
         cmd_string = 'nova show %s' % vm_uuid
         output = _execCommand(cmd_string) 
         vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
+        config.logger.info('VM state is %s' % vm_state)
+        if vm_state == 'active' :
+            break
+        time.sleep(3)
+        
 
     # Reboot the VM.  This seems to be necessary for the NICs to get IP addrs 
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
     cmd_string += (' reboot %s' % vm_name)
     _execCommand(cmd_string) 
+
+    # Set the operational state of the VM to configuring
+    vm_object.setOperationalState(config.configuring)
 
     return vm_uuid
 
@@ -588,3 +601,26 @@ def _execCommand(cmd_string) :
     config.logger.info('Issuing command %s' % cmd_string)
     command = cmd_string.split()
     return subprocess.check_output(command) 
+
+
+def updateOperationalStatus(geni_slice) :
+    """
+        Update the operational status of all VM resources.
+    """
+    vms = geni_slice.getVMs()
+    for i in range(0, len(vms)) :
+        vm_object = vms[i]
+        vm_uuid = vm_object.getUUID()
+        if vm_uuid != None :
+            cmd_string = 'nova show %s' % vm_uuid
+            output = _execCommand(cmd_string) 
+            vm_state = _getValueByPropertyName(output, 'status')
+            if vm_state == 'ACTIVE' :
+                vm_object.setOperationalState(config.ready)
+
+    links = geni_slice.getNetworkLinks()
+    for i in range(0, len(links)) :
+        link_object = links[i]
+        network_uuid = link_object.getNetworkUUID() 
+        if network_uuid != None :
+            link_object.setOperationalState(config.ready)
