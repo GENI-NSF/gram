@@ -130,7 +130,7 @@ def _generateAccount(scriptFile, user) :
 
         # Write the set of user public keys
         for str in publicKeys :
-            scriptFile.write('echo ''%s'' >> ~%s/.ssh/authorized_keys \n' % (str, userName))
+            scriptFile.write('echo \'%s\' >> ~%s/.ssh/authorized_keys \n' % (str, userName))
 
         # Make ssh authorized keys available
         scriptFile.write('chmod 600 ~%s/.ssh/authorized_keys \n' % userName)
@@ -154,11 +154,16 @@ def configMetadataSvcs(users, scriptFilename = 'userdata.sh') :
         return None
     
     # Make this file executable
-    os.chmod(scriptFilename, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    #cmd_str = 'chmod 777 %s' & scriptFilename
+    #output = _execCommand(cmd_str)
+    #os.chmod(scriptFilename, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     
     # Start of the script
     scriptFile.write('#!/bin/bash \n\n')
+    #scriptFile.write('#!/bin/sh \n\n')
     scriptFile.write('# This script is auto-generated\n\n')
+
+    scriptFile.write('echo \"Hello World!\" | tee /home/output.txt\n')
 
     """
     # Generate support for file installs
