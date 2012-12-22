@@ -45,6 +45,7 @@ import geni.am
 import geni.am.am2
 import geni.am.am3
 import geni.am.gram_am2
+import geni.am.gram_am3
 from geni.config import read_config
 
 
@@ -141,7 +142,7 @@ def main(argv=None):
                                           ca_certs=comboCertsFile,
                                           base_name=config['global']['base_name'])
     elif opts.api_version == 3:
-        ams = geni.am.am3.AggregateManagerServer((opts.host, int(opts.port)),
+        ams = geni.am.gram_am3.GramAggregateManagerServer((opts.host, int(opts.port)),
                                           keyfile=keyfile,
                                           certfile=certfile,
                                           trust_roots_dir=getAbsPath(opts.rootcadir),

@@ -3,7 +3,7 @@
 # Since Gram is written to support V3
 from am2 import Slice, ReferenceAggregateManager
 from am2 import AggregateManager, AggregateManagerServer
-from am3 import ReferenceAggregateManager as ReferenceAggregateManager_V3, Slice as Slice_V3
+from gram_am3 import ReferenceAggregateManager as ReferenceAggregateManager_V3, Slice as Slice_V3
 import base64
 import zlib
 import uuid
