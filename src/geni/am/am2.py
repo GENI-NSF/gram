@@ -32,13 +32,14 @@ import datetime
 import dateutil.parser
 import logging
 import os
+import threading
 import uuid
 import xml.dom.minidom as minidom
 import zlib
 
 import geni
 from geni.util.urn_util import publicid_to_urn
-from geni.SecureXMLRPCServer import SecureXMLRPCServer
+from geni.SecureXMLRPCServer import SecureXMLRPCServer, ThreadedSecureXMLRPCServer
 from resource import Resource
 from aggregate import Aggregate
 from fakevm import FakeVM
@@ -102,8 +103,9 @@ class ReferenceAggregateManager(object):
 
     # root_cert is a single cert or dir of multiple certs
     # that are trusted to sign credentials
-    def __init__(self, root_cert, urn_authority, url):
+    def __init__(self, root_cert, urn_authority, certfile, url):
         self._url = url
+        self._certfile = certfile
         self._api_version = 2
         self._slices = dict()
         self._agg = Aggregate()
@@ -675,14 +677,20 @@ class AggregateManagerServer(object):
         # Decode the addr into a URL. Is there a pythonic way to do this?
         server_url = "https://%s:%d/" % addr
         delegate = ReferenceAggregateManager(trust_roots_dir, base_name, 
+                                             certfile, 
                                              server_url)
         # FIXME: set logRequests=true if --debug
-        self._server = SecureXMLRPCServer(addr, keyfile=keyfile,
-                                          certfile=certfile, ca_certs=ca_certs)
+        self._server = ThreadedSecureXMLRPCServer(addr, 
+                                          keyfile=keyfile,
+                                          certfile=certfile, 
+                                          ca_certs=ca_certs)
         self._server.register_instance(AggregateManager(delegate))
         # Set the server on the delegate so it can access the
         # client certificate.
         delegate._server = self._server
+
+        self._server_thread = threading.Thread(target=self._server.serve_forever)
+        self._server_thread.daemon = False
 
         if not base_name is None:
             global RESOURCE_NAMESPACE

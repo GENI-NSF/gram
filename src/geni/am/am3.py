@@ -33,6 +33,7 @@ import datetime
 import dateutil.parser
 import logging
 import os
+import threading
 import traceback
 import uuid
 import xml.dom.minidom as minidom
@@ -41,10 +42,12 @@ import zlib
 import geni
 from geni.util.urn_util import publicid_to_urn
 import geni.util.urn_util as urn
-from geni.SecureXMLRPCServer import SecureXMLRPCServer
+from geni.SecureXMLRPCServer import SecureXMLRPCServer, ThreadedSecureXMLRPCServer
 from aggregate import Aggregate
 from fakevm import FakeVM
-
+from geni.am.gram import gram_context
+from gram import gram_manager
+from gram.gram_manager import GramManager
 
 # See sfa/trust/rights.py
 # These are names of operations
@@ -113,7 +116,7 @@ class AM_API(object):
     ALREADY_EXISTS = 17
     # --- Non-standard errors below here. ---
     OUT_OF_RANGE = 19
-
+    
 
 class ApiErrorException(Exception):
     def __init__(self, code, output):
@@ -242,19 +245,26 @@ class ReferenceAggregateManager(object):
 
     # root_cert is a single cert or dir of multiple certs
     # that are trusted to sign credentials
-    def __init__(self, root_cert, urn_authority, url):
+    def __init__(self, root_cert, urn_authority, certfile, url):
         self._urn_authority = urn_authority
         self._url = url
+        self._certfile = certfile
+        self._component_manager_id = self.readURNFromCertfile(certfile)
+        gram_context.GRAM_AM_URN = self._component_manager_id
+#        print "CMID = " + self._component_manager_id
         self._cred_verifier = geni.CredentialVerifier(root_cert)
         self._api_version = 3
         self._am_type = "gcf"
         self._slices = dict()
         self._agg = Aggregate()
-        self._agg.add_resources([FakeVM(self._agg) for _ in range(3)])
+        self._agg.add_resources([FakeVM(self._agg) for _ in range(200)])
         self._my_urn = publicid_to_urn("%s %s %s" % (self._urn_authority, 'authority', 'am'))
         self.max_lease = datetime.timedelta(minutes=REFAM_MAXLEASE_MINUTES)
         self.max_alloc = datetime.timedelta(seconds=ALLOCATE_EXPIRATION_SECONDS)
         self.logger = logging.getLogger('gcf.am3')
+
+        # Startup the GRAM Manager
+        self._gram_manager = GramManager()
 
     def GetVersion(self, options):
         '''Specify version information about this AM. That could
@@ -410,10 +420,14 @@ class ReferenceAggregateManager(object):
                                                         privileges)
         # If we get here, the credentials give the caller
         # all needed privileges to act on the given target.
+        gram_return = self._gram_manager.allocate(slice_urn, credentials,
+                                                  rspec, options)
+
         if slice_urn in self._slices:
             self.logger.error('Slice %s already exists.', slice_urn)
             return self.errorResult(AM_API.ALREADY_EXISTS,
                                     'Slice %s already exists' % (slice_urn))
+
 
         rspec_dom = None
         try:
@@ -471,9 +485,11 @@ class ReferenceAggregateManager(object):
                              sliver.resource().id, slice_urn, sliver.urn())
 
         manifest = self.manifest_rspec(slice_urn)
-        result = dict(geni_rspec=manifest,
-                      geni_slivers=[s.status() for s in newslice.slivers()])
-        return self.successResult(result)
+        # result = dict(geni_rspec=manifest,
+        #              geni_slivers=[s.status() for s in newslice.slivers()])
+        # return self.successResult(result)
+        return gram_return
+
 
     def Provision(self, urns, credentials, options):
         """Allocate slivers to the given slice according to the given RSpec.
@@ -511,7 +527,9 @@ class ReferenceAggregateManager(object):
             sliver.setOperationalState(OPSTATE_GENI_NOT_READY)
         result = dict(geni_rspec=self.manifest_rspec(the_slice.urn),
                       geni_slivers=[s.status() for s in slivers])
-        return self.successResult(result)
+        # return self.successResult(result)
+        return self._gram_manager.provision(the_slice.urn, credentials,
+                                            options)
 
     def Delete(self, urns, credentials, options):
         """Stop and completely delete the named slivers and/or slice.
@@ -542,7 +560,9 @@ class ReferenceAggregateManager(object):
             if not slyce.slivers():
                 self.logger.debug("Deleting empty slice %r", slyce.urn)
                 del self._slices[slyce.urn]
-        return self.successResult([s.status() for s in slivers])
+        # return self.successResult([s.status() for s in slivers])
+        return self._gram_manager.delete(urns, options)
+
 
     def PerformOperationalAction(self, urns, credentials, action, options):
         """Peform the specified action on the set of objects specified by
@@ -683,6 +703,9 @@ class ReferenceAggregateManager(object):
             return self.errorResult(AM_API.BAD_ARGS,
                                     'Bad Arguments: option geni_rspec_version does not have a version field.')
 
+
+        return self._gram_manager.describe(the_slice.urn, options)
+
         # Look to see what RSpec version the client requested
         # Error-check that the input value is supported.
         rspec_type = options['geni_rspec_version']['type']
@@ -806,6 +829,16 @@ class ReferenceAggregateManager(object):
         return dict(code=code_dict,
                     value="",
                     output=output)
+
+    def readURNFromCertfile(self, certfile):
+            import sfa.trust.certificate
+            cert =  sfa.trust.certificate.Certificate()
+            cert.load_from_file(certfile)
+            san = cert.get_data('subjectAltName')
+            sans = san.split(', ');
+            urns = [s[4:] for s in filter(lambda x: 'publicid' in x, sans)]
+            urn = urns[0]
+            return urn
 
     def _naiveUTC(self, dt):
         """Converts dt to a naive datetime in UTC.
@@ -1200,14 +1233,19 @@ class AggregateManagerServer(object):
         # Decode the addr into a URL. Is there a pythonic way to do this?
         server_url = "https://%s:%d/" % addr
         delegate = ReferenceAggregateManager(trust_roots_dir, base_name,
+                                             certfile, 
                                              server_url)
         # FIXME: set logRequests=true if --debug
-        self._server = SecureXMLRPCServer(addr, keyfile=keyfile,
-                                          certfile=certfile, ca_certs=ca_certs)
+        self._server = ThreadedSecureXMLRPCServer(addr, keyfile=keyfile,
+                                                  certfile=certfile, 
+                                                  ca_certs=ca_certs)
         self._server.register_instance(AggregateManager(delegate))
         # Set the server on the delegate so it can access the
         # client certificate.
         delegate._server = self._server
+
+        self._server_thread = threading.Thread(target=self._server.serve_forever)
+        self._server_thread.daemon = False
 
         if not base_name is None:
             global RESOURCE_NAMESPACE

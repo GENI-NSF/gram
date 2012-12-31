@@ -44,6 +44,8 @@ import geni
 import geni.am
 import geni.am.am2
 import geni.am.am3
+import geni.am.gram_am2
+import geni.am.gram_am3
 from geni.config import read_config
 
 
@@ -67,7 +69,7 @@ def parse_args(argv):
     parser.add_option("--debug", action="store_true", default=False,
                        help="enable debugging output")
     parser.add_option("-V", "--api-version", type=int,
-                      help="AM API Version", default=2)
+                      help="AM API Version", default=3)
     return parser.parse_args()
 
 def getAbsPath(path):
@@ -133,14 +135,14 @@ def main(argv=None):
                                           ca_certs=comboCertsFile,
                                           base_name=config['global']['base_name'])
     elif opts.api_version == 2:
-        ams = geni.am.am2.AggregateManagerServer((opts.host, int(opts.port)),
+        ams = geni.am.gram_am2.GramAggregateManagerServer((opts.host, int(opts.port)),
                                           keyfile=keyfile,
                                           certfile=certfile,
                                           trust_roots_dir=getAbsPath(opts.rootcadir),
                                           ca_certs=comboCertsFile,
                                           base_name=config['global']['base_name'])
     elif opts.api_version == 3:
-        ams = geni.am.am3.AggregateManagerServer((opts.host, int(opts.port)),
+        ams = geni.am.gram_am3.GramAggregateManagerServer((opts.host, int(opts.port)),
                                           keyfile=keyfile,
                                           certfile=certfile,
                                           trust_roots_dir=getAbsPath(opts.rootcadir),
