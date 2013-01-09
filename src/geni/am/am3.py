@@ -33,7 +33,6 @@ import datetime
 import dateutil.parser
 import logging
 import os
-import threading
 import traceback
 import uuid
 import xml.dom.minidom as minidom
@@ -42,7 +41,7 @@ import zlib
 import geni
 from geni.util.urn_util import publicid_to_urn
 import geni.util.urn_util as urn
-from geni.SecureXMLRPCServer import SecureXMLRPCServer, ThreadedSecureXMLRPCServer
+from geni.SecureXMLRPCServer import SecureXMLRPCServer
 from aggregate import Aggregate
 from fakevm import FakeVM
 from geni.am.gram import gram_context
@@ -1236,16 +1235,12 @@ class AggregateManagerServer(object):
                                              certfile, 
                                              server_url)
         # FIXME: set logRequests=true if --debug
-        self._server = ThreadedSecureXMLRPCServer(addr, keyfile=keyfile,
-                                                  certfile=certfile, 
-                                                  ca_certs=ca_certs)
+        self._server = SecureXMLRPCServer(addr, keyfile=keyfile,
+                                          certfile=certfile, ca_certs=ca_certs)
         self._server.register_instance(AggregateManager(delegate))
         # Set the server on the delegate so it can access the
         # client certificate.
         delegate._server = self._server
-
-        self._server_thread = threading.Thread(target=self._server.serve_forever)
-        self._server_thread.daemon = False
 
         if not base_name is None:
             global RESOURCE_NAMESPACE

@@ -143,9 +143,6 @@ def deleteAllResourcesForSlice(geni_slice) :
         vm.setAllocationState(config.unallocated)
         sliver_stat_list.addSliver(vm)
 
-    # Delete the ports associated with the slice
-    _deleteNetworkPorts(geni_slice.getTenantUUID())
-
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
         _deleteNetworkLink(link)
@@ -345,6 +342,7 @@ def _createNetworkForLink(link_object) :
 
     return {'network_uuid':network_uuid, 'subnet_uuid': subnet_uuid}
 
+
 def _deleteNetworkLink(link_object) :
     """
        Delete network and subnet associated with this link_object
@@ -371,20 +369,6 @@ def _getPortsForTenant(tenant_uuid):
 #    print str(ports_info)
     return ports_info
 
-
-def _deleteNetworkPorts(tenant_uuid):
-    ports_info = _getPortsForTenant(tenant_uuid)
-    for port_id in ports_info.keys():
-        port_info = ports_info[port_id]
-        delete_port_cmd_string = 'quantum port-delete %s' % port_id
-        try:
-            output = _execCommand(delete_port_cmd_string)
-        except Exception:
-            # Sometimes deleting one port automatically deletes another
-            # So it is no longer there.
-            # Also, some ports belong to the network:router_interface
-            # And can't be deleted from the port API
-            pass
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
 def _createVM(vm_object, users) :

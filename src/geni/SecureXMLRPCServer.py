@@ -72,7 +72,7 @@ class SecureXMLRPCRequestHandler(SimpleXMLRPCRequestHandler):
         return (ssl.PEM_HEADER + '\n' +
                 textwrap.fill(f, 64) +
                 '\n' + ssl.PEM_FOOTER + '\n')
-
+        
 
 class SecureXMLRPCServer(SimpleXMLRPCServer):
     """An extension to SimpleXMLRPCServer that adds SSL support."""
@@ -101,14 +101,3 @@ class SecureXMLRPCServer(SimpleXMLRPCServer):
             # Catch for clearer error message?
             self.server_bind()
             self.server_activate()
-
-
-import threading
-import SocketServer
-
-# A simple XML RPC server supporting SSL based on SecureXMLRPCServer.
-# Spawns a separate thread for each connection
-class ThreadedSecureXMLRPCServer(SocketServer.ThreadingMixIn, SecureXMLRPCServer):
-    pass
-        
-
