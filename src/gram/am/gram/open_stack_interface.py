@@ -420,11 +420,11 @@ def _createVM(vm_object, users) :
                                                         vm_flavor_id))
 
     # Add user meta data to create account, pass keys etc.
-    # userdata_filename = '/tmp/userdata.sh'
+    # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
-    # gen_metadata.configMetadataSvcs(users, userdata_filename)
-    # cmd_string += (' --user_data %s' % (userdata_filename))
+    gen_metadata.configMetadataSvcs(users, userdata_filename)
+    cmd_string += (' --user_data %s.gz' % userdata_filename)
     
     # Now add to the cmd_string information about the NICs to be instantiated
     # First add the NIC for the control network

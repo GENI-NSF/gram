@@ -25,6 +25,7 @@ import sys
 import stat
 import os.path
 import uuid
+import subprocess
 import config
 
 
@@ -96,11 +97,12 @@ def _generateScriptExecutes(scriptFile, executeItem) :
         config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
 
 
-def _generateAccount(scriptFile, user) :
-    """ Generate text for a script that creates a user account and adds SSH authentiation
+def _generateAccount(user) :
+    """ Generate a script that creates a new user account and adds SSH authentiation
     """
 
     userName = ""
+    scriptFilename = ""
     publicKeys = []
 
     # Go through every user and get the user's name and ssh public key
@@ -118,47 +120,50 @@ def _generateAccount(scriptFile, user) :
     # Only install the user account if there is a user to install
     if userName != "" :
 
+        # Open the script file for writing
+        scriptFilename = '/tmp/' + userName + '.txt'
+        try:
+            scriptFile = open(scriptFilename, 'w')
+        except IOError:
+            config.logger.error("Failed to open file that creates metadata: %s" % scriptFilename)
+            return ""
+
+        scriptFile.write('#!/bin/sh \n')
+#        scriptFile.write('# This textual script is auto-generated\n\n')
+
         # Create account with default shell
         scriptFile.write('useradd -c "%s user" -s /bin/bash -m %s \n' % (userName, userName))
 
         # Create a random default password for user
-        scriptFile.write('openssl rand -base64 6 | tee -a ~%s/.password | passwd -stdin %s \n' % (userName, userName))
+#        scriptFile.write(' - openssl rand -base64 6 | tee -a ~%s/.password | passwd -stdin %s \n' % (userName, userName))
 
         # Configure SSH authentication for new user
         scriptFile.write('mkdir ~%s/.ssh \n' % userName)
-        scriptFile.write('chmod 700 ~%s/.ssh \n' % userName)
+        scriptFile.write('chmod 755 ~%s/.ssh \n' % userName)
 
         # Write the set of user public keys
         for str in publicKeys :
-            scriptFile.write('echo ''%s'' >> ~%s/.ssh/authorized_keys \n' % (str, userName))
+            newstr = str.replace("\n", "")
+            scriptFile.write('echo \'%s\' >> ~%s/.ssh/authorized_keys \n' % (newstr, userName))
 
         # Make ssh authorized keys available
-        scriptFile.write('chmod 600 ~%s/.ssh/authorized_keys \n' % userName)
-        scriptFile.write('chown -R %s:%s ~%s/.ssh \n\n' % (userName, userName, userName))
+        # Note that in the chown command below requires the escape character printed before the colon (":")
+        #   because non-VASL characters in the cloud-config syntax require a qualifier in order to be properly parsed
+        scriptFile.write('chmod 644 ~%s/.ssh/authorized_keys \n' % userName)
+        scriptFile.write('chown -R %s\\:%s ~%s/.ssh \n' % (userName, userName, userName))
+        scriptFile.close()
+
+    return scriptFilename
 
 
 #def configMetadataSvcs(install_list, execute_list, users)
-def configMetadataSvcs(users, scriptFilename = 'userdata.sh') :
+def configMetadataSvcs(users, scriptFilename = 'userdata.txt') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
             install_list: list of _InstallItem class objects to incorporate into the script
             execute_list: list of _ExecuteItem class objects to incorporate into the script
             users: dictionary of json specs describing new accounts to create at boot
     """
-
-    # Open the script file for writing
-    try:
-        scriptFile = open(scriptFilename, 'w')
-    except IOError:
-        config.logger.error("Failed to open file that creates sliver: %s" % pathToScript)
-        return None
-    
-    # Make this file executable
-    os.chmod(scriptFilename, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-    
-    # Start of the script
-    scriptFile.write('#!/bin/bash \n\n')
-    scriptFile.write('# This script is auto-generated\n\n')
 
     """
     # Generate support for file installs
@@ -175,13 +180,24 @@ def configMetadataSvcs(users, scriptFilename = 'userdata.sh') :
     """
 
     # Generate support for creating new user accounts
-    if (len(users) > 0) :
-        scriptFile.write('# Create new user accounts\n\n')
-        for user in users :
-            _generateAccount(scriptFile, user)
+    # Iterate through the list of users and create a separate script text file for each
+    # When all files are generated, then combine them into a single gzipped mime file
+    cmd_count = 0
+    cmd = 'write-mime-multipart --output=%s ' % scriptFilename
+    for user in users :
+        scriptName = _generateAccount(user)
+        if scriptName != "" :
+            cmd = cmd + scriptName + ':text/x-shellscript '
+            cmd_count = cmd_count + 1
 
-    # Close the output file
-    scriptFile.write('\n\n')
-    scriptFile.close()
+    if cmd_count > 0 : 
+        config.logger.info('Issuing command %s' % cmd)
+        command = cmd.split()
+        subprocess.check_output(command)
+
+        cmd = 'gzip -f %s ' % scriptFilename
+        config.logger.info('Issuing command %s' % cmd)
+        command = cmd.split()
+        subprocess.check_output(command)
 
 
