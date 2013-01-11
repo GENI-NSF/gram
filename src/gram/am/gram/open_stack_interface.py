@@ -1,5 +1,6 @@
 
 import subprocess
+import pdb
 import re
 import time
 import tempfile
@@ -440,7 +441,8 @@ def _createVM(vm_object, users) :
     output = _execCommand(cmd_string) 
 
     # Delete the temp file
-    os.unlink(userdata_filename)
+    zipped_userdata_filename = userdata_filename + ".gz"
+    os.unlink(zipped_userdata_filename)
 
     # Get the UUID of the VM that was created 
     vm_uuid = _getValueByPropertyName(output, 'id')

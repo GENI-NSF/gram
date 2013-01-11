@@ -13,7 +13,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     def __init__(self, root_cert, urn_authority, url, certfile, server):
 
         ReferenceAggregateManager.__init__(self, root_cert, urn_authority, 
-                                           url)
+                                           certfile, url)
         self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, 
                                                    certfile, url)
         self._certfile = certfile
