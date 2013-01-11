@@ -44,7 +44,6 @@ import os
 import geni
 import gram
 import gram.am
-import gram.am.am2
 import gram.am.am3
 import gram.am.gram_am2
 from geni.config import read_config
