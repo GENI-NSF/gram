@@ -45,7 +45,7 @@ from geni.SecureXMLRPCServer import SecureXMLRPCServer
 from geni.am.fakevm import FakeVM
 from geni.am.aggregate import Aggregate
 
-from gram import gram_context
+from gram import config
 from gram.gram_manager import GramManager
 
 # See sfa/trust/rights.py
@@ -249,7 +249,7 @@ class ReferenceAggregateManager(object):
         self._url = url
         self._certfile = certfile
         self._component_manager_id = self.readURNFromCertfile(certfile)
-        gram_context.GRAM_AM_URN = self._component_manager_id
+        context.GRAM_AM_URN = self._component_manager_id
 #        print "CMID = " + self._component_manager_id
         self._cred_verifier = geni.CredentialVerifier(root_cert)
         self._api_version = 3
