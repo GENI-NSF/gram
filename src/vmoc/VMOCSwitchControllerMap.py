@@ -1,6 +1,7 @@
 from pox.core import core
 from VMOCSwitchConnection import VMOCSwitchConnection
 from VMOCControllerConnection import VMOCControllerConnection
+import pdb
 
 log = core.getLogger() # Use the central logging service
 
@@ -19,6 +20,7 @@ class VMOCSwitchControllerMap(object):
     # with a given switch connection
     def lookup_controllers_for_switch(self, switch_conn):
         return self._controller_connections_by_switch[switch_conn]
+
 
     # Find the switch connection associated with the 
     # given controller connection
@@ -92,7 +94,7 @@ class VMOCSwitchControllerMap(object):
 
     # Remove switch connection from map 
     # and all associated controller connections
-    def remove_switch(self, switch_conn):
+    def remove_switch(self, switch_conn, close_controller_connections=False):
         # Remove switch from list of switch connections
         if switch_conn in self._switch_connections:
             self._switch_connections.remove(switch_conn)
@@ -110,6 +112,9 @@ class VMOCSwitchControllerMap(object):
                         conns.remove(controller_conn)
                         del self._switch_connection_by_controller\
                             [controller_conn]
+                if close_controller_connections:
+                    controller_conn.close()
+
         # Remove controller associated with switch connection
         del self._controller_connections_by_switch[switch_conn]
 
@@ -128,6 +133,17 @@ class VMOCSwitchControllerMap(object):
             print "      " + str(switch)
             for controller in self._controller_connections_by_switch[switch]:
                 print "         " + str(controller)
+        print "   URLS:"
+        for url in self._controller_urls:
+            print "     " + str(url)
+        print "   Switches(unindexed):"
+        for switch_connection in self._switch_connections:
+            print "     " + str(switch_connection)
+        print "   Switches (by Controller):"
+        for controller_conn in self._switch_connection_by_controller.keys():
+            print "     " + str(controller_conn)
+            switch_conn = self._switch_connection_by_controller[controller_conn]
+            print "          " + str(switch_conn)
 
 
 
@@ -159,8 +175,8 @@ def add_switch_connection(switch_conn, open_on_create=True):
     _switch_controller_map.add_switch(switch_conn, open_on_create)
 
 # Remove switch connection from map and all associated controller connections
-def remove_switch_connection(switch_conn):
-    _switch_controller_map.remove_switch(switch_conn)
+def remove_switch_connection(switch_conn, close_controller_connections=False):
+    _switch_controller_map.remove_switch(switch_conn, close_controller_connections)
 
 # Dump contents of current switch controller map state
 def dump_switch_controller_map():

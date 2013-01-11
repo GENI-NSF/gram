@@ -28,11 +28,11 @@ class VMOCController(object):
         scmap.add_switch_connection(switch)
 
 
-def launch(management_port = 7001):
+def launch(management_port = 7001, default_controller_url = "https://localhost:9000"):
     log.debug("VMOC.launch");
     core.registerNew(VMOCController)
     # In case we get a string from command line
     management_port = int(management_port) 
-    management_interface = VMOCManagementInterface(management_port)
+    management_interface = VMOCManagementInterface(management_port, default_controller_url)
     management_interface.start()
 

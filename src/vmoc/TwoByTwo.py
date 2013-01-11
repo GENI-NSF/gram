@@ -7,7 +7,7 @@ class TwoByTwo( Topo ):
     "Two switches, each of which have two nodes attached to them"
 
     def __init__( self, enable_all = True ):
-        "Create custom topo."
+        "Create custom topo : TwoByTwo."
 
         # Add default members to class.
         super( TwoByTwo, self ).__init__()
@@ -43,71 +43,36 @@ class TwoByTwo( Topo ):
         # Consider all switches and hosts 'on'
         self.enable_all()
 
-        # Print out the config files for VMOC
-        # fixed and slice-specific
+        # Print out the slice config files for VMOC
 
-        self.generateFixedConfig()
-        self.generateSliceConfig('S1', 'http://localhost:9001', 101, [1, 4])
-        self.generateSliceConfig('S2', 'http://localhost:9002', 102, [2, 3])
+        self.generateSliceConfig('S1', None, 101, [1, 4])
+#        self.generateSliceConfig('S2', 'http://localhost:9001', 102, [2, 3])
+        self.generateSliceConfig('S2', None, 102, [2, 3])
 
-    # fixed_config.json:
-    # There is the fixed configuration of switches/ports/nodes
-    #    For each switch
-    #      {dpid:DPID, links:{port:port, is_node:is_node, id:dpid/node_id}}
-    def generateFixedConfig(self):
-        switches = Topo.switches(self)
-        nodes = Topo.nodes(self)
-        hosts = Topo.hosts(self)
-
-        config = list()
-
-        for s in switches:
-            dpid = s
-            links_info = list()
-            for n in nodes:
-                if n in hosts: continue
-                ports = Topo.port(self, s, n)
-                if ports == None: continue
-                port = ports[0]
-                is_node = n in hosts
-                link_info = {'port' : port, 'is_node' : is_node, 'id' : n}
-                links_info.append(link_info)
-            node_config = {'dpid' : dpid, 'links' : links_info}
-            config.append(node_config)
-                        
-        self.dumpAsJson(config, '/tmp/fixed_config.json')
 
     # slice_config.json
     # And the slice topology configuration 
     #    {slice_id:slice_id, controller_url:controller_url,
-    #        vlan_id:vlan_id, nodes:[{mac:mac, switch:switch, port:port}]
-    #    slice_id and controller_url VLAN_id are fixed
-    #    node_id, MAC, PORT are from config
-    #    i.e. what port is this node connected to on the node's switch
-    def generateSliceConfig(self, slice_name, controller_url, vlan_id, nodes):
+    #        vlans:[{vlan_id:vlan_id, mac:mac}]
+    def generateSliceConfig(self, slice_id, controller_url, vlan_id, nodes):
 
         switches = Topo.switches(self)
         hosts = Topo.hosts(self)
 
-        nodes_info = list()
+        macs = []
         for n in nodes:
             if not n in hosts: continue
             mac = '00:00:00:00:00:%02d' % n
-            for s in switches:
-                ports = Topo.port(self, s, n)
-                if ports == None: continue
-                port = ports[0]
-                switch_id = s
-                node_info = {'mac' : mac, 'switch' : switch_id, 
-                             'port' : port}
-                nodes_info.append(node_info)
+            macs.append(mac)
 
-        config = {'slice_id' : slice_name, 
-                  'controller_url' : controller_url, 
-                  'vlan_id' : vlan_id,
-                  'nodes' : nodes_info}
+        vlan = {'vlan_id' : vlan_id, 'macs' : macs}
+        vlans = [vlan]
+        config = {'slice_id' : slice_id,
+                  'controller_url' : controller_url,
+                  'vlans' : vlans}
 
-        filename = '/tmp/slice_config_%s.json' % slice_name
+
+        filename = '/tmp/slice_config_%s.json' % slice_id
         self.dumpAsJson(config, filename)
 
     def dumpAsJson(self, data, filename):
