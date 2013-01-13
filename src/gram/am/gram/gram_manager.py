@@ -1,12 +1,14 @@
 
+import os
 import signal
+import time
 
 import config
 from resources import Slice
 import rspec_handler
 import open_stack_interface
 import utils
-
+import Archiving
 
 class GramManager :
     """
@@ -19,8 +21,12 @@ class GramManager :
 
         # Set up a signal handler to clean up on a control-c
         # signal.signal(signal.SIGINT, open_stack_interface.cleanup)
-        return
+
+        # Recover state from snapshot, if configured to do so
+        self.restore_state()
         
+        # Remove extraneous snapshots
+        self.prune_snapshots()
 
     def allocate(self, slice_urn, creds, rspec, options) :
         """
@@ -67,6 +73,9 @@ class GramManager :
         manifest, sliver_list = \
             rspec_handler.generateManifest(geni_slice, rspec)
 
+        # Persist aggregate state
+        self.persist_state()
+
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
         result_struct = {'geni_rspec': manifest, 'geni_slivers': sliver_list}
@@ -106,6 +115,9 @@ class GramManager :
         # Save the manifest in the slice object.  THIS IS TEMPORARY.  WE
         # SHOULD BE GENERATING THE SLICE MANIFEST AS NEEDED
         geni_slice.setManifestRspec(manifest)
+
+        # Persist new GramManager state
+        self.persist_state()
 
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
@@ -158,10 +170,79 @@ class GramManager :
         # Remove slice from list of known slices
         del GramManager._slices[urns[0]]    
 
+        # Persist new GramManager state
+        self.persist_state()
+
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
         return {'code': code, 'value': sliver_status_list,  'output': ''}
 
+    # Persist state to file based on current timestamp
+    __persist_filename_format="%Y_%m_%d_%H_%M_%S"
+    __recent_base_filename=None
+    __base_filename_counter=0
+    def persist_state(self):
+        if not config.gram_snapshot_directory: return
+        timestamp = time.time()
+        now = time.localtime()
+        base_filename = \
+            time.strftime(GramManager.__persist_filename_format, now)
+        counter = 0
+        if base_filename==GramManager.__recent_base_filename:
+            counter = GramManager.__base_filename_counter
+            GramManager.__base_filename_counter = GramManager.__base_filename_counter + 1
+        else:
+            GramManager.__base_filename_counter=0
+        filename = "%s/%s_%d.json" % (config.gram_snapshot_directory, \
+                                          base_filename, counter)
+        config.logger.info("Persisting state to %s" % filename)
+        Archiving.write_slices(filename,GramManager. _slices)
+        config.logger.info("Persisting state to %s in %.2f sec" % \
+                               (filename, (time.time() - timestamp)))
+
+    # Restore state from snapshot specified in config
+    def restore_state(self):
+        if config.gram_snapshot_directory is not None:
+            if not os.path.exists(config.gram_snapshot_directory):
+                os.makedirs(config.gram_snapshot_directory)
+
+            # Use the specified one (if any)
+            # Otherwise, use the most recent (if indicated)
+            # Otherwise, no state to restore
+            snapshot_file = None
+            if config.recover_from_snapshot: 
+                snapshot_file = config.recover_from_snapshot
+            if not snapshot_file and config.recover_from_most_recent_snapshot:
+                files = self.get_snapshots()
+                if files and len(files) > 0:
+                    snapshot_file = files[len(files)-1]
+
+            if snapshot_file is not None:
+                config.logger.info("Restoring state from snapshot : %s" \
+                                       % snapshot_file)
+                GramManager._slices = Archiving.read_slices(snapshot_file)
+                config.logger.info("Restored %d slices" % \
+                                       len(GramManager._slices))
+
+
+    # Remove old snapshots, keeping only last config.snapshot_maintain_limit
+    def prune_snapshots(self):
+        files = self.get_snapshots()
+        if files and len(files) > config.snapshot_maintain_limit:
+            files_to_remove = files[0:config.snapshot_maintain_limit-1]
+            for file in files_to_remove:
+                os.unlink(file)
+
+    # Return list of files in config.gam_snapshot_directory  in time
+    # ascending order
+    def get_snapshots(self):
+        files = None
+        if config.gram_snapshot_directory is not None:
+            dir = config.gram_snapshot_directory
+            files = [os.path.join(dir, s) for s in os.listdir(dir)
+                     if os.path.isfile(os.path.join(dir, s))]
+            files.sort(key = lambda s: os.path.getmtime(s))
+        return files
 
     def __del__(self) :
         print ('In destructor')

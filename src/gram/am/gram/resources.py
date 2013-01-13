@@ -181,6 +181,9 @@ class Slice:
    def getUserURN(self): # String User URN
       return self._user_urn
 
+   def setUserURN(self, user_urn):
+      self._user_urn = user_urn
+
    def getExpiration(self): # Date expiration of slice
       return self._expiration
 
@@ -190,7 +193,7 @@ class Slice:
    def getManifestRspec(self) : 
       return self._manifest_rspec
 
-   def setExpiration(selfexpiration): # Set expiration of slice
+   def setExpiration(self, expiration): # Set expiration of slice
       self._expiration = expiration;
 
    def setRequestRspec(self, rspec) :
@@ -203,9 +206,9 @@ class Slice:
 
 # Base class for resource slivers
 class Sliver():
-   def __init__(self, my_slice) :
+   def __init__(self, my_slice, uuid=None) :
       self._sliver_urn = self._generateURN()    # URN of this sliver
-      self._uuid = None     # OpenStack UUID of resource
+      self._uuid = uuid     # OpenStack UUID of resource
       self._slice = my_slice # Slice associated with sliver
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
@@ -289,7 +292,7 @@ class _ExecuteItem :
 class VirtualMachine(Sliver): # 
    _next_octet = 100  # Last octet of an ip address.  Used when assigning
                       # ip addresses to the interfaces on the VM
-   def __init__(self, my_slice) :
+   def __init__(self, my_slice, uuid=None) :
       self._control_net_addr = None  # IP address of VM on the control net
       self._installs = []    # Items to be installed on the VM on startup
       self._executes = []    # Scripts to be extecuted on the VM on startup
@@ -300,7 +303,7 @@ class VirtualMachine(Sliver): #
       self._authorized_user_urns = None
       self._flavor = config.default_VM_flavor
       self._os_image = config.default_OS_image
-      Sliver.__init__(self, my_slice)
+      Sliver.__init__(self, my_slice, uuid)
 
    def __str__(self):
       return resource_image(self, "VM") 
@@ -341,13 +344,13 @@ class VirtualMachine(Sliver): #
 
 # A NIC (Network Interface Card) resource
 class NetworkInterface(Sliver):  # Was: NIC
-     def __init__(self, my_slice, myVM) :
+     def __init__(self, my_slice, myVM, uuid=None) :
          self._device_number = None
          self._mac_address = None  # string MAC address of NIC
          self._ip_address = None   # string IP address of NIC
          self._vm = myVM    # VirtualMachine associated with this NIC
          self._link = None  # NetworkLink associated with NIC
-         Sliver.__init__(self, my_slice)
+         Sliver.__init__(self, my_slice, uuid)
 
      def __str__(self):
         return resource_image(self, "NIC");
@@ -370,11 +373,17 @@ class NetworkInterface(Sliver):  # Was: NIC
      def getVM(self): 
          return self._vm
 
+     def setVM(self, vm):
+        self._vm = vm
+
      def getLink(self): # NetworkLink associated with NIC
          return self._link
 
      def setLink(self, link) :
         self._link = link;
+
+     def getHost(self):
+        return self._host
 
      def setHost(self, host): # Set VirtualMachine host for NIC
         self._host = host;
@@ -382,13 +391,13 @@ class NetworkInterface(Sliver):  # Was: NIC
 
 # A Network Link resource
 class NetworkLink(Sliver): # was Link
-     def __init__(self, my_slice) :
+     def __init__(self, my_slice, uuid=None) :
         self._subnet = None     # IP subnet: 10.0.x.0/24
         self._endpoints = []    # List of NetworkInterfaces attached to link
         self._network_uuid = None # quantum UUID of the link's network 
         self._subnet_uuid = None  # quantum UUID of the link's subnet 
         self._vlan_tag = None
-        Sliver.__init__(self, my_slice);
+        Sliver.__init__(self, my_slice, uuid);
 
      def __str__(self):
         return resource_image(self, "Link")

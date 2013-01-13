@@ -4,7 +4,6 @@
 from geni.am.am2 import ReferenceAggregateManager
 from geni.am.am2 import AggregateManager, AggregateManagerServer
 from am3 import ReferenceAggregateManager as ReferenceAggregateManager_V3
-from am3 import Slice as Slice_V3
 import base64
 import zlib
 import uuid

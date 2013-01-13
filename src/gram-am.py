@@ -46,6 +46,7 @@ import gram
 import gram.am
 import gram.am.am3
 import gram.am.gram_am2
+import gram.am.gram.config
 from geni.config import read_config
 
 
@@ -70,6 +71,19 @@ def parse_args(argv):
                        help="enable debugging output")
     parser.add_option("-V", "--api-version", type=int,
                       help="AM API Version", default=3)
+    parser.add_option("--snapshot_dir", \
+                          help="name of directory to save snapshots", \
+                          default=None)
+    parser.add_option("--recover_from_snapshot", \
+                          help="name of snapshot to initialize gram state", \
+                          default=None)
+    parser.add_option("--recover_from_most_recent_snapshot", \
+                          help="whether to recover from most recent " + \
+                      "snapshot in 'gram_snapshot_directory'", \
+                          default=True)
+    parser.add_option("--snapshot_maintain_limit", type=int,
+                          help="Retain only this limit of recent snapshots",
+                          default=10)
     return parser.parse_args()
 
 def getAbsPath(path):
@@ -119,6 +133,12 @@ def main(argv=None):
     
     if not os.path.exists(keyfile):
         sys.exit("Aggregate keyfile %s doesn't exist" % keyfile)
+
+    gram.am.gram.config.snapshot_dir = opts.snapshot_dir
+    gram.am.gram.config.recover_from_snapshot = opts.recover_from_snapshot
+    gram.am.gram.config.recover_from_most_recent_snapshot = \
+        opts.recover_from_most_recent_snapshot
+    gram.am.gram.config.snapshot_maintain_limit = opts.snapshot_maintain_limit
 
     # rootcadir is  dir of multiple certificates
     delegate = geni.ReferenceAggregateManager(getAbsPath(opts.rootcadir))

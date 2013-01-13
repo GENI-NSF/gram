@@ -249,7 +249,7 @@ class ReferenceAggregateManager(object):
         self._url = url
         self._certfile = certfile
         self._component_manager_id = self.readURNFromCertfile(certfile)
-        context.GRAM_AM_URN = self._component_manager_id
+        config.GRAM_AM_URN = self._component_manager_id
 #        print "CMID = " + self._component_manager_id
         self._cred_verifier = geni.CredentialVerifier(root_cert)
         self._api_version = 3
