@@ -158,7 +158,7 @@ def main(argv=None):
                                           ca_certs=comboCertsFile,
                                           base_name=config['global']['base_name'])
     elif opts.api_version == 3:
-        ams = gram.am.am3.AggregateManagerServer((opts.host, int(opts.port)),
+        ams = gram.am.am3.GramAggregateManagerServer((opts.host, int(opts.port)),
                                           keyfile=keyfile,
                                           certfile=certfile,
                                           trust_roots_dir=getAbsPath(opts.rootcadir),

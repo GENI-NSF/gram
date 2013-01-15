@@ -3,7 +3,7 @@
 # Since Gram is written to support V3
 from geni.am.am2 import ReferenceAggregateManager
 from geni.am.am2 import AggregateManager, AggregateManagerServer
-from am3 import ReferenceAggregateManager as ReferenceAggregateManager_V3
+from am3 import GramReferenceAggregateManager as GramReferenceAggregateManager_V3
 import base64
 import zlib
 import uuid
@@ -13,9 +13,10 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     def __init__(self, root_cert, urn_authority, url, certfile, server):
 
         ReferenceAggregateManager.__init__(self, root_cert, urn_authority, 
-                                           certfile, url)
-        self._v3_am = ReferenceAggregateManager_V3(root_cert, urn_authority, 
-                                                   certfile, url)
+                                           url)
+        self._v3_am = GramReferenceAggregateManager_V3(root_cert, 
+                                                       urn_authority, 
+                                                       certfile, url)
         self._certfile = certfile
         self._am_type = "gram"
         self._server = server
@@ -116,6 +117,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         urns = [slice_urn]
         ret_v3 = self._v3_am.Status(urns, credentials, options)
 #        print "RET_V3" + str(ret_v3)
+        if ret_v3['code']['geni_code'] != 0: return ret_v3
         ret_v2 = ret_v3
         value = ret_v2['value']
         value['geni_resources'] = value['geni_slivers']

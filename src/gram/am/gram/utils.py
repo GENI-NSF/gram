@@ -117,12 +117,15 @@ class AllocationTimesSetter(ExpirationTimesSetter) :
         self._expiration_time = \
             self.calculateExpirationTime(ExpirationTimesSetter.max_alloc_time)
 
+        slice_obj.setExpiration(self._expiration_time)
+
         # Find the slivers that need their expiration times set
         all_slivers = self._geni_slice.getSlivers()
         for sliver_urn in all_slivers :
             sliver = all_slivers[sliver_urn]
             if sliver.getAllocationState() == config.allocated and \
                     sliver.getExpiration() == None :
+#                print "ALL: SETTING EXP of " + sliver_urn + " to " + str(self._expiration_time)
                 # This sliver has been allocated but does not have an
                 # expiration time.  Set it.
                 self.setExpirationTime(sliver)
@@ -140,9 +143,12 @@ class ProvisionTimesSetter(ExpirationTimesSetter) :
         self._expiration_time = \
             self.calculateExpirationTime(ExpirationTimesSetter.max_prov_time)
 
+        slice_obj.setExpiration(self._expiration_time)
+
         # Find the slivers that need their expiration times set
         all_slivers = self._geni_slice.getSlivers()
         for sliver_urn in all_slivers :
             sliver = all_slivers[sliver_urn]
             if sliver.getAllocationState() == config.provisioned :
+#               print "PRV: SETTING EXP of " + sliver_urn + " to " + str(self._expiration_time)
                 self.setExpirationTime(sliver)

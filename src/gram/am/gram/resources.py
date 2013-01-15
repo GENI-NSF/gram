@@ -1,6 +1,8 @@
 # Set of classes of resources (and supporting structures)
 # the aggregate can allocate and about which it maintains state
 
+import datetime
+import dateutil.parser
 import inspect
 import uuid
 
@@ -212,7 +214,7 @@ class Sliver():
       self._slice = my_slice # Slice associated with sliver
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
-      self._allocation_state = config.allocated  # API v3 allocation state
+      self._allocation_state = config.unallocated  # API v3 allocation state
       self._operational_state = config.notready  # Operational state
       my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
                                 # by the slice.  sliver_urn must be set.
@@ -265,6 +267,22 @@ class Sliver():
       
    def getOperationalState(self) :
       return self._operational_state 
+
+   def status(self, geni_error=''):
+        """Returns a status dict for this sliver. Used in numerous        
+        return values for AM API v3 calls.                  
+        """
+        expire_string = "None"
+        if self.getExpiration():
+           expire_with_tz = \
+               self.getExpiration().replace(tzinfo=dateutil.tz.tzutc())
+           expire_string = expire_with_tz.isoformat()
+        return dict(geni_sliver_urn=self.getSliverURN(),
+                    geni_expires=expire_string,
+                    geni_allocation_status=self.getAllocationState(),
+                    geni_operational_status=self.getOperationalState(),
+                    geni_error=geni_error)
+
       
 
 class _InstallItem :

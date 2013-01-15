@@ -62,6 +62,10 @@ class GramManager :
             code = {'geni_code': config.REQUEST_PARSE_FAILED}
             return {'code': code, 'value': '', 'output': err_output}
 
+        # Set allocation state
+        for sliver in geni_slice.getSlivers().values():
+            sliver.setAllocationState(config.allocated)
+
         # Set expiration times on the allocated resources
         utils.AllocationTimesSetter(geni_slice, creds, \
                                         ('geni_end_time' in options \
@@ -101,6 +105,11 @@ class GramManager :
         else :
             users = list()
         open_stack_interface.provisionResources(geni_slice, users)
+
+        # Set operational/allocation state
+        for sliver in geni_slice.getSlivers().values():
+            sliver.setAllocationState(config.provisioned)
+            sliver.setOperationalState(config.notready)
 
         # Set expiration times on the provisioned resources
         utils.ProvisionTimesSetter(geni_slice, creds, \
@@ -199,6 +208,55 @@ class GramManager :
         Archiving.write_slices(filename,GramManager. _slices)
         config.logger.info("Persisting state to %s in %.2f sec" % \
                                (filename, (time.time() - timestamp)))
+
+    # Resolve a set of URN's to a slice and set of slivers
+    # Either:
+    # It is a single slice URN 
+    #     (return slice and associated slivers)
+    # Or it is a set of sliver URN's  
+    #     (return slice and slivers for these sliver URN's)
+    # Returns a slice and a list of slivers     
+    def decode_urns(self, urns):
+        slice = None
+        slivers = list()
+        if len(urns) == 1 and self._slices.has_key(urns[0]):
+            # Case 1: This is a slice URN. 
+            # Return slice and the urn's of the slivers
+            slice_urn = urns[0]
+            slice  = self._slices[slice_urn]
+            slivers = slice.getSlivers().values()
+        elif len(urns) > 0:
+            # Case 2: This is a sliver URN.
+            # Make sure they all belong to the same slice
+            # And if so, return the slice and the slvers for these sliver urns
+            sliver_urn = urns[0]
+            slice = None
+            for test_slice in self._slices.values():
+                if test_slice.getSlivers().has_key(sliver_urn):
+                    slice = test_slice
+                    break
+            if slice:
+                for sliver_urn  in urns:
+                    if not slice.getSlivers().has_key(sliver_urn):
+                        raise ApiErrorException(AM_API.BAD_ARGS, 
+                                                "Decode_URNs: All sliver " + 
+                                                "URN's must be part of same slice")
+                    else:
+                        sliver = slice.getSlivers()[sliver_urn]
+                        slivers.append(sliver)
+        return slice, slivers
+
+    def expire_slivers(self):
+        # *** WRITE ME 
+        pass
+
+    def renew_slivers(self, slivers, expiration_time):
+        # *** WRITE ME 
+        pass
+
+    def shutdown_slice(self, slice_urn):
+        # *** WRITE ME 
+        pass
 
     # Restore state from snapshot specified in config
     def restore_state(self):
