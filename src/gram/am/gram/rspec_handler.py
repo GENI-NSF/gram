@@ -4,7 +4,7 @@ from xml.dom.minidom import *
 import config
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import utils
-# import gram_context
+import gram_context
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec and creates the sliver objects for
@@ -198,7 +198,7 @@ def generateManifest(geni_slice, req_rspec) :
             child.setAttribute('component_id', vm_object.getSliverURN())
 
             # Set the component_manager_id (this AM's URN) for the node element
-            component_manager_id = gram_context.GRAM_AM_URN
+            component_manager_id = config.gram_am_urn
             child.setAttribute('component_manager_id', component_manager_id)
             
             # For each child element of node, set appropriate attrbutes.
