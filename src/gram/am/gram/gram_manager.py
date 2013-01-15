@@ -9,12 +9,32 @@ import rspec_handler
 import open_stack_interface
 import utils
 import Archiving
+import threading
+
+class SliceURNtoSliceObject :
+    """
+        Class maps slice URNs to slice objects
+    """
+    _slices = {}   # Slice objects at this aggregate, indexed by slice urn
+    _lock = threading.RLock()
+
+    def get_slice_object(slice_urn) :
+        with _lock :
+            if slice_urn in _slices :
+                return _slices[slice_urn]
+            else :
+                return None
+            
+    def set_slice_object(slice_urn, slice_object) :
+        with _lock :
+            _slices[slice_urn] = slice_object
+
 
 class GramManager :
     """
         Only one instances of this class is created.
     """
-    _slices = {}      # Slice objects at this aggregate, indexed by slice urn
+    _slices = {}   
 
     def __init__(self) :
         # open_stack_interface.init() # OpenStack related initialization
@@ -29,6 +49,7 @@ class GramManager :
         self.prune_snapshots()
 
 
+
     def allocate(self, slice_urn, creds, rspec, options) :
         """
             Request reservation of GRAM resources.  We assume that by the 
@@ -41,7 +62,8 @@ class GramManager :
         config.logger.info('Allocate called for slice %r' % slice_urn)
 
         # Check if we already have slivers for this slice
-        if slice_urn in GramManager._slices :
+        slice_object = SliceURNtoSliceObject.get_slice_object(slice_run)
+        if slice_object != None :
             # This is a request to add additional resources to this slice.
             # Feature not supported at this time.
             config.logger.error('Cannot call allocate while holding slivers');
@@ -53,19 +75,21 @@ class GramManager :
 
         # This is a new slice at this aggregate.  Create Slice object and add
         # it the list of slices at this AM
-        geni_slice = Slice(slice_urn)
-        GramManager._slices[slice_urn] = geni_slice
+        slice_object = Slice(slice_urn)
+        SliceURNtoSliceObject.set_slice_object(slice_urn, slice_object)
 
-        # Parse the request rspec
-        err_output = rspec_handler.parseRequestRspec(geni_slice, rspec)
+        # Parse the request rspec.  Get back any error message from parsing
+        # the rspec and a list of slivers created while parsing
+        err_output, slivers = rspec_handler.parseRequestRspec(slice_object, rspec)
         if err_output != None :
-            # Something went wrong.  Return an error struct.
+            # Something went wrong.  First remove from the slice any sliver
+            # objects created while parsing the bad rspec
+            for sliver_object in slivers :
+                slice_object.removeSliver(sliver_object)
+                
+            # Return an error struct.
             code = {'geni_code': config.REQUEST_PARSE_FAILED}
             return {'code': code, 'value': '', 'output': err_output}
-
-        # Set allocation state
-        for sliver in geni_slice.getSlivers().values():
-            sliver.setAllocationState(config.allocated)
 
         # Set expiration times on the allocated resources
         utils.AllocationTimesSetter(geni_slice, creds, \
