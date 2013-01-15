@@ -55,6 +55,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     def __init__(self, root_cert, urn_authority, certfile, url):
 
         self._certfile = certfile
+        self._component_manager_id = self.readURNFromCertfile(certfile)
+        config.gram_am_urn = self._component_manager_id
+
         ReferenceAggregateManager.__init__(self, root_cert, \
                                                urn_authority, url)
         # Startup the GRAM Manager
@@ -330,6 +333,17 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         # *** WRITE ME
         return self._gram_manager.shutdown_slice(slice_urn)
 
+
+    # Read URN from certificate file
+    def readURNFromCertfile(self, certfile):
+            import sfa.trust.certificate
+            cert =  sfa.trust.certificate.Certificate()
+            cert.load_from_file(certfile)
+            san = cert.get_data('subjectAltName')
+            sans = san.split(', ');
+            urns = [s[4:] for s in filter(lambda x: 'publicid' in x, sans)]
+            urn = urns[0]
+            return urn
 
     # Does the given set of credentials allow all the following privileges?
     def validate_credentials(self, credentials, privileges, slice_urn):

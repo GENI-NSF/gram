@@ -55,3 +55,6 @@ gram_snapshot_directory = '/tmp/gram_snapshots' # Directory of snapshots
 recover_from_snapshot = None # Specific file from which to recover 
 recover_from_most_recent_snapshot = True # Should we restore from most recent
 snapshot_maintain_limit = 10 # Remove all snapshots earlier than this #
+
+# GRAM AM URN (Component ID of AM)
+gram_am_urn = ''
