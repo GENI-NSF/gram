@@ -62,7 +62,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     def GetVersion(self, options):
         self._gram_manager.expire_slivers()
-        return ReferenceAggregateManager.GetVersion(options)
+        return ReferenceAggregateManager.GetVersion(self, options)
 
     # The list of credentials are options - some single cred
     # must give the caller required permissions.
@@ -71,12 +71,46 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     def ListResources(self, credentials, options):
         self.logger.info('ListResources')
         self._gram_manager.expire_slivers()
-        creds = validate_credentials(credentials, (), None)
+        creds = self.validate_credentials(credentials, (), None)
 
-        # *** WRITE ME ***
-        return self.errorResult(AM_API.UNAVAILABLE, \
-                                    "ListResources not implemented")
-#        return self.successResult(result)
+
+        if 'geni_slice_urn' in options:
+            slice_urn = options['geni_slice_urn']
+            slice_urns = [slice_urn]
+            ret = self.Describe(slice_urns, credentials, options)
+            return ret
+
+        component_manager_id = self._my_urn
+        component_name = str(uuid.uuid4())
+        component_id = 'urn:public:geni:gpo:vm+' + component_name
+        exclusive = False
+        sliver_type = 'VM'
+        available = True
+        tmpl = '''  <node component_manager_id="%s"
+        component_name="%s"
+        component_id="%s"
+        exclusive="%s">
+        %s
+    <sliver_type name="%s"/>
+    <available now="%s"/>
+  </node></rspec>
+  '''
+        flavors = self._gram_manager.list_flavors()
+        node_types = ""
+        for flavor_name in flavors.values():
+            node_type = '<node_type type_name="%s"/>' % flavor_name
+            node_types = node_types + node_type + "\n"
+        result = self.advert_header() + \
+            (tmpl % (component_manager_id, component_name, \
+                         component_id, exclusive, node_types, sliver_type, available)) 
+        
+        if 'geni_compressed' in options and options['geni_compressed']:
+            try:
+                result = base64.b64encode(zlib.compress(result))
+            except Exception, exc:
+                self.logger.error("Error compressing and encoding resource list")
+                
+        return self.successResult(result)
 
     # The list of credentials are options - some single cred
     # must give the caller required permissions.
@@ -307,6 +341,15 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
                                                         slice_urn,
                                                         privileges)
         return creds
+
+    # See https://www.protogeni.net/trac/protogeni/wiki/RspecAdOpState
+    def advert_header(self):
+        header = '''<?xml version="1.0" encoding="UTF-8"?>
+<rspec xmlns="http://www.geni.net/resources/rspec/3"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="%s"
+       type="advertisement">'''
+        return header
         
 
 class GramAggregateManagerServer(object):

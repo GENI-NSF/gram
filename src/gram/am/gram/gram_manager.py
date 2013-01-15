@@ -28,6 +28,7 @@ class GramManager :
         # Remove extraneous snapshots
         self.prune_snapshots()
 
+
     def allocate(self, slice_urn, creds, rspec, options) :
         """
             Request reservation of GRAM resources.  We assume that by the 
@@ -257,6 +258,18 @@ class GramManager :
     def shutdown_slice(self, slice_urn):
         # *** WRITE ME 
         pass
+
+    def list_flavors(self):
+        return open_stack_interface.listFlavors()
+
+    # See https://www.protogeni.net/trac/protogeni/wiki/RspecAdOpState
+    def advert_header(self):
+        header = '''<?xml version="1.0" encoding="UTF-8"?>
+<rspec xmlns="http://www.geni.net/resources/rspec/3"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="%s"
+       type="advertisement">'''
+        return header
 
     # Restore state from snapshot specified in config
     def restore_state(self):

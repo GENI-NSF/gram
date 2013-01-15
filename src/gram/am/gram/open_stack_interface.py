@@ -598,6 +598,20 @@ def _getValueByPropertyName(output_table, property_name) :
 
     return None   # Failed to find the uuid
 
+# Get dictionary of all supported flavors (id => description)
+def listFlavors():
+    flavors = {}
+    command_string = "nova flavor-list"
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        id = int(parts[1].strip())
+        name = parts[2].strip()
+#        print "ID = " + str(id) + " NAME = " + str(name)
+        flavors[id]=name
+    return flavors
 
 def _execCommand(cmd_string) :
     config.logger.info('Issuing command %s' % cmd_string)
