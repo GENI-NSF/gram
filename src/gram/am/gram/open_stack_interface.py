@@ -598,6 +598,22 @@ def _getValueByPropertyName(output_table, property_name) :
 
     return None   # Failed to find the uuid
 
+# Get dictionary of hostnames : hostname => list of services
+def listHosts(onlyForService=None):
+    hosts = {}
+    command_string = 'nova host-list'
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        host_name = parts[1].strip()
+        service = parts[2].strip()
+        if onlyForService and onlyForService != service: continue
+        if not hosts.has_key(host_name): hosts[host_name] = []
+        hosts[host_name].append(service)
+    return hosts
+
 # Get dictionary of all supported flavors (id => description)
 def listFlavors():
     flavors = {}
@@ -640,3 +656,6 @@ def updateOperationalStatus(geni_slice) :
         network_uuid = link_object.getNetworkUUID() 
         if network_uuid != None :
             link_object.setOperationalState(config.ready)
+
+
+
