@@ -28,39 +28,22 @@ class ComputeNodeInterfaceHandler(SocketServer.BaseRequestHandler):
 
 # Client interface the way it should be once the port is open
 # Open a client connection, send command and receive response
-def compute_node_command_future(compute_host, command):
+def compute_node_command(compute_host, command):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     results = None
     try:
         sock.connect((compute_host, config.compute_node_interface_port))
-        results =sock.send(command)
+        sock.send(command)
+        results = sock.recv(MAX_SIZE)
     finally:
         sock.close()
-    return results
-
-# Client interface: Open a connection, send command and return result
-# We need to open up a port. Until then, use SSH/SCP
-def compute_node_command(compute_host, command):
-    tmp = tempfile.NamedTemporaryFile(dir='/tmp')
-    full_command = 'echo ' + '"' + command + '"' + " | nc localhost " + \
-        str(config.compute_node_interface_port)
-    tmp.write(full_command)
-    tmp.flush()
-    copy_file_command = ['scp', '-q', tmp.name, '%s:/tmp' % compute_host]
-    subprocess.call(copy_file_command)
-    execute_remote_process_command = \
-        ["ssh", compute_host, "source", tmp.name]
-    results = subprocess.check_output(execute_remote_process_command)
-    tmp.close()
-    remote_rm_command = ["ssh", compute_host, "rm", tmp.name]
-    subprocess.call(remote_rm_command)
     return results
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) == 1:
         # Server case
-        host_port = ('localhost', config.compute_node_interface_port)
+        host_port = (socket.gethostname(), config.compute_node_interface_port)
         print "Starting command_node_interface server on port " + \
             str(config.compute_node_interface_port)
         server = SocketServer.TCPServer(host_port, ComputeNodeInterfaceHandler)
