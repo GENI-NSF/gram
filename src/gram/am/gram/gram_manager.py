@@ -305,7 +305,7 @@ class GramManager :
         pass
 
     def list_flavors(self):
-        return open_stack_interface.listFlavors()
+        return open_stack_interface._listFlavors()
 
     # See https://www.protogeni.net/trac/protogeni/wiki/RspecAdOpState
     def advert_header(self):

@@ -10,6 +10,7 @@ import resources
 import config
 import utils
 import gen_metadata
+import compute_node_interface
 
 
 def init() :
@@ -599,7 +600,7 @@ def _getValueByPropertyName(output_table, property_name) :
     return None   # Failed to find the uuid
 
 # Get dictionary of hostnames : hostname => list of services
-def listHosts(onlyForService=None):
+def _listHosts(onlyForService=None):
     hosts = {}
     command_string = 'nova host-list'
     output = _execCommand(command_string)
@@ -615,7 +616,7 @@ def listHosts(onlyForService=None):
     return hosts
 
 # Get dictionary of all supported flavors (id => description)
-def listFlavors():
+def _listFlavors():
     flavors = {}
     command_string = "nova flavor-list"
     output = _execCommand(command_string)
@@ -628,6 +629,87 @@ def listFlavors():
 #        print "ID = " + str(id) + " NAME = " + str(name)
         flavors[id]=name
     return flavors
+
+# Find VLAN's associated with MAC addresses
+# Return dictionary {mac => vlan}
+def _lookup_vlans_for_tenant(tenant_id):
+    map = {}
+    hosts = _listHosts('compute')
+#    print str(hosts)
+    ports = _getPortsForTenant(tenant_id)
+#    print str(ports)
+    for host in hosts.keys():
+        port_data = compute_node_interface.compute_node_command(host, 'ovs-vsctl show')
+        port_map = _read_vlan_port_map(port_data)
+        for port in ports.keys():
+            mac = ports[port]['mac_address']
+            vlan_id = _lookup_vlan_for_port(port, port_map)
+            if vlan_id: 
+                map[mac] = vlan_id
+                break
+    return map
+
+# Find the VLAN tag associated with given port interface
+# The ovs-vsctl show command returns interfaces with a qvo prefix
+# and has all ports turncated to their first 12 characters, so
+# we match accordingly
+def _lookup_vlan_for_port(port, port_map):
+    vlan_id = None
+#    print "LOOKUP " + str(port) + " " + str(port_map)
+    port_prefix = port[:11]
+    for port in port_map:
+        if port.has_key('interface') and port.has_key('tag'):
+            tag = port['tag']
+            interface = port['interface']
+            interface_suffix = interface[3:]
+            if (port_prefix == interface_suffix):
+                vlan_id = tag
+                break
+    return vlan_id
+
+# Produce a iist of port / tag / interface from "ovs_vsctl show" command
+def _read_vlan_port_map(port_data):
+    ports = []
+    lines = port_data.split('\n')
+    processing_ports = False
+    current_port = None
+    current_tag = None
+    current_interface = None
+    for line in lines:
+        line = line.strip()
+        if line.find('Bridge') >= 0:
+            processing_ports = line.find('br-int') >= 0
+        if not processing_ports: continue
+        if line.find("Port") >= 0:
+            if current_port and current_tag and current_interface:
+                port_info = {'port':current_port, 'tag':current_tag, \
+                                 'interface':current_interface}
+                ports.append(port_info)
+                current_interface = None
+                current_tag = None
+                current_port = None
+            parts = line.split(' ')
+#            print("PORT PARTS = " + str(parts))
+            current_port = parts[1]
+            parts = current_port.split('"')
+#            print("PORT PARTS = " + str(parts))
+            if len(parts) > 1:
+                current_port = parts[1]
+        if line.find("Interface") >= 0:
+            parts = line.split(' ')
+#            print("INTERFACE PARTS = " + str(parts))
+            current_interface = parts[1]
+            parts = current_interface.split('"')
+#            print("INTERFACE PARTS = " + str(parts))
+            if len(parts) > 1:
+                current_interface = parts[1]
+        if line.find("tag:") >= 0:
+            parts = line.split(' ');
+            current_tag = int(parts[1])
+#            print("TAG PARTS = " + str(parts))
+                
+#    print str(ports)
+    return ports
 
 def _execCommand(cmd_string) :
     config.logger.info('Issuing command %s' % cmd_string)
@@ -656,6 +738,4 @@ def updateOperationalStatus(geni_slice) :
         network_uuid = link_object.getNetworkUUID() 
         if network_uuid != None :
             link_object.setOperationalState(config.ready)
-
-
 
