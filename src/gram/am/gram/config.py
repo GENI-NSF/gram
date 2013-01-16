@@ -58,3 +58,6 @@ snapshot_maintain_limit = 10 # Remove all snapshots earlier than this #
 
 # GRAM AM URN (Component ID of AM)
 gram_am_urn = ''
+
+# PORT on which to communicate with compute_node_interace
+compute_node_interface_port = 9501

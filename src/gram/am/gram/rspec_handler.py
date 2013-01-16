@@ -4,7 +4,6 @@ from xml.dom.minidom import *
 import config
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import utils
-import gram_context
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec and creates the sliver objects for
