@@ -58,6 +58,7 @@ class GramJSONEncoder(json.JSONEncoder):
                 "manifest_rspec":o.getManifestRspec(),
                 "request_rspec":o.getRequestRspec(),
                 "last_subnet_assigned":o._last_subnet_assigned,
+                "next_vm_num":o._next_vm_num,
                 "slivers":[sliver.getUUID() for sliver in o.getSlivers().values()]
                   
                 }
@@ -76,10 +77,10 @@ class GramJSONEncoder(json.JSONEncoder):
                     "installs":o.getInstalls(),
                     "executes":o.getExecutes(),
                     "network_interfaces":[nic.getUUID() for nic in o.getNetworkInterfaces()],
-                    "next_octet":VirtualMachine._next_octet,
                     "last_octet":o.getLastOctet(),
                     "os_image":o.getOSImageName(),
-                    "vm_flavor":o.getVMFlavor()
+                    "vm_flavor":o.getVMFlavor(),
+                    "host":o.getHost()
                     }
         
 
@@ -97,8 +98,8 @@ class GramJSONEncoder(json.JSONEncoder):
                     "mac_address":o.getMACAddress(),
                     "ip_address":o.getIPAddress(),
                     "virtual_machine":o.getVM().getUUID(),
-                    "link":o.getLink().getUUID()
-#                    "host":o.getHost().getUUID()
+                    "link":o.getLink().getUUID(),
+                    "vlan_tag":o.getVLANTag()
                     }
 
 
@@ -115,8 +116,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "subnet":o.getSubnet(),
                     "endpoints":[ep.getUUID() for ep in o.getEndpoints()],
                     "network_uuid":o.getNetworkUUID(),
-                    "subnet_uuid":o.getSubnetUUID(),
-                    "vlan_tag":o.getVLANTag()
+                    "subnet_uuid":o.getSubnetUUID()
                     }
 
 
@@ -184,6 +184,7 @@ class GramJSONDecoder:
                 slice.setManifestRspec(json_object["manifest_rspec"])
                 slice.setRequestRspec(json_object["request_rspec"])
                 slice._last_subnet_assigned = json_object['last_subnet_assigned']
+                slice._next_vm_num = json_object['next_vm_num']
                 
                 self._slivers_by_slice_tenant_uuid[tenant_uuid] = \
                     json_object['slivers']
@@ -211,10 +212,10 @@ class GramJSONDecoder:
                 vm.setControlNetAddr(json_object["control_net_addr"])
                 vm._installs = json_object["installs"]
                 vm._executes = json_object["executes"]
-                VirtualMachine._next_octet = json_object['next_octet']
                 vm._ip_last_octet = json_object["last_octet"]
                 vm._os_image = json_object["os_image"]
                 vm._flavor = json_object["vm_flavor"]
+                vm.setHost(json_object['host'])
                 
                 # network_interfaces
                 self._network_interfaces_by_virtual_machine_uuid[uuid]  = \
@@ -243,14 +244,13 @@ class GramJSONDecoder:
                 nic._device_number = json_object["device_number"]
                 nic.setMACAddress(json_object["mac_address"])
                 nic.setIPAddress(json_object["ip_address"])
+                nic.setVLANTag(json_object["vlan_tag"])
 
                 # vm
                 self._virtual_machine_by_network_interface_uuid[uuid] = virtual_machine_uuid
             
                 # link
                 self._network_link_by_network_interface_uuid[uuid] = json_object['link']
-#                # host
-#                self._host_by_network_interface_uuid[uuid] = json_object['host']
 
                 self._network_interfaces_by_uuid[uuid] = nic
                 self._slivers_by_uuid[uuid] = nic
@@ -274,7 +274,6 @@ class GramJSONDecoder:
                 link.setSubnet(json_object["subnet"])
                 link.setNetworkUUID(json_object["network_uuid"])
                 link.setSubnetUUID(json_object["subnet_uuid"])
-                link._vlan_tag = json_object["vlan_tag"]
                 
                 # endpoints
 #                self._endpoints_by_network_link_uuid[uuid] = json_object['endpoints']
@@ -301,20 +300,13 @@ class GramJSONDecoder:
             virtual_machine._network_interfaces = network_interfaces
             for nic in network_interfaces: nic.setVM(virtual_machine)
 
-    # Restore the nic <=> host and nic <=> link nic <=> vm
+    # Restore the nic <=> link nic <=> vm
         for network_interface_uuid in self._network_interfaces_by_uuid.keys():
             network_interface = self._slivers_by_uuid[network_interface_uuid]
             link_uuid = self._network_link_by_network_interface_uuid[network_interface_uuid]
             link = self._slivers_by_uuid[link_uuid]
             network_interface.setLink(link)
             link.addEndpoint(network_interface)
-#            host_uuid = self._host_by_network_interface_uuid[network_interface_uuid]
-#            host = self._slivers_by_uuid[host_uuid]
-#            network_interface.setHost(host)
-            vm_uuid = self._virtual_machine_by_network_interface_uuid[network_interface_uuid]
-            vm = self._slivers_by_uuid[vm_uuid]
-            network_interface.setVM(vm)
-
 
 def read_slices(filename):
     file = open(filename, "r")
