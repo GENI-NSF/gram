@@ -647,7 +647,6 @@ def _lookup_vlans_for_tenant(tenant_id):
             vlan_id = _lookup_vlan_for_port(port, port_map)
             if vlan_id: 
                 map[mac] = {'vlan': vlan_id, 'host':host}
-                break
     return map
 
 # Find the VLAN tag associated with given port interface
@@ -656,7 +655,6 @@ def _lookup_vlans_for_tenant(tenant_id):
 # we match accordingly
 def _lookup_vlan_for_port(port, port_map):
     vlan_id = None
-#    print "LOOKUP " + str(port) + " " + str(port_map)
     port_prefix = port[:11]
     for port in port_map:
         if port.has_key('interface') and port.has_key('tag'):
@@ -747,5 +745,6 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
         tenant_uuid = sys.argv[1]
+        ports = _getPortsForTenant(tenant_uuid)
         map = _lookup_vlans_for_tenant(tenant_uuid)
         print str(map)
