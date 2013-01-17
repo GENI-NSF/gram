@@ -18,24 +18,40 @@ class SliceURNtoSliceObject :
     _slices = {}   # Slice objects at this aggregate, indexed by slice urn
     _lock = threading.RLock()
 
+    @staticmethod
     def get_slice_object(slice_urn) :
-        with _lock :
-            if slice_urn in _slices :
-                return _slices[slice_urn]
+        """
+            Returns the Slice object that has the given slice_urn.
+        """
+        with SliceURNtoSliceObject._lock :
+            if slice_urn in SliceURNtoSliceObject._slices :
+                return SliceURNtoSliceObject._slices[slice_urn]
             else :
                 return None
             
+    @staticmethod
+    def get_slice_objects() :
+        """
+            Returns a list of all Slice objects at this aggregate .
+        """
+        with SliceURNtoSliceObject._lock :
+            return SliceURNtoSliceObject._slices.values()
+
+    @staticmethod
     def set_slice_object(slice_urn, slice_object) :
-        with _lock :
-            _slices[slice_urn] = slice_object
+        with SliceURNtoSliceObject._lock :
+            SliceURNtoSliceObject._slices[slice_urn] = slice_object
+
+    @staticmethod
+    def remove_slice_object(slice_urn) :
+        with SliceURNtoSliceObject._lock :
+            del SliceURNtoSliceObject._slices[slice_urn]
 
 
 class GramManager :
     """
         Only one instances of this class is created.
     """
-    _slices = {}   
-
     def __init__(self) :
         # open_stack_interface.init() # OpenStack related initialization
 
@@ -62,7 +78,7 @@ class GramManager :
         config.logger.info('Allocate called for slice %r' % slice_urn)
 
         # Check if we already have slivers for this slice
-        slice_object = SliceURNtoSliceObject.get_slice_object(slice_run)
+        slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
         if slice_object != None :
             # This is a request to add additional resources to this slice.
             # Feature not supported at this time.
@@ -92,22 +108,24 @@ class GramManager :
             return {'code': code, 'value': '', 'output': err_output}
 
         # Set expiration times on the allocated resources
-        utils.AllocationTimesSetter(geni_slice, creds, \
+        utils.AllocationTimesSetter(slice_object, creds, \
                                         ('geni_end_time' in options \
                                              and \
                                              options['geni_end_time']))
 
         # Generate a manifest rpsec
-        geni_slice.setRequestRspec(rspec)
-        manifest, sliver_list = \
-            rspec_handler.generateManifest(geni_slice, rspec)
+        slice_object.setRequestRspec(rspec)
+        manifest =  rspec_handler.generateManifest(slice_object, rspec)
 
         # Persist aggregate state
         self.persist_state()
 
+        # Create a sliver status list for the slivers in this slice
+        sliver_status_list = utils.SliverList().getStatusAllSlivers(slice_object)
+
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
-        result_struct = {'geni_rspec': manifest, 'geni_slivers': sliver_list}
+        result_struct = {'geni_rspec':manifest, 'geni_slivers':sliver_status_list}
         return {'code': code, 'value': result_struct, 'output': ''}
         
 
@@ -117,45 +135,47 @@ class GramManager :
             future we'll have to provision individual slivers.
         """
         # Find the slice object for this slice
-        if slice_urn not in GramManager._slices :
+        slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
+        if slice_object == None :
             #  Unknown slice.  Return error message
             err_output = 'Search for slice %s failed' % slice_urn
             code = {'geni_code': config.UNKNOWN_SLICE}
             return {'code': code, 'value': '', 'output': err_output}
-        geni_slice = GramManager._slices[slice_urn]    
 
         # Provision OpenStack Resources
         if options.has_key('geni_users'):
             users = options['geni_users']
         else :
             users = list()
-        open_stack_interface.provisionResources(geni_slice, users)
+        open_stack_interface.provisionResources(slice_object, users)
 
         # Set operational/allocation state
-        for sliver in geni_slice.getSlivers().values():
+        for sliver in slice_object.getSlivers().values():
             sliver.setAllocationState(config.provisioned)
             sliver.setOperationalState(config.notready)
 
         # Set expiration times on the provisioned resources
-        utils.ProvisionTimesSetter(geni_slice, creds, \
+        utils.ProvisionTimesSetter(slice_object, creds, \
                                        ('geni_end_time' in options \
                                             and options['geni_end_time']))
 
         # Generate a manifest rpsec 
-        req_rspec = geni_slice.getRequestRspec()
-        manifest, sliver_list = rspec_handler.generateManifest(geni_slice,
-                                                               req_rspec)
+        req_rspec = slice_object.getRequestRspec()
+        manifest = rspec_handler.generateManifest(slice_object, req_rspec)
     
         # Save the manifest in the slice object.  THIS IS TEMPORARY.  WE
         # SHOULD BE GENERATING THE SLICE MANIFEST AS NEEDED
-        geni_slice.setManifestRspec(manifest)
+        slice_object.setManifestRspec(manifest)
+
+        # Create a sliver status list for the slivers in this slice
+        sliver_status_list = utils.SliverList().getStatusAllSlivers(slice_object)
 
         # Persist new GramManager state
         self.persist_state()
 
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
-        result_struct = {'geni_rspec': manifest, 'geni_slivers': sliver_list}
+        result_struct = {'geni_rspec':manifest, 'geni_slivers':sliver_status_list}
         return {'code': code, 'value': result_struct, 'output': ''}
         
 
@@ -164,12 +184,12 @@ class GramManager :
             Describe the status of the resources allocated to this slice.
         """
         # Find the slice object
-        if slice_urn not in GramManager._slices :
-            config.logger.error('Asked to delete unknown slice %s' % urns[0])
+        slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
+        if slice_object == None :
+            config.logger.error('Asked to describe unknown slice %s' % urns[0])
             err_output = 'Search for slice %s failed' % slice_urn
             code = {'geni_code': config.UNKNOWN_SLICE}
             return {'code': code, 'value': '', 'output': err_output}
-        slice_object = GramManager._slices[slice_urn]
 
         open_stack_interface.updateOperationalStatus(slice_object)
         
@@ -190,19 +210,19 @@ class GramManager :
         """
         config.logger.info('Delete called for slice %r' % urns)
 
-        if urns[0] not in GramManager._slices :
+        slice_object = SliceURNtoSliceObject.get_slice_object(urns[0])
+        if slice_object == None :
             config.logger.error('Asked to delete unknown slice %s' % urns[0])
             err_output = 'Search for slice %s failed' % slice_urn
             code = {'geni_code': config.UNKNOWN_SLICE}
             return {'code': code, 'value': '', 'output': err_output}
 
         # We do have the slice.  Delete all resources held by the slice
-        slice_object = GramManager._slices[urns[0]]
         sliver_status_list = \
             open_stack_interface.deleteAllResourcesForSlice(slice_object)
 
         # Remove slice from list of known slices
-        del GramManager._slices[urns[0]]    
+        SliceURNtoSliceObject.remove_slice_object(urns[0])
 
         # Persist new GramManager state
         self.persist_state()
@@ -244,11 +264,12 @@ class GramManager :
     def decode_urns(self, urns):
         slice = None
         slivers = list()
-        if len(urns) == 1 and self._slices.has_key(urns[0]):
+        if len(urns) == 1 and \
+                SliceURNtoSliceObject.get_slice_object(urns[0]) != None :
             # Case 1: This is a slice URN. 
             # Return slice and the urn's of the slivers
             slice_urn = urns[0]
-            slice  = self._slices[slice_urn]
+            slice = SliceURNtoSliceObject.get_slice_object(slice_urn)
             slivers = slice.getSlivers().values()
         elif len(urns) > 0:
             # Case 2: This is a sliver URN.
@@ -256,7 +277,7 @@ class GramManager :
             # And if so, return the slice and the slvers for these sliver urns
             sliver_urn = urns[0]
             slice = None
-            for test_slice in self._slices.values():
+            for test_slice in SliceURNtoSliceObject.get_slice_objects() :
                 if test_slice.getSlivers().has_key(sliver_urn):
                     slice = test_slice
                     break

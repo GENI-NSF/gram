@@ -5,6 +5,7 @@ import datetime
 import dateutil.parser
 import inspect
 import uuid
+import threading
 
 import config
 
@@ -42,7 +43,7 @@ def resource_image(obj, label):
 class Slice:
    def __init__(self, slice_urn) :
       self._slice_urn = slice_urn
-      self._slice_lock = Threading.RLock() # Control access to Slice and Slivers
+      self._slice_lock = threading.RLock() # Control access to Slice and Slivers
       self._tenant_name = None    # OpenStack tenant name
       self._tenant_uuid = None    # OpenStack tenant uuid
       self._tenant_admin_name = None # Admin user for this tenant
@@ -73,6 +74,9 @@ class Slice:
    def __str__(self):
       return resource_image(self, "Slice");
    
+   def getLock(self) :
+      return self._slice_lock
+
    # Called by slivers to add themselves to the slice
    def addSliver(self, sliver) :
       with self._slice_lock :
@@ -80,7 +84,7 @@ class Slice:
          if sliver_urn != None :
             self._slivers[sliver_urn] = sliver
          else :
-            config.log.error('Adding sliver to slice; sliver does not have a URN')
+            config.logger.error('Adding sliver to slice; sliver does not have a URN')
 
          if sliver.__class__.__name__ == 'VirtualMachine' :
             self._VMs.append(sliver)
@@ -167,7 +171,7 @@ class Slice:
          for i in range(len(self._NICs)) :
             if self._NICs[i].getName() == name :
                return self._NICs[i]
-            return None
+         return None
 
    def getNetworkLinks(self) :
       with self._slice_lock :
@@ -192,14 +196,15 @@ class Slice:
          last_subnet_assigned += 1
          if last_subnet_assigned == 256 :
             last_subnet_assigned = 19
-            subnet_num_file.write(str(last_subnet_assigned))
-            subnet_num_file.close()
-            return '10.0.%s.0/24' % last_subnet_assigned
+         subnet_num_file.write(str(last_subnet_assigned))
+         subnet_num_file.close()
+         return '10.0.%s.0/24' % last_subnet_assigned
          #### END TEMP CODE
          return '10.0.%s.0/24' % self._last_subnet_assigned
 
    def generateControlNetAddress(self) :
       with self._slice_lock :
+         self._last_subnet_assigned += 1
          #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
          subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
          last_subnet_assigned = int(subnet_num_file.readline().rstrip())
@@ -208,15 +213,16 @@ class Slice:
          last_subnet_assigned += 1
          if last_subnet_assigned == 256 :
             last_subnet_assigned = 19
-            subnet_num_file.write(str(last_subnet_assigned))
-            subnet_num_file.close()
-            return '10.10.%s.0/24' % last_subnet_assigned 
+         subnet_num_file.write(str(last_subnet_assigned))
+         subnet_num_file.close()
+         return '10.10.%s.0/24' % last_subnet_assigned 
          #### END TEMP CODE
+         return '10.0.%s.0/24' % self._last_subnet_assigned
      
    def getVMNumber(self) :
       with self._slice_lock :
-         self._vm_number += 1
-         return self._vm_number
+         self._next_vm_num += 1
+         return self._next_vm_num
       
    def setControlNetAddress(self, addr) :
       with self._slice_lock :
@@ -267,30 +273,28 @@ class Slice:
 # Base class for resource slivers
 class Sliver():
    def __init__(self, my_slice, uuid=None) :
+      self._slice = my_slice # Slice associated with sliver
       self._sliver_urn = self._generateURN()    # URN of this sliver
       self._uuid = uuid     # OpenStack UUID of resource
-      self._slice = my_slice # Slice associated with sliver
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
       self._allocation_state = config.allocated  # API v3 allocation state
       self._operational_state = config.notready  # Operational state
-      with self._slice.getLock() :
-         my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
-                                   #     by the slice.  sliver_urn must be set.
+      my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
+                                # by the slice.  sliver_urn must be set.
 
    # When a sliver is created it gets a sliver URN.
    def _generateURN(self) :
-      with self._slice.getLock() :
-         uuid_suffix = str(uuid.uuid4())
-         if self.__class__.__name__ == 'VirtualMachine' :
-            sliver_urn = config.vm_urn_prefix + uuid_suffix
-         elif self.__class__.__name__ == 'NetworkInterface' :
-            sliver_urn = config.interface_urn_prefix + uuid_suffix
-         elif self.__class__.__name__ == 'NetworkLink' :
-            sliver_urn = config.link_urn_prefix + uuid_suffix
-         else :
-            config.logger.error('Unknown sliver type.  Cannot set URN')
-            return sliver_urn
+      uuid_suffix = str(uuid.uuid4())
+      if self.__class__.__name__ == 'VirtualMachine' :
+         sliver_urn = config.vm_urn_prefix + uuid_suffix
+      elif self.__class__.__name__ == 'NetworkInterface' :
+         sliver_urn = config.interface_urn_prefix + uuid_suffix
+      elif self.__class__.__name__ == 'NetworkLink' :
+         sliver_urn = config.link_urn_prefix + uuid_suffix
+      else :
+         config.logger.error('Unknown sliver type.  Cannot set URN')
+      return sliver_urn
       
    def setName(self, name) :
       with self._slice.getLock() :
@@ -385,7 +389,7 @@ class VirtualMachine(Sliver): #
       self._installs = []    # Items to be installed on the VM on startup
       self._executes = []    # Scripts to be extecuted on the VM on startup
       self._network_interfaces = []   # Associated network interfaces
-      self._ip_last_octet = my_slice.getVMnumber() # All IP addresses
+      self._ip_last_octet = my_slice.getVMNumber() # All IP addresses
                      # assigned to this VM will be of the form x.x.x.last_octet
       self._authorized_user_urns = None
       self._flavor = config.default_VM_flavor

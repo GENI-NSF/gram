@@ -145,13 +145,10 @@ def generateManifest(geni_slice, req_rspec) :
 
 
     """
-        Returns a tuple that consists of:
-           1. The manifest rspec for the specified request rspec (req_rspec)
-           2. A list with information about each of the slivers corresponding
-              to resources in the request rspec.
+        Returns a manifets rspec that corresponds to the given request rspec
+        i.e. annotat the request rspec with information about the resources.
     """
     manifest = Document()                 # Manifest returned by this function
-    sliver_stat_list = utils.SliverList() # Sliver status list returned 
 
     # Use the request rspec as a model for the manifest i.e. start with the
     # request and add additional information to it to form the manifest
@@ -237,9 +234,6 @@ def generateManifest(geni_slice, req_rspec) :
                 sliver_type_attribute.setAttribute('name', sliver_type)
                 child.appendChild(sliver_type_attribute)
 
-            # Add this node to the list of slivers in this rspec
-            sliver_stat_list.addSliver(vm_object)
-
         elif child.nodeName == 'link' :
             # Find the NetworkLink object for this link
             link_name = child.attributes['client_id'].value
@@ -250,9 +244,6 @@ def generateManifest(geni_slice, req_rspec) :
                     break
             child.setAttribute('sliver_id', link_object.getSliverURN())
 
-            # Add this link to the list of slivers in this rspec
-            sliver_stat_list.addSliver(link_object)
-            
     manifest = manifest.toprettyxml(indent = '    ')
     config.logger.info('Manifest = %s' % manifest)
 
@@ -265,5 +256,5 @@ def generateManifest(geni_slice, req_rspec) :
 
     config.logger.info('Clean manifest = %s' % clean_manifest)
 
-    return clean_manifest, sliver_stat_list.getSliverStatusList()
+    return clean_manifest
 

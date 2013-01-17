@@ -80,7 +80,7 @@ def parse_args(argv):
     parser.add_option("--recover_from_most_recent_snapshot", \
                           help="whether to recover from most recent " + \
                       "snapshot in 'gram_snapshot_directory'", \
-                          default=True)
+                          default=False)
     parser.add_option("--snapshot_maintain_limit", type=int,
                           help="Retain only this limit of recent snapshots",
                           default=10)
