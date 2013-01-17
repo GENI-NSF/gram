@@ -5,6 +5,7 @@ import re
 import time
 import tempfile
 import os
+import time
 
 import resources
 import config
@@ -418,7 +419,7 @@ def _createVM(vm_object, users) :
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += (' boot %s --image %s --flavor %s' % (vm_name, os_image_id,
+    cmd_string += (' boot %s --poll --image %s --flavor %s' % (vm_name, os_image_id,
                                                         vm_flavor_id))
 
     # Add user meta data to create account, pass keys etc.
@@ -441,29 +442,29 @@ def _createVM(vm_object, users) :
     # Issue the command to create the VM
     output = _execCommand(cmd_string) 
 
+    # Get the UUID of the VM that was created 
+    vm_uuid = _getValueByPropertyName(output, 'id')
+
     # Delete the temp file
     zipped_userdata_filename = userdata_filename + ".gz"
     os.unlink(zipped_userdata_filename)
 
-    # Get the UUID of the VM that was created 
-    vm_uuid = _getValueByPropertyName(output, 'id')
-
     # Wait for the vm status to turn to 'active' and then reboot
-    while True :
-        cmd_string = 'nova show %s' % vm_uuid
-        output = _execCommand(cmd_string) 
-        vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
-        config.logger.info('VM state is %s' % vm_state)
-        if vm_state == 'active' :
-            break
-        time.sleep(3)
+    ## while True :
+    ##     cmd_string = 'nova show %s' % vm_uuid
+    ##     output = _execCommand(cmd_string) 
+    ##     vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
+    ##     config.logger.info('VM state is %s' % vm_state)
+    ##     if vm_state == 'active' :
+    ##         break
+    ##     time.sleep(3)
         
 
     # Reboot the VM.  This seems to be necessary for the NICs to get IP addrs 
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-        % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += (' reboot %s' % vm_name)
-    _execCommand(cmd_string) 
+    ## cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    ##     % (admin_name, admin_pwd, slice_object.getTenantName())
+    ## cmd_string += (' reboot %s' % vm_name)
+    ## _execCommand(cmd_string) 
 
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(config.configuring)
@@ -731,6 +732,8 @@ def updateOperationalStatus(geni_slice) :
             vm_state = _getValueByPropertyName(output, 'status')
             if vm_state == 'ACTIVE' :
                 vm_object.setOperationalState(config.ready)
+            elif vm_state == 'ERROR' :
+                vm_object.setOperationalState(config.failed)
 
     links = geni_slice.getNetworkLinks()
     for i in range(0, len(links)) :
