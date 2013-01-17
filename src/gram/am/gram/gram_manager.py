@@ -237,10 +237,9 @@ class GramManager :
     __base_filename_counter=0
     def persist_state(self):
         if not config.gram_snapshot_directory: return
-        timestamp = time.time()
-        now = time.localtime()
+        start_time = time.time()
         base_filename = \
-            time.strftime(GramManager.__persist_filename_format, now)
+            time.strftime(GramManager.__persist_filename_format, time.localtime(start_time))
         counter = 0
         if base_filename==GramManager.__recent_base_filename:
             counter = GramManager.__base_filename_counter
@@ -249,10 +248,10 @@ class GramManager :
             GramManager.__base_filename_counter=0
         filename = "%s/%s_%d.json" % (config.gram_snapshot_directory, \
                                           base_filename, counter)
-        config.logger.info("Persisting state to %s" % filename)
-        Archiving.write_slices(filename,GramManager. _slices)
+        Archiving.write_slices(filename, SliceURNtoSliceObject._slices)
+        end_time = time.time()
         config.logger.info("Persisting state to %s in %.2f sec" % \
-                               (filename, (time.time() - timestamp)))
+                               (filename, (end_time - start_time)))
 
     # Resolve a set of URN's to a slice and set of slivers
     # Either:
@@ -336,9 +335,9 @@ class GramManager :
             if snapshot_file is not None:
                 config.logger.info("Restoring state from snapshot : %s" \
                                        % snapshot_file)
-                GramManager._slices = Archiving.read_slices(snapshot_file)
+                SliceURNtoSliceObject._slices = Archiving.read_slices(snapshot_file)
                 config.logger.info("Restored %d slices" % \
-                                       len(GramManager._slices))
+                                       len(SliceURNtoSliceObject._slices))
 
 
     # Remove old snapshots, keeping only last config.snapshot_maintain_limit

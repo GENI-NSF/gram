@@ -394,6 +394,7 @@ class VirtualMachine(Sliver): #
       self._authorized_user_urns = None
       self._flavor = config.default_VM_flavor
       self._os_image = config.default_OS_image
+      self._host = None # name of compute n ode on which VM resides
       Sliver.__init__(self, my_slice, uuid)
 
    def __str__(self):
@@ -443,6 +444,14 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          self._executes.append(_ExecuteItem(command, shell))
 
+   def getHost(self):
+      with self._slice.getLock() :
+         return self._host
+
+   def setHost(self, host): # Set VirtualMachine host for NIC
+      with self._slice.getLock() :
+         self._host = host;
+ 
 
 # A NIC (Network Interface Card) resource
 class NetworkInterface(Sliver):  # Was: NIC
@@ -452,6 +461,7 @@ class NetworkInterface(Sliver):  # Was: NIC
          self._ip_address = None   # string IP address of NIC
          self._vm = myVM    # VirtualMachine associated with this NIC
          self._link = None  # NetworkLink associated with NIC
+         self._vlan_tag = None
          Sliver.__init__(self, my_slice, uuid)
 
      def __str__(self):
@@ -493,14 +503,14 @@ class NetworkInterface(Sliver):  # Was: NIC
         with self._slice.getLock() :
            self._link = link;
 
-     def getHost(self):
+     def getVLANTag(self): # Return vlan tag of traffic on this interface
         with self._slice.getLock() :
-           return self._host
+           return self._vlan_tag
 
-     def setHost(self, host): # Set VirtualMachine host for NIC
+     def setVLANTag(self, vlan_tag): # Set VLAN tag of traffic on this interface
         with self._slice.getLock() :
-           self._host = host;
- 
+           self._vlan_tag = vlan_tag
+
 
 # A Network Link resource
 class NetworkLink(Sliver): # was Link
@@ -509,7 +519,6 @@ class NetworkLink(Sliver): # was Link
         self._endpoints = []    # List of NetworkInterfaces attached to link
         self._network_uuid = None # quantum UUID of the link's network 
         self._subnet_uuid = None  # quantum UUID of the link's subnet 
-        self._vlan_tag = None
         Sliver.__init__(self, my_slice, uuid);
 
      def __str__(self):
@@ -547,6 +556,3 @@ class NetworkLink(Sliver): # was Link
         with self._slice.getLock() :
            return self._subnet_uuid
      
-     def getVLANTag(self): # Return vlan tag of traffic on this link
-        with self._slice.getLock() :
-           return self._vlan_tag
