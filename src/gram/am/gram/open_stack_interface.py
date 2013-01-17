@@ -630,8 +630,8 @@ def _listFlavors():
         flavors[id]=name
     return flavors
 
-# Find VLAN's associated with MAC addresses
-# Return dictionary {mac => vlan}
+# Find VLAN's associated with MAC addresses and hostnames
+# Return dictionary {mac => {'vlan':vlan, 'host':host}}
 def _lookup_vlans_for_tenant(tenant_id):
     map = {}
     hosts = _listHosts('compute')
@@ -645,7 +645,7 @@ def _lookup_vlans_for_tenant(tenant_id):
             mac = ports[port]['mac_address']
             vlan_id = _lookup_vlan_for_port(port, port_map)
             if vlan_id: 
-                map[mac] = vlan_id
+                map[mac] = {'vlan': vlan_id, 'host':host}
                 break
     return map
 
@@ -739,3 +739,10 @@ def updateOperationalStatus(geni_slice) :
         if network_uuid != None :
             link_object.setOperationalState(config.ready)
 
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        tenant_uuid = sys.argv[1]
+        map = _lookup_vlans_for_tenant(tenant_uuid)
+        print str(map)

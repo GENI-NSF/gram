@@ -29,7 +29,7 @@ def resource_image(obj, label):
          if isinstance(value, Slice):
             value_image = value.getSliceURN()
          if isinstance(value, Sliver):
-            value_image = value.getComponentID()
+            value_image = value.getUUID()
          if isinstance(obj, VirtualMachine) and name == "_network_interfaces":
             value_image = sliver_list_image(obj._network_interfaces)
          if isinstance(obj, NetworkLink) and name == "_endpoints":
