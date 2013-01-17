@@ -183,7 +183,7 @@ class GramManager :
                     config.logger.info("Setting VLAN of NIC " + str(nic.getUUID()) + " to " + str(vlan))
                     config.logger.info("Setting HOST of VM " + str(vm.getUUID()) + " to " + str(hostname))
                 else:
-                    config.logger.error("MAC not found: in ovs-vsctl data" + str(mac))
+                    config.logger.error("MAC not found: in ovs-vsctl data: " + str(mac))
 
         # Persist new GramManager state
         self.persist_state()
