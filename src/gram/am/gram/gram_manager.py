@@ -1,5 +1,6 @@
 
 import os
+import getpass
 import signal
 import time
 
@@ -58,13 +59,16 @@ class GramManager :
         # Set up a signal handler to clean up on a control-c
         # signal.signal(signal.SIGINT, open_stack_interface.cleanup)
 
+        self._snapshot_directory = None
+        if config.gram_snapshot_directory:
+            self._snapshot_directory = \
+                config.gram_snapshot_directory + "/" + getpass.getuser()
+
         # Recover state from snapshot, if configured to do so
         self.restore_state()
         
         # Remove extraneous snapshots
         self.prune_snapshots()
-
-
 
     def allocate(self, slice_urn, creds, rspec, options) :
         """
@@ -251,7 +255,7 @@ class GramManager :
     __recent_base_filename=None
     __base_filename_counter=0
     def persist_state(self):
-        if not config.gram_snapshot_directory: return
+        if not self._snapshot_directory: return
         start_time = time.time()
         base_filename = \
             time.strftime(GramManager.__persist_filename_format, time.localtime(start_time))
@@ -261,8 +265,8 @@ class GramManager :
             GramManager.__base_filename_counter = GramManager.__base_filename_counter + 1
         else:
             GramManager.__base_filename_counter=0
-        filename = "%s/%s_%d.json" % (config.gram_snapshot_directory, \
-                                          base_filename, counter)
+        filename = "%s/%s_%d.json" % (self._snapshot_directory, \
+                                         base_filename, counter)
         Archiving.write_slices(filename, SliceURNtoSliceObject._slices)
         end_time = time.time()
         config.logger.info("Persisting state to %s in %.2f sec" % \
@@ -332,9 +336,9 @@ class GramManager :
 
     # Restore state from snapshot specified in config
     def restore_state(self):
-        if config.gram_snapshot_directory is not None:
-            if not os.path.exists(config.gram_snapshot_directory):
-                os.makedirs(config.gram_snapshot_directory)
+        if self._snapshot_directory is not None:
+            if not os.path.exists(self._snapshot_directory):
+                os.makedirs(self._snapshot_directory)
 
             # Use the specified one (if any)
             # Otherwise, use the most recent (if indicated)
@@ -367,8 +371,8 @@ class GramManager :
     # ascending order
     def get_snapshots(self):
         files = None
-        if config.gram_snapshot_directory is not None:
-            dir = config.gram_snapshot_directory
+        if self._snapshot_directory:
+            dir = self._snapshot_directory
             files = [os.path.join(dir, s) for s in os.listdir(dir)
                      if os.path.isfile(os.path.join(dir, s))]
             files.sort(key = lambda s: os.path.getmtime(s))
