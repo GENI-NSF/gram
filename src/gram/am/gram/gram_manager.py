@@ -65,7 +65,6 @@ class GramManager :
         self.prune_snapshots()
 
 
-
     def allocate(self, slice_urn, creds, rspec, options) :
         """
             Request reservation of GRAM resources.  We assume that by the 
