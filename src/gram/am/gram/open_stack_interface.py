@@ -6,6 +6,7 @@ import time
 import tempfile
 import os
 import time
+from threading import Thread
 
 import resources
 import config
@@ -124,14 +125,18 @@ def provisionResources(geni_slice, users) :
     # VM if such a VM has not already been created
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
-            # Need to create an OpenStack VM for this node
-            vm_uuid = _createVM(vm, users)
-            if vm_uuid == None :
-                config.logger.error('Failed to crate vm for node %s' %
-                                    vm.getName())
-            else :
-                vm.setUUID(vm_uuid)
-                vm.setAllocationState(config.provisioned)
+            # Need to create an OpenStack VM for this node.  This happens in a 
+            # separate thread so provision is not blocked waiting for the VM to
+            # boot.
+            Thread(target = _createVM, args = (vm, users)).start()
+
+            ## vm_uuid = _createVM(vm, users)
+            ## if vm_uuid == None :
+            ##     config.logger.error('Failed to crate vm for node %s' %
+            ##                         vm.getName())
+            ## else :
+            ##     vm.setUUID(vm_uuid)
+            ##     vm.setAllocationState(config.provisioned)
         
 
 def deleteAllResourcesForSlice(geni_slice) :
@@ -469,6 +474,8 @@ def _createVM(vm_object, users) :
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(config.configuring)
 
+    vm_object.setUUID(vm_uuid)
+    vm_object.setAllocationState(config.provisioned)
     return vm_uuid
 
 
