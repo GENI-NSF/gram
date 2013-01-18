@@ -1,234 +1,333 @@
 # Routines and helper classes for saving/restoring AggregateState
 # to/from files using JSON
 
+import datetime
+import time
 import json
 import pdb
-from Resources import Slice, VirtualMachine, NetworkLink, NetworkInterface
-from AggregateState import AggregateState
-from AllocationManager import AllocationManager
+from resources import Slice, VirtualMachine, NetworkLink, NetworkInterface
+#from AggregateState import AggregateState
+#from AllocationManager import AllocationManager
 
 class GramJSONEncoder(json.JSONEncoder):
+
     def default(self, o):
+
 #        print "In Default " + str(o)
-        if isinstance(o, AggregateState):
-            return {
-                "__type__":"AggregateState",
-                "sequence_number": o._sequence_number,
-                "archive_directory": o._archive_directory,
-                "public_vlan_tags": o._public_vlan_tags,
-                "vlan_manager": o._vlan_tag_manager,
-                "public_ip_addresses": o._public_ip_addresses,
-                "ip_address_manager": o._ip_address_manager,
-                "flavor_capacities": o._flavor_capacities,
-                "flavor_manager": o._flavor_manager,
-                "flavor_allocations": o._flavor_allocations,
-                "parameters": o._parameters,
-                "slivers_by_urn": o._slivers_by_urn
-                }
+        # if isinstance(o, AggregateState):
+        #     return {
+        #         "__type__":"AggregateState",
+        #         "sequence_number": o._sequence_number,
+        #         "archive_directory": o._archive_directory,
+        #         "public_vlan_tags": o._public_vlan_tags,
+        #         "vlan_manager": o._vlan_tag_manager,
+        #         "public_ip_addresses": o._public_ip_addresses,
+        #         "ip_address_manager": o._ip_address_manager,
+        #         "flavor_capacities": o._flavor_capacities,
+        #         "flavor_manager": o._flavor_manager,
+        #         "flavor_allocations": o._flavor_allocations,
+        #         "parameters": o._parameters,
+        #         "slivers_by_urn": o._slivers_by_urn
+        #         }
                 
-        if isinstance(o, AllocationManager):
-            return {
-                "__type__":"AllocationManager",
-                "max_slivers": o._max_slivers,
-                "resources": o._resources
-                }
+        # if isinstance(o, AllocationManager):
+        #     return {
+        #         "__type__":"AllocationManager",
+        #         "max_slivers": o._max_slivers,
+        #         "resources": o._resources
+        #         }
 
         if isinstance(o, Slice):
+            tenant_admin_name, tenant_admin_pwd, tenant_admin_uuid = \
+                o.getTenantAdminInfo()
+            expiration_time = time.mktime(o.getExpiration().timetuple())
             return {
                 "__type__":"Slice", 
+                "tenant_uuid":o.getTenantUUID(),
+                "tenant_name":o.getTenantName(),
+                "tenant_admin_name":tenant_admin_name,
+                "tenant_admin_pwd":tenant_admin_pwd,
+                "tenant_admin_uuid":tenant_admin_uuid,
+                "control_net_info":o.getControlNetInfo(),
+                "tenant_router_name":o.getTenantRouterName(),
+                "tenant_router_uuid":o.getTenantRouterUUID(),
+#                "control_net_address":o.getControlNetAddress(),
                 "slice_urn":o.getSliceURN(),
-                "sa_urn":o.getSAURN(), 
                 "user_urn":o.getUserURN(),
-                "expiration":o.getExpiration(),
-                "tenant_id":o.getTenantID(),
-                "router_id":o.getRouterID(),
-                "manifest_rspec":o.getManifestRSpec()
+                "expiration":expiration_time,
+                "manifest_rspec":o.getManifestRspec(),
+                "request_rspec":o.getRequestRspec(),
+                "last_subnet_assigned":o._last_subnet_assigned,
+                "next_vm_num":o._next_vm_num,
+                "slivers":[sliver.getUUID() for sliver in o.getSlivers().values()]
+                  
                 }
 
         if isinstance(o, VirtualMachine):
+            expiration_time = time.mktime(o.getExpiration().timetuple())
             return {"__type__":"VirtualMachine",
-                    "uuid":o._uuid,
-                    "component_id":o._component_id,
-                    "slice":o._slice,
-                    "expiration":o._expiration,
-                    "control_net_addr":o._control_net_addr,
-                    "node_name":o._node_name,
-                    "network_interfaces":o._network_interfaces,
-                    "authorized_user_urns":o._authorized_user_urns,
-                    "installs":o._installs,
-                    "executes":o._executes,
-                    "allocation_state":o._allocation_state,
-                    "operational_state":o._operational_state,
-                    "flavor":o._flavor,
-                    "image_id":o._image_id
+                    "name":o.getName(),
+                    "uuid":o.getUUID(),
+                    "sliver_urn":o.getSliverURN(),
+                    "slice":o.getSlice().getTenantUUID(),
+                    "expiration":expiration_time,
+                    "allocation_state":o.getAllocationState(),
+                    "operational_state":o.getOperationalState(),
+                    "control_net_addr":o.getControlNetAddr(),
+                    "installs":o.getInstalls(),
+                    "executes":o.getExecutes(),
+                    "network_interfaces":[nic.getUUID() for nic in o.getNetworkInterfaces()],
+                    "last_octet":o.getLastOctet(),
+                    "os_image":o.getOSImageName(),
+                    "vm_flavor":o.getVMFlavor(),
+                    "host":o.getHost()
                     }
         
 
         if isinstance(o, NetworkInterface):
+            expiration_time = time.mktime(o.getExpiration().timetuple())
             return {"__type__":"NetworkInterface",
-                    "uuid":o._uuid,
-                    "component_id":o._component_id,
-                    "slice":o._slice,
-                    "expiration":o._expiration,
-                    "name":o._name,
-                    "device_number":o._device_number,
-                    "mac_address":o._mac_address,
-                    "ip_address":o._ip_address,
-# Avoid circular reference
-#                    "host":o._host,
-                    "virtual_eth_name":o._virtual_eth_name
-# Avoid circular reference
-#                    "link":o._link 
+                    "name":o.getName(),
+                    "uuid":o.getUUID(),
+                    "sliver_urn":o.getSliverURN(),
+                    "slice":o.getSlice().getTenantUUID(),
+                    "expiration":expiration_time,
+                    "allocation_state":o.getAllocationState(),
+                    "operational_state":o.getOperationalState(),
+                    "device_number":o.getDeviceNumber(),
+                    "mac_address":o.getMACAddress(),
+                    "ip_address":o.getIPAddress(),
+                    "virtual_machine":o.getVM().getUUID(),
+                    "link":o.getLink().getUUID(),
+                    "vlan_tag":o.getVLANTag()
                     }
 
 
         if isinstance(o, NetworkLink):
-           return {"__type__":"NetworkLink",
-                    "uuid":o._uuid,
-                    "component_id":o._component_id,
-                    "slice":o._slice,
-                    "expiration":o._expiration,
-                    "name":o._name,
-                    "subnet":o._subnet,
-                    "endpoints":o._endpoints,
-                    "network_id":o._network_id,
-                    "vlan_tag":o._vlan_tag
-                   }
-
-def  gram_json_object_hook(json_object):
-
-#    print "GJOH : " + str(json_object) + " " + str(type(json_object))
-    if isinstance(json_object, dict) and json_object.has_key("__type__"):
-        obj_type = json_object["__type__"]
-
-        if(obj_type == "AggregateState"):
-            state = AggregateState(None)
-            state._sequence_number = json_object["sequence_number"]
-            state._archive_directory = json_object["archive_directory"]
-            state._public_vlan_tags = json_object["public_vlan_tags"]
-            state._vlan_tag_manager = json_object["vlan_manager"]
-            state._public_ip_addresses = json_object["public_ip_addresses"]
-            state._ip_address_manager = json_object["ip_address_manager"]
-            state._flavor_capacities = json_object["flavor_capacities"]
-            state._flavor_manager = json_object["flavor_manager"]
-            state._flavor_allocations = json_object["flavor_allocations"]
-            state._parameters = json_object["parameters"]
-            state._slivers_by_urn = json_object["slivers_by_urn"]
-            return state
-
-        if(obj_type == "AllocationManager"):
-            max_slivers = json_object["max_slivers"]
-            resources = json_object["resources"]
-            am = AllocationManager(max_slivers);
-            am._resources = resources;
-            return am
-
-        if(obj_type == "Slice"):
-            slice = Slice(json_object["slice_urn"],
-            json_object["sa_urn"],
-            json_object["user_urn"],
-            json_object["expiration"],
-            json_object["tenant_id"],
-            json_object["router_id"],
-            json_object["manifest_rspec"])
-            return slice;
-
-        if(obj_type == "VirtualMachine"):
-            vm = VirtualMachine(json_object["uuid"],
-            json_object["component_id"],
-            json_object["slice"],
-            json_object["expiration"],
-            json_object["control_net_addr"],
-            json_object["node_name"],
-            json_object["installs"],
-            json_object["executes"],
-            json_object["network_interfaces"],
-            json_object["authorized_user_urns"],
-            json_object["allocation_state"],
-            json_object["operational_state"],
-            json_object["flavor"],
-            json_object["image_id"])
-            return vm
-
-        if(obj_type == "NetworkInterface"):
-            nic = NetworkInterface(json_object["uuid"],
-            json_object["component_id"],
-            json_object["slice"],
-            json_object["expiration"],
-            json_object["name"],
-            json_object["device_number"],
-            json_object["mac_address"],
-                                   json_object["ip_address"],
-#                                   json_object["host"],
-                                   None, # Avoid circular reference
-                                   json_object["virtual_eth_name"],
-#                                   json_object["link"]
-                                   None # Avoid circular reference
-                                   )
-            return nic
-
-        if(obj_type == "NetworkLink"):
-            link = NetworkLink(json_object["uuid"],
-            json_object["component_id"],
-            json_object["slice"],
-            json_object["expiration"],
-                               json_object["name"],
-                               json_object["subnet"],
-                               json_object["endpoints"],
-                               json_object["network_id"],
-                               json_object["vlan_tag"])
-            return link;
-
-    return json_object
+            expiration_time = time.mktime(o.getExpiration().timetuple())
+            return {"__type__":"NetworkLink",
+                    "name":o.getName(),
+                    "uuid":o.getUUID(),
+                    "sliver_urn":o.getSliverURN(),
+                    "slice":o.getSlice().getTenantUUID(),
+                    "expiration":expiration_time,
+                    "allocation_state":o.getAllocationState(),
+                    "operational_state":o.getOperationalState(),
+                    "subnet":o.getSubnet(),
+                    "endpoints":[ep.getUUID() for ep in o.getEndpoints()],
+                    "network_uuid":o.getNetworkUUID(),
+                    "subnet_uuid":o.getSubnetUUID()
+                    }
 
 
-def write_aggregate_state(filename, aggregate_state):
-#    print "WAS.CALL " + str(aggregate_state) + " " + filename
+
+# THis should create a JSON structure which is a list
+# of the JSON encoding of all slices and then all slivers
+def write_slices(filename, slices):
+#    print "WS.CALL " + str(slices) + " " + filename
     file = open(filename, "w")
-    data = GramJSONEncoder().encode(aggregate_state);
+    objects = []
+    for slice in slices.values(): 
+        objects.append(slice)
+    for slice in slices.values(): 
+        for sliver in slice.getSlivers().values():
+            objects.append(sliver)
+    data = GramJSONEncoder().encode(objects)
     file.write(data)
     file.close();
-#    print "WAS.DATA = " + str(data)
 
-def resolve_slivers(slivers_by_urn, slivers):
-    new_slivers = list()
-    for sliver in slivers:
-        sliver_urn = sliver.getComponentID()
-        new_sliver = slivers_by_urn[sliver_urn]
-        new_slivers.append(new_sliver)
-    return new_slivers
+# Decode JSON representation of list of slices and associated slivers
+# Comes as a list of slices and slivers
+# As we parse, we keep track of different relationships which
+# Can then be restored once we have all the objects by UUID
+class GramJSONDecoder:
+    def __init__(self):
+        self._slices_by_tenant_uuid = {} 
 
-def read_aggregate_state(filename):
+        self._slivers_by_slice_tenant_uuid = {} 
+        self._slivers_by_uuid = {} 
+
+        self._virtual_machines_by_uuid = {} 
+        self._network_interfaces_by_virtual_machine_uuid = {} 
+
+        self._network_interfaces_by_uuid = {} 
+        self._network_link_by_network_interface_uuid = {} 
+        self._virtual_machine_by_network_interface_uuid = {}
+
+        self._network_links_by_uuid = {}
+
+
+    def decode(self, json_object):
+#        print "DECODE : " + str(type(json_object)) + " " + str(json_object) 
+        if isinstance(json_object, dict) and json_object.has_key("__type__"):
+            obj_type = json_object["__type__"]
+
+            if(obj_type == "Slice"):
+                slice = Slice(json_object["slice_urn"])
+                tenant_uuid = json_object['tenant_uuid']
+                slice.setTenantUUID(tenant_uuid)
+                slice.setTenantName(json_object["tenant_name"])
+                tenant_admin_name = json_object['tenant_admin_name']
+                tenant_admin_pwd = json_object['tenant_admin_pwd']
+                tenant_admin_uuid = json_object['tenant_admin_uuid']
+                slice.setTenantAdminInfo(tenant_admin_name, tenant_admin_pwd, \
+                                             tenant_admin_uuid)
+                slice.setControlNetInfo(json_object["control_net_info"])
+                slice.setTenantRouterName(json_object["tenant_router_name"])
+                slice.setTenantRouterUUID(json_object["tenant_router_uuid"])
+#                slice.setControlNetAddress(json_object["control_net_address"])
+                slice.setUserURN(json_object["user_urn"])
+                expiration_timestamp = json_object['expiration']
+                expiration_time = \
+                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                slice.setExpiration(expiration_time)
+                slice.setManifestRspec(json_object["manifest_rspec"])
+                slice.setRequestRspec(json_object["request_rspec"])
+                slice._last_subnet_assigned = json_object['last_subnet_assigned']
+                slice._next_vm_num = json_object['next_vm_num']
+                
+                self._slivers_by_slice_tenant_uuid[tenant_uuid] = \
+                    json_object['slivers']
+
+                self._slices_by_tenant_uuid[tenant_uuid] = slice
+                
+                
+                return slice;
+
+            if(obj_type == "VirtualMachine"):
+                # VM wants a slice in its constructor
+                slice_tenant_uuid = json_object['slice']
+                uuid = json_object['uuid']
+                slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
+                vm = VirtualMachine(slice, uuid)
+                vm.setName(json_object["name"])
+                vm.setUUID(uuid)
+                vm._sliver_urn = json_object["sliver_urn"]
+                expiration_timestamp = json_object['expiration']
+                expiration_time = \
+                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                vm.setExpiration(expiration_time)
+                vm.setAllocationState(json_object["allocation_state"])
+                vm.setOperationalState(json_object["operational_state"])
+                vm.setControlNetAddr(json_object["control_net_addr"])
+                vm._installs = json_object["installs"]
+                vm._executes = json_object["executes"]
+                vm._ip_last_octet = json_object["last_octet"]
+                vm._os_image = json_object["os_image"]
+                vm._flavor = json_object["vm_flavor"]
+                vm.setHost(json_object['host'])
+                
+                # network_interfaces
+                self._network_interfaces_by_virtual_machine_uuid[uuid]  = \
+                    json_object['network_interfaces']
+
+                self._virtual_machines_by_uuid[uuid] = vm
+                self._slivers_by_uuid[uuid] = vm
+
+                return vm
+
+            if(obj_type == "NetworkInterface"):
+                # network interface  wants a slice and VM in its constructor
+                slice_tenant_uuid = json_object['slice']
+                virtual_machine_uuid = json_object['virtual_machine']
+                uuid = json_object['uuid']
+                slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
+                nic = NetworkInterface(slice, None, uuid)
+                nic.setName(json_object["name"])
+                nic._sliver_urn = json_object["sliver_urn"]
+                expiration_timestamp = json_object['expiration']
+                expiration_time = \
+                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                nic.setExpiration(expiration_time)
+                nic.setAllocationState(json_object["allocation_state"])
+                nic.setOperationalState(json_object["operational_state"])
+                nic._device_number = json_object["device_number"]
+                nic.setMACAddress(json_object["mac_address"])
+                nic.setIPAddress(json_object["ip_address"])
+                nic.setVLANTag(json_object["vlan_tag"])
+
+                # vm
+                self._virtual_machine_by_network_interface_uuid[uuid] = virtual_machine_uuid
+            
+                # link
+                self._network_link_by_network_interface_uuid[uuid] = json_object['link']
+
+                self._network_interfaces_by_uuid[uuid] = nic
+                self._slivers_by_uuid[uuid] = nic
+
+                return nic;
+
+            if(obj_type == "NetworkLink"):
+                # Link wants a slice 
+                slice_tenant_uuid = json_object['slice']
+                uuid = json_object['uuid']
+                slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
+                link = NetworkLink(slice, uuid)
+                link.setName(json_object["name"])
+                link._sliver_urn = json_object["sliver_urn"]
+                expiration_timestamp = json_object['expiration']
+                expiration_time = \
+                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                link.setExpiration(expiration_time)
+                link.setAllocationState(json_object["allocation_state"])
+                link.setOperationalState(json_object["operational_state"])
+                link.setSubnet(json_object["subnet"])
+                link.setNetworkUUID(json_object["network_uuid"])
+                link.setSubnetUUID(json_object["subnet_uuid"])
+                
+                # endpoints
+#                self._endpoints_by_network_link_uuid[uuid] = json_object['endpoints']
+                
+                self._network_links_by_uuid[uuid] = link
+                self._slivers_by_uuid[uuid] = link
+                
+                return link
+
+            return json_object
+
+    # Re-link the objects
+    # 1. Resolve the references for the VM's
+    # 2. Resolve the references for the NIC's
+    # 3. Resolve the references for the Link's
+    def resolve(self):
+
+    # Restore virtual_machine <=> network_interfaces link
+        for virtual_machine_uuid in self._virtual_machines_by_uuid.keys():
+            virtual_machine = self._slivers_by_uuid[virtual_machine_uuid]
+            network_interfaces = \
+                [self._slivers_by_uuid[nic_uuid] \
+                     for nic_uuid in self._network_interfaces_by_virtual_machine_uuid[virtual_machine_uuid]]
+            virtual_machine._network_interfaces = network_interfaces
+            for nic in network_interfaces: nic.setVM(virtual_machine)
+
+    # Restore the nic <=> link nic <=> vm
+        for network_interface_uuid in self._network_interfaces_by_uuid.keys():
+            network_interface = self._slivers_by_uuid[network_interface_uuid]
+            link_uuid = self._network_link_by_network_interface_uuid[network_interface_uuid]
+            link = self._slivers_by_uuid[link_uuid]
+            network_interface.setLink(link)
+            link.addEndpoint(network_interface)
+
+def read_slices(filename):
     file = open(filename, "r")
     data = file.read()
     file.close()
+    json_data = json.loads(data)
 
-    am = json.loads(data, object_hook=gram_json_object_hook)
+    # This should be a list of JSON-enocded objects
+    # Need to turn this into a list of objects
+    # Resolve links among them
 
-    # Now relink the NetworkLink and NetworkInterface and VM objects
-    # to resolve / reestablish circular dependencies
-    # 
-    # 1. Go through all the slivers in am.getSliversByURN
-    # 2. Go to each VM and find the NI's corresponding 
-    #       to VM.getNetworkInterfaces. 
-    # 3. Then call ni.setHost(vm), vm.setNetworkInterfaces(nis)
-    # 4. Go to each NL and find the NI's corresponding
-    #       to NI.getEndpoints
-    # 5. Then call nl.setEndpoints(nl) and ni.setLink(nl)
-    #
-    slivers_by_urn = am.getSliversByURN();
-    for sliver in slivers_by_urn.values():
-        if isinstance(sliver, VirtualMachine):
-            new_nis = resolve_slivers(slivers_by_urn, 
-                                      sliver.getNetworkInterfaces())
-            for ni in new_nis:
-                ni.setHost(sliver)
-            sliver.setNetworkInterfaces(new_nis);
-        if isinstance(sliver, NetworkLink):
-            new_nis = resolve_slivers(slivers_by_urn,
-                                      sliver.getEndpoints())
-            for ni in new_nis:
-                ni.setLink(sliver)
-            sliver.setEndpoints(new_nis)
+    decoder = GramJSONDecoder()
+    for json_object in json_data: 
+        decoder.decode(json_object)
+    decoder.resolve()
 
-    return am
+    # Return a  dictionary of all slices indexed by slice_urn
+    slices = dict()
+    for slice in decoder._slices_by_tenant_uuid.values():
+        slice_urn = slice.getSliceURN()
+        slices[slice_urn] = slice
+
+    return slices
+

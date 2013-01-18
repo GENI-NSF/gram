@@ -5,11 +5,14 @@ import re
 import time
 import tempfile
 import os
+import time
+from threading import Thread
 
 import resources
 import config
 import utils
 import gen_metadata
+import compute_node_interface
 
 
 def init() :
@@ -122,14 +125,18 @@ def provisionResources(geni_slice, users) :
     # VM if such a VM has not already been created
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
-            # Need to create an OpenStack VM for this node
-            vm_uuid = _createVM(vm, users)
-            if vm_uuid == None :
-                config.logger.error('Failed to crate vm for node %s' %
-                                    vm.getName())
-            else :
-                vm.setUUID(vm_uuid)
-                vm.setAllocationState(config.provisioned)
+            # Need to create an OpenStack VM for this node.  This happens in a 
+            # separate thread so provision is not blocked waiting for the VM to
+            # boot.
+            Thread(target = _createVM, args = (vm, users)).start()
+
+            ## vm_uuid = _createVM(vm, users)
+            ## if vm_uuid == None :
+            ##     config.logger.error('Failed to crate vm for node %s' %
+            ##                         vm.getName())
+            ## else :
+            ##     vm.setUUID(vm_uuid)
+            ##     vm.setAllocationState(config.provisioned)
         
 
 def deleteAllResourcesForSlice(geni_slice) :
@@ -417,7 +424,7 @@ def _createVM(vm_object, users) :
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += (' boot %s --image %s --flavor %s' % (vm_name, os_image_id,
+    cmd_string += (' boot %s --poll --image %s --flavor %s' % (vm_name, os_image_id,
                                                         vm_flavor_id))
 
     # Add user meta data to create account, pass keys etc.
@@ -440,33 +447,35 @@ def _createVM(vm_object, users) :
     # Issue the command to create the VM
     output = _execCommand(cmd_string) 
 
+    # Get the UUID of the VM that was created 
+    vm_uuid = _getValueByPropertyName(output, 'id')
+
     # Delete the temp file
     zipped_userdata_filename = userdata_filename + ".gz"
     os.unlink(zipped_userdata_filename)
 
-    # Get the UUID of the VM that was created 
-    vm_uuid = _getValueByPropertyName(output, 'id')
-
     # Wait for the vm status to turn to 'active' and then reboot
-    while True :
-        cmd_string = 'nova show %s' % vm_uuid
-        output = _execCommand(cmd_string) 
-        vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
-        config.logger.info('VM state is %s' % vm_state)
-        if vm_state == 'active' :
-            break
-        time.sleep(3)
+    ## while True :
+    ##     cmd_string = 'nova show %s' % vm_uuid
+    ##     output = _execCommand(cmd_string) 
+    ##     vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
+    ##     config.logger.info('VM state is %s' % vm_state)
+    ##     if vm_state == 'active' :
+    ##         break
+    ##     time.sleep(3)
         
 
     # Reboot the VM.  This seems to be necessary for the NICs to get IP addrs 
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-        % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += (' reboot %s' % vm_name)
-    _execCommand(cmd_string) 
+    ## cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    ##     % (admin_name, admin_pwd, slice_object.getTenantName())
+    ## cmd_string += (' reboot %s' % vm_name)
+    ## _execCommand(cmd_string) 
 
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(config.configuring)
 
+    vm_object.setUUID(vm_uuid)
+    vm_object.setAllocationState(config.provisioned)
     return vm_uuid
 
 
@@ -598,6 +607,115 @@ def _getValueByPropertyName(output_table, property_name) :
 
     return None   # Failed to find the uuid
 
+# Get dictionary of hostnames : hostname => list of services
+def _listHosts(onlyForService=None):
+    hosts = {}
+    command_string = 'nova host-list'
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        host_name = parts[1].strip()
+        service = parts[2].strip()
+        if onlyForService and onlyForService != service: continue
+        if not hosts.has_key(host_name): hosts[host_name] = []
+        hosts[host_name].append(service)
+    return hosts
+
+# Get dictionary of all supported flavors (id => description)
+def _listFlavors():
+    flavors = {}
+    command_string = "nova flavor-list"
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        id = int(parts[1].strip())
+        name = parts[2].strip()
+#        print "ID = " + str(id) + " NAME = " + str(name)
+        flavors[id]=name
+    return flavors
+
+# Find VLAN's associated with MAC addresses and hostnames
+# Return dictionary {mac => {'vlan':vlan, 'host':host}}
+def _lookup_vlans_for_tenant(tenant_id):
+    map = {}
+    hosts = _listHosts('compute')
+#    print str(hosts)
+    ports = _getPortsForTenant(tenant_id)
+#    print str(ports)
+    for host in hosts.keys():
+        port_data = compute_node_interface.compute_node_command(host, 'ovs-vsctl show')
+        port_map = _read_vlan_port_map(port_data)
+        for port in ports.keys():
+            mac = ports[port]['mac_address']
+            vlan_id = _lookup_vlan_for_port(port, port_map)
+            if vlan_id: 
+                map[mac] = {'vlan': vlan_id, 'host':host}
+    return map
+
+# Find the VLAN tag associated with given port interface
+# The ovs-vsctl show command returns interfaces with a qvo prefix
+# and has all ports turncated to their first 12 characters, so
+# we match accordingly
+def _lookup_vlan_for_port(port, port_map):
+    vlan_id = None
+    port_prefix = port[:11]
+    for port in port_map:
+        if port.has_key('interface') and port.has_key('tag'):
+            tag = port['tag']
+            interface = port['interface']
+            interface_suffix = interface[3:]
+            if (port_prefix == interface_suffix):
+                vlan_id = tag
+                break
+    return vlan_id
+
+# Produce a iist of port / tag / interface from "ovs_vsctl show" command
+def _read_vlan_port_map(port_data):
+    ports = []
+    lines = port_data.split('\n')
+    processing_ports = False
+    current_port = None
+    current_tag = None
+    current_interface = None
+    for line in lines:
+        line = line.strip()
+        if line.find('Bridge') >= 0:
+            processing_ports = line.find('br-int') >= 0
+        if not processing_ports: continue
+        if line.find("Port") >= 0:
+            if current_port and current_tag and current_interface:
+                port_info = {'port':current_port, 'tag':current_tag, \
+                                 'interface':current_interface}
+                ports.append(port_info)
+                current_interface = None
+                current_tag = None
+                current_port = None
+            parts = line.split(' ')
+#            print("PORT PARTS = " + str(parts))
+            current_port = parts[1]
+            parts = current_port.split('"')
+#            print("PORT PARTS = " + str(parts))
+            if len(parts) > 1:
+                current_port = parts[1]
+        if line.find("Interface") >= 0:
+            parts = line.split(' ')
+#            print("INTERFACE PARTS = " + str(parts))
+            current_interface = parts[1]
+            parts = current_interface.split('"')
+#            print("INTERFACE PARTS = " + str(parts))
+            if len(parts) > 1:
+                current_interface = parts[1]
+        if line.find("tag:") >= 0:
+            parts = line.split(' ');
+            current_tag = int(parts[1])
+#            print("TAG PARTS = " + str(parts))
+                
+#    print str(ports)
+    return ports
 
 def _execCommand(cmd_string) :
     config.logger.info('Issuing command %s' % cmd_string)
@@ -619,6 +737,8 @@ def updateOperationalStatus(geni_slice) :
             vm_state = _getValueByPropertyName(output, 'status')
             if vm_state == 'ACTIVE' :
                 vm_object.setOperationalState(config.ready)
+            elif vm_state == 'ERROR' :
+                vm_object.setOperationalState(config.failed)
 
     links = geni_slice.getNetworkLinks()
     for i in range(0, len(links)) :
@@ -626,3 +746,12 @@ def updateOperationalStatus(geni_slice) :
         network_uuid = link_object.getNetworkUUID() 
         if network_uuid != None :
             link_object.setOperationalState(config.ready)
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        tenant_uuid = sys.argv[1]
+        ports = _getPortsForTenant(tenant_uuid)
+        map = _lookup_vlans_for_tenant(tenant_uuid)
+        print str(map)

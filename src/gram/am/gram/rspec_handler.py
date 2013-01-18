@@ -4,14 +4,20 @@ from xml.dom.minidom import *
 import config
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import utils
-import gram_context
 
 def parseRequestRspec(geni_slice, rspec) :
-    """ This function parses a request rspec.   SAY MORE...
-        Return:
-            None if successful.
-            An error string if something went wrong.
+    """ This function parses a request rspec and creates the sliver objects for
+        the resources requested by this rspec.  The resources are not actually
+        created.
+
+        Returns a tuple (error string, sliver list) :
+            error string: String describing any error encountered during parsing.
+                          None if there is no error.
+            sliver list: List of slivers created while parsing the rspec
     """
+    # Initialize return values
+    error_string = None
+    sliver_list = []
         
     # Parse the xml rspec
     rspec_dom = parseString(rspec)
@@ -24,14 +30,16 @@ def parseRequestRspec(geni_slice, rspec) :
         # Create a VirtualMachine object for this node and add it to the list
         # of virtual machines that belong to this slice
         vm_object = VirtualMachine(geni_slice)
+        sliver_list.append(vm_object)
 
         # Get information about the node from the rspec
         node_attributes = node.attributes
         if node_attributes.has_key('client_id') :
             vm_object.setName(node_attributes['client_id'].value)
         else :
-            config.logger.error('Malformed rspec: Node name not specified')
-            return 'Malformed rspec: Node name not specified'
+            error_string = 'Malformed rspec: Node name not specified' 
+            config.logger.error(error_string)
+            return error_string, sliver_list
 
         # Get interfaces associated with the node
         interface_list = node.getElementsByTagName('interface')
@@ -39,6 +47,7 @@ def parseRequestRspec(geni_slice, rspec) :
             # Create a NetworkInterface object this interface and associate
             # it with the VirtualMachine object for the node
             interface_object = NetworkInterface(geni_slice, vm_object)
+            sliver_list.append(interface_object)
             vm_object.addNetworkInterface(interface_object)
             
             # Get information about this network interface from rspec
@@ -46,9 +55,9 @@ def parseRequestRspec(geni_slice, rspec) :
             if interface_attributes.has_key('client_id') :
                 interface_object.setName(interface_attributes['client_id'].value)
             else :
-                config.logger.error('Malformed rspec: Interface name not specified')
-                return 'Malformed rspec: Interface name not specified'
-            
+                error_string = 'Malformed rspec: Interface name not specified'
+                config.logger.error(error_string)
+                return error_string, sliver_list
 
         # Get the list of services for this node (install and execute services)
         service_list = node.getElementsByTagName('service')
@@ -59,8 +68,9 @@ def parseRequestRspec(geni_slice, rspec) :
                 install_attributes = install.attributes
                 if not (install_attributes.has_key('url') and 
                         install_attributes.has_key('install_path')) :
-                    config.logger.error('Source URL or destination path missing for install element in request rspec')
-                    return 'Source URL or destination path missing for install element in request rspec' 
+                    error_string = 'Source URL or destination path missing for install element in request rspec'
+                    config.logger.error(error_string)
+                    return error_string, sliver_list
 
                 source_url = install_attributes['url'].value
                 destination = install_attribtues['install_path'].value
@@ -76,8 +86,9 @@ def parseRequestRspec(geni_slice, rspec) :
             for execute in execute_list :
                 execute_attributes = execute.attributes
                 if not execute_attributes.has_key('command') :
-                    config.logger.error('Command missing for execute element in request rspec')
-                    return 'Command missing for execute element in request rspec' 
+                    error_string = 'Command missing for execute element in request rspec'
+                    config.logger.error(error_string)
+                    return error_string, sliver_list
 
                 exec_command = execute_attributes['command'].value
                 if execute_attributes.has_key('shell') :
@@ -92,15 +103,16 @@ def parseRequestRspec(geni_slice, rspec) :
     for link in link_list :
         # Create a NetworkLink object for this link 
         link_object = NetworkLink(geni_slice)
+        sliver_list.append(link_object)
 
         # Get information about this link from the rspec
         link_attributes = link.attributes
         if link_attributes.has_key('client_id') :
             link_object.setName(link_attributes['client_id'].value)
         else :
-            config.logger.error('Malformed rspec: Link name not specified')
-            return 'Malformed rspec: Link name not specified'
-            
+            error_string = 'Malformed rspec: Link name not specified'
+            config.logger.error(error_string)
+            return error_string, sliver_list
         
         # Get the end-points for this link.  Each end_point is a network
         # interface
@@ -116,8 +128,9 @@ def parseRequestRspec(geni_slice, rspec) :
             interface_object =  \
                 geni_slice.getNetworkInterfaceByName(interface_name)
             if interface_object == None :
-                config.logger.error('Malformed rspec: Unknown interface_ref %s specified for link %s' % (interface_name, link_object.getName()))
-                return 'Malformed rspec: Unknown interface_ref %s specified for link %s' % (interface_name, link_object.getName())
+                error_string = 'Malformed rspec: Unknown interface_ref %s specified for link %s' % (interface_name, link_object.getName())
+                config.logger.error(error_string)
+                return error_string, sliver_list
 
             # Set the interface to point to this link
             interface_object.setLink(link_object)
@@ -125,20 +138,17 @@ def parseRequestRspec(geni_slice, rspec) :
             # Associate this end point (NetworkInterface) with this link
             link_object.addEndpoint(interface_object)
 
-    return None  # Success
+    return error_string, sliver_list
 
 
 def generateManifest(geni_slice, req_rspec) :
 
 
     """
-        Returns a tuple that consists of:
-           1. The manifest rspec for the specified request rspec (req_rspec)
-           2. A list with information about each of the slivers corresponding
-              to resources in the request rspec.
+        Returns a manifets rspec that corresponds to the given request rspec
+        i.e. annotat the request rspec with information about the resources.
     """
     manifest = Document()                 # Manifest returned by this function
-    sliver_stat_list = utils.SliverList() # Sliver status list returned 
 
     # Use the request rspec as a model for the manifest i.e. start with the
     # request and add additional information to it to form the manifest
@@ -184,7 +194,7 @@ def generateManifest(geni_slice, req_rspec) :
             child.setAttribute('component_id', vm_object.getSliverURN())
 
             # Set the component_manager_id (this AM's URN) for the node element
-            component_manager_id = gram_context.GRAM_AM_URN
+            component_manager_id = config.gram_am_urn
             child.setAttribute('component_manager_id', component_manager_id)
             
             # For each child element of node, set appropriate attrbutes.
@@ -224,9 +234,6 @@ def generateManifest(geni_slice, req_rspec) :
                 sliver_type_attribute.setAttribute('name', sliver_type)
                 child.appendChild(sliver_type_attribute)
 
-            # Add this node to the list of slivers in this rspec
-            sliver_stat_list.addSliver(vm_object)
-
         elif child.nodeName == 'link' :
             # Find the NetworkLink object for this link
             link_name = child.attributes['client_id'].value
@@ -237,9 +244,6 @@ def generateManifest(geni_slice, req_rspec) :
                     break
             child.setAttribute('sliver_id', link_object.getSliverURN())
 
-            # Add this link to the list of slivers in this rspec
-            sliver_stat_list.addSliver(link_object)
-            
     manifest = manifest.toprettyxml(indent = '    ')
     config.logger.info('Manifest = %s' % manifest)
 
@@ -252,5 +256,5 @@ def generateManifest(geni_slice, req_rspec) :
 
     config.logger.info('Clean manifest = %s' % clean_manifest)
 
-    return clean_manifest, sliver_stat_list.getSliverStatusList()
+    return clean_manifest
 
