@@ -311,7 +311,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
-        if not the_slices:
+        if not the_slice:
             return self._no_slice_found(urns)
 
         privileges = (SLIVERSTATUSPRIV,)
