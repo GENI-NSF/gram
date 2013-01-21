@@ -12,7 +12,7 @@ import resources
 import config
 import utils
 import gen_metadata
-import compute_node_interface
+from compute_node_interface import compute_node_command, ComputeNodeInterfaceHandler
 
 
 def init() :
@@ -647,7 +647,7 @@ def _lookup_vlans_for_tenant(tenant_id):
     ports = _getPortsForTenant(tenant_id)
 #    print str(ports)
     for host in hosts.keys():
-        port_data = compute_node_interface.compute_node_command(host, 'ovs-vsctl show')
+        port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
         port_map = _read_vlan_port_map(port_data)
         for port in ports.keys():
             mac = ports[port]['mac_address']
