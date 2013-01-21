@@ -150,6 +150,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+        if not the_slice: 
+            self._no_slice_found(urns)
+
         # Note this list of privileges is really the name of an operation
         # from the privilege_table in sfa/trust/rights.py
         # Credentials will specify a list of privileges, each of which
@@ -175,6 +178,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+        if not the_slice:
+            return self._no_slice_found(urns)
+
         privileges = (DELETESLIVERPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
@@ -190,6 +196,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+        if not the_slice:
+            return self._no_slice_found(urns)
+
         # Note this list of privileges is really the name of an operation
         # from the privilege_table in sfa/trust/rights.py
         # Credentials will specify a list of privileges, each of which
@@ -274,7 +283,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         the_slice, slivers = self._gram_manager.decode_urns(urns)
 
         if not the_slice:
-            return self._no_such_slice(urns[0])
+            return self._no_slice_found(urns)
 
         privileges = (SLIVERSTATUSPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
@@ -300,7 +309,11 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         """
         self.logger.info('Describe(%r)' % (urns))
         self._gram_manager.expire_slivers()
+
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+        if not the_slice:
+            return self._no_slice_found(urns)
+
         privileges = (SLIVERSTATUSPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
@@ -315,7 +328,11 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
         self.logger.info('Renew(%r, %r)' % (urns, expiration_time))
         self._gram_manager.expire_slivers()
+
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+        if not the_slice:
+            return self._no_slice_found(urns)
+
         privileges = (RENEWSLIVERPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
@@ -333,7 +350,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         # *** WRITE ME
         return self._gram_manager.shutdown_slice(slice_urn)
 
-
     # Read URN from certificate file
     def readURNFromCertfile(self, certfile):
             import sfa.trust.certificate
@@ -344,6 +360,14 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             urns = [s[4:] for s in filter(lambda x: 'publicid' in x, sans)]
             urn = urns[0]
             return urn
+
+    # Return error if no slice found for set of URN's
+    def _no_slice_found(self, urns):
+        if len(urns) > 0:
+            return self._no_such_slice(urns[0])
+        else:
+            return self.errorResult(self, AM_API.SEARCH_FAILED, \
+                                        'No URNs provided to AM call')
 
     # Does the given set of credentials allow all the following privileges?
     def validate_credentials(self, credentials, privileges, slice_urn):
