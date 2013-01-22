@@ -25,7 +25,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/types.c>
+#include <string.h>
+#include <sys/types.h>
+#include <errno.h>
 
 #define IPTABLES_LOCATION_STR "/sbin/iptables"
 #define PORT_TABLE_LOCATION "/tmp/gram-ssh-port-table.txt"
@@ -39,33 +41,37 @@
 #define MODE_CREATE 1
 #define MODE_DELETE 2
 
+#define TRUE 1
+#define FALSE 0
+
 typedef char *entryType;
 
 void add_proxy_cmd(char *addr, int portNumber)
 {
   int cmdlen;
   char *cmd;
+  pid_t pid;
 
   cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
 
   setuid(0);
-  if (fork() == 0)
-  {
-    memset(cmd, NULL, MAX_IPTABLES_CMD_STR_LEN);
-    cmdlen = sprintf(cmd, "%s -t nat -I PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
-		     IPTABLES_LOCATION_STR, portNumber, addr);  
-    execl(cmd, NULL);
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  cmdlen = sprintf(cmd, "%s -t nat -I PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
+                   IPTABLES_LOCATION_STR, portNumber, addr);
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
 
-    memset(cmd, NULL, MAX_IPTABLES_CMD_STR_LEN);
-    cmdlen = sprintf(cmd, "%s -I FORWARD -p tcp -s %s -j ACCEPT ",
-		     IPTABLES_LOCATION_STR, addr);
-    execl(cmd, NULL);
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  cmdlen = sprintf(cmd, "%s -A FORWARD -p tcp -s %s -j ACCEPT ",
+                   IPTABLES_LOCATION_STR, addr);
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
 
-    memset(cmd, NULL, MAX_IPTABLES_CMD_STR_LEN);
-    cmdlen = sprintf(cmd, "%s -t nat -I POSTROUTING -p tcp -s %s -j MASQUERADE ",
-		     IPTABLES_LOCATION_STR, addr);  
-    execl(cmd, NULL);
-  }
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  cmdlen = sprintf(cmd, "%s -t nat -I POSTROUTING -p tcp -s %s -j MASQUERADE ",
+                   IPTABLES_LOCATION_STR, addr);  
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
 
   free(cmd);
 }
@@ -79,23 +85,23 @@ void delete_proxy_cmd(char *addr, int portNumber)
   cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
 
   setuid(0);
-  if (fork() == 0)
-  {
-    memset(cmd, NULL, MAX_IPTABLES_CMD_STR_LEN);
-    cmdlen = sprintf(cmd, "%s -t nat -D PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
-		     IPTABLES_LOCATION_STR, portNumber, addr);  
-    execl(cmd, NULL);
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  cmdlen = sprintf(cmd, "%s -t nat -D PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
+                   IPTABLES_LOCATION_STR, portNumber, addr);  
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
 
-    memset(cmd, NULL, MAX_IPTABLES_CMD_STR_LEN);
-    cmdlen = sprintf(cmd, "%s -D FORWARD -p tcp -s %s -j ACCEPT ",
-		     IPTABLES_LOCATION_STR, addr);
-    execl(cmd, NULL);
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  cmdlen = sprintf(cmd, "%s -D FORWARD -p tcp -s %s -j ACCEPT ",
+                   IPTABLES_LOCATION_STR, addr);
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
 
-    memset(cmd, NULL, MAX_IPTABLES_CMD_STR_LEN);
-    cmdlen = sprintf(cmd, "%s -D nat -I POSTROUTING -p tcp -s %s -j MASQUERADE ",
-		     IPTABLES_LOCATION_STR, addr);  
-    execl(cmd, NULL);
-  }
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  cmdlen = sprintf(cmd, "%s -t nat -D POSTROUTING -p tcp -s %s -j MASQUERADE ",
+                   IPTABLES_LOCATION_STR, addr);  
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
 
   free(cmd);
 }
@@ -121,13 +127,46 @@ int add_proxy(char *addr)
   entryType entries[MAX_PORT_TABLE_ENTRIES];
   entryType newEntry;
   int entryIndex;
+  char *token;
+  char *addrcpy;
 
   /* Pasrse the address and check that it's valid */
-  if (scanf(addr, "%d\.%d\.%d\.%d", addr0, addr1, addr2, addr3) != 4)
+  strlength = 0;
+  addrcpy = (char*)malloc(sizeof(char) * strlen(addr) + 1);
+  strcpy(addrcpy, addr);
+  token = strtok(addrcpy, ".");
+  if (token != NULL)
+  {
+    addr0 = atoi(token);
+    strlength++;
+    token = strtok(NULL, ".");
+    if (token != NULL)
+    {
+      strlength++;
+      addr1 = atoi(token);
+      token = strtok(NULL, ".");
+      if (token != NULL)
+      {
+        strlength++;
+        addr2 = atoi(token);
+        token = strtok(NULL, ".");
+        if (token != NULL)
+	{
+          strlength++;
+	  addr3 = atoi(token);
+	}
+      }
+    }
+  }
+
+  free(addrcpy);
+  if (strlength != 4)
   {
     fprintf(stderr, "Bad address %s\n", addr);
     exit(EXIT_FAILURE);
   }
+
+  /*fprintf(stdout, "Address: %d.%d.%d.%d\n", addr0, addr1, addr2, addr3);*/
 
   /* Initialize state variables */
   duplicate = FALSE;
@@ -147,7 +186,7 @@ int add_proxy(char *addr)
     while (!feof(pRead))
     {
       /* Read the line */
-      strlength = fscanf(pRead, "%d\.%d\.%d\d\t%d",  table0, table1, table2, table3, portNumber);
+      strlength = fscanf(pRead, "%d.%d.%d.%d\t%d",  &table0, &table1, &table2, &table3, &portNumber);
       if (strlength == 5)
       {
         /* Break if the address is a duplication */
@@ -164,18 +203,18 @@ int add_proxy(char *addr)
           if (portCounter == portNumber)
           {
             newEntry = (entryType)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
-            sprintf(newEntry, "%d\.%d\.%d\.%d\t%d\n", table0, table1, table2, table3, portNumber);
+            sprintf(newEntry, "%d.%d.%d.%d\t%d\n", table0, table1, table2, table3, portNumber);
             entries[entryIndex++] = newEntry;
             portCounter++;
           } else {
             newEntry = (entryType)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
-            sprintf(newEntry, "%d\.%d\.%d\.%d\t%d\n", addr0, addr1, addr2, addr3, portCounter);
+            sprintf(newEntry, "%d.%d.%d.%d\t%d\n", addr0, addr1, addr2, addr3, portCounter);
             entries[entryIndex++] = newEntry;
             finalPortNumber = portCounter;
           }
         } else {
           newEntry = (entryType)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
-          sprintf(newEntry, "%d\.%d\.%d\.%d\t%d\n", table0, table1, table2, table3, portNumber);
+          sprintf(newEntry, "%d.%d.%d.%d\t%d\n", table0, table1, table2, table3, portNumber);
           entries[entryIndex++] = newEntry;
         }
       } /* if strlength == 5 */
@@ -218,7 +257,9 @@ int add_proxy(char *addr)
     }
 
     /* Write the new entry and close the file */
+    /*fprintf(stdout, "Appending file %s\n", PORT_TABLE_LOCATION);*/
     fprintf(pWrite, "%s\t%d\n", addr, portCounter);
+    /*fprintf(stdout, "%s\t%d\n", addr, portCounter);*/
     fclose(pWrite);
 
     /* Return the port number */
@@ -237,7 +278,7 @@ int add_proxy(char *addr)
   portCounter = 0;
   while (portCounter < entryIndex)
   {
-    fprintf(pWrite, entries[portCounter]);
+    fprintf(pWrite, "%s", entries[portCounter]);
     free(entries[portCounter]);
     portCounter++;
   }
@@ -261,18 +302,52 @@ int delete_proxy(char *addr)
   int table1;
   int table2;
   int table3;
+  int portNumber;
   int portCounter;
   entryType entries[MAX_PORT_TABLE_ENTRIES];
   entryType newEntry;
   int entryIndex;
   int finalPortNumber;
+  char *token;
+  char *addrcpy;
 
   /* Pasrse the address and check that it's valid */
-  if (scanf(addr, "%d\.%d\.%d\.%d", addr0, addr1, addr2, addr3) != 4)
+  strlength = 0;
+  addrcpy = (char*)malloc(sizeof(char) * strlen(addr) + 1);
+  strcpy(addrcpy, addr);
+  token = strtok(addrcpy, ".");
+  if (token != NULL)
+  {
+    addr0 = atoi(token);
+    strlength++;
+    token = strtok(NULL, ".");
+    if (token != NULL)
+    {
+      strlength++;
+      addr1 = atoi(token);
+      token = strtok(NULL, ".");
+      if (token != NULL)
+      {
+        strlength++;
+        addr2 = atoi(token);
+        token = strtok(NULL, ".");
+        if (token != NULL)
+	{
+          strlength++;
+	  addr3 = atoi(token);
+	}
+      }
+    }
+  }
+
+  free(addrcpy);
+  if (strlength != 4)
   {
     fprintf(stderr, "Bad address %s\n", addr);
     exit(EXIT_FAILURE);
   }
+
+  /*fprintf(stdout, "Address: %d.%d.%d.%d\n", addr0, addr1, addr2, addr3);*/
 
   /* Open the port table for reading */
   entryIndex = 0;
@@ -291,14 +366,14 @@ int delete_proxy(char *addr)
   while (!feof(pRead))
   {
     /* Read the line */
-    strlength = fscanf(pRead, "%d\.%d\.%d\d\t%d",  table0, table1, table2, table3, portNumber);
+    strlength = fscanf(pRead, "%d.%d.%d.%d\t%d",  &table0, &table1, &table2, &table3, &portNumber);
     if (strlength == 5)
     {
       /* Break if the address is a duplication */
       if (table0 != addr0 || table1 != addr1 || table2 != addr2 || table3 != addr3)
       {
           newEntry = (entryType)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
-          sprintf(newEntry, "%d\.%d\.%d\.%d\t%d\n", table0, table1, table2, table3, portNumber);
+          sprintf(newEntry, "%d.%d.%d.%d\t%d\n", table0, table1, table2, table3, portNumber);
           entries[entryIndex++] = newEntry;
       } else {
 	finalPortNumber = portNumber;
@@ -335,7 +410,7 @@ int delete_proxy(char *addr)
   portCounter = 0;
   while (portCounter < entryIndex)
   {
-    fprintf(pWrite, entries[portCounter]);
+    fprintf(pWrite, "%s", entries[portCounter]);
     free(entries[portCounter]);
     portCounter++;
   }
@@ -353,46 +428,60 @@ int main(int argc, char *argv[])
   int mode;
   int portNumber;
 
+  if (argc != 5)
+  {
+    fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
   mode = MODE_NONE;
   addr = (char *)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
-  while ((opt = getopt(argc, argv, "cd")) != -1)
+  while ((opt = getopt(argc, argv, "m:a:")) != -1)
   {
+    /*fprintf(stdout, "Option %c\n", opt); */
     switch (opt)
     {
-    case 'c':
-      strncpy(addr, optarg, MAX_ADDR_STRING_LENGTH);
-      mode = MODE_CREATE;
+    case 'm':
+      if (*optarg == 'c' || *optarg == 'C')
+      {
+        /*fprintf(stdout, "Mode Create\n");*/
+        mode = MODE_CREATE;
+      } else if (*optarg == 'd' || *optarg == 'D') {
+        /*fprintf(stdout, "Mode Delete\n");*/
+        mode = MODE_DELETE;
+      } else {
+        fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
+        exit(EXIT_FAILURE);
+      }
       break;
-    case 'd'
-      mode = MODE_DELETE;
+    case 'a':
+      /*fprintf(stdout, "Address %s\n", (char*)optarg);*/
       strncpy(addr, optarg, MAX_ADDR_STRING_LENGTH);
       break;
     default:
-      fprintf(stderr, "Usage %s [-c|-d] address\n", argv[0]);
+      fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
       exit(EXIT_FAILURE);
     }
-  }
-
-  if (optind >= argc)
-  {
-    free(addr);
-    fprintf(stderr, "Usage %s [-c|-d] address\n", argv[0]);
-    exit(EXIT_FAILURE);
   }
 
   if (mode == MODE_NONE)
   {
     free(addr);
-    fprintf(stderr, "Usage %s [-c|-d] address\n", argv[0]);
+    fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
     exit(EXIT_FAILURE);      
   }
 
+
   if (mode == MODE_CREATE)
   {
+    fprintf(stdout, "Creating SSH Proxy for address %s\n", addr);
     portNumber = add_proxy(addr);
+    fprintf(stdout, "Assigned port number %d\n", portNumber);
     add_proxy_cmd(addr, portNumber);
   } else {
+    fprintf(stdout, "Deleting SSH Proxy for address %s\n", addr);
     portNumber = delete_proxy(addr);
+    fprintf(stdout, "Assigned port number %d\n", portNumber);
     delete_proxy_cmd(addr, portNumber);
   }
 
