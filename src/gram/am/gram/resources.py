@@ -394,7 +394,7 @@ class VirtualMachine(Sliver): #
       self._authorized_user_urns = None
       self._flavor = config.default_VM_flavor
       self._os_image = config.default_OS_image
-      self._host = None # name of compute n ode on which VM resides
+      self._host = None # name of compute node on which VM resides
       Sliver.__init__(self, my_slice, uuid)
 
    def __str__(self):

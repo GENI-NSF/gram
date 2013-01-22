@@ -234,6 +234,11 @@ def generateManifest(geni_slice, req_rspec) :
                 sliver_type_attribute.setAttribute('name', sliver_type)
                 child.appendChild(sliver_type_attribute)
 
+            # Set the hostname element of the manifest (how the VM calls itself)
+            host_attribute = Element('host')
+            host_attribute.setAttribute('name', node_name)
+            child.appendChild(host_attribute)
+
         elif child.nodeName == 'link' :
             # Find the NetworkLink object for this link
             link_name = child.attributes['client_id'].value

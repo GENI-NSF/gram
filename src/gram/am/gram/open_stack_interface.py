@@ -6,13 +6,12 @@ import time
 import tempfile
 import os
 import time
-from threading import Thread
 
 import resources
 import config
 import utils
 import gen_metadata
-import compute_node_interface
+from compute_node_interface import compute_node_command, ComputeNodeInterfaceHandler
 
 
 def init() :
@@ -125,18 +124,13 @@ def provisionResources(geni_slice, users) :
     # VM if such a VM has not already been created
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
-            # Need to create an OpenStack VM for this node.  This happens in a 
-            # separate thread so provision is not blocked waiting for the VM to
-            # boot.
-            Thread(target = _createVM, args = (vm, users)).start()
-
-            ## vm_uuid = _createVM(vm, users)
-            ## if vm_uuid == None :
-            ##     config.logger.error('Failed to crate vm for node %s' %
-            ##                         vm.getName())
-            ## else :
-            ##     vm.setUUID(vm_uuid)
-            ##     vm.setAllocationState(config.provisioned)
+            vm_uuid = _createVM(vm, users)
+            if vm_uuid == None :
+                config.logger.error('Failed to crate vm for node %s' %
+                                    vm.getName())
+            else :
+                vm.setUUID(vm_uuid)
+                vm.setAllocationState(config.provisioned)
         
 
 def deleteAllResourcesForSlice(geni_slice) :
@@ -474,8 +468,6 @@ def _createVM(vm_object, users) :
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(config.configuring)
 
-    vm_object.setUUID(vm_uuid)
-    vm_object.setAllocationState(config.provisioned)
     return vm_uuid
 
 
@@ -647,7 +639,7 @@ def _lookup_vlans_for_tenant(tenant_id):
     ports = _getPortsForTenant(tenant_id)
 #    print str(ports)
     for host in hosts.keys():
-        port_data = compute_node_interface.compute_node_command(host, 'ovs-vsctl show')
+        port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
         port_map = _read_vlan_port_map(port_data)
         for port in ports.keys():
             mac = ports[port]['mac_address']

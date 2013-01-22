@@ -261,12 +261,15 @@ class GramManager :
             time.strftime(GramManager.__persist_filename_format, time.localtime(start_time))
         counter = 0
         if base_filename==GramManager.__recent_base_filename:
-            counter = GramManager.__base_filename_counter
             GramManager.__base_filename_counter = GramManager.__base_filename_counter + 1
+            counter = GramManager.__base_filename_counter
         else:
             GramManager.__base_filename_counter=0
+#        print "BFN %s RBFN %s COUNTER %d GMBFNC %d" % (base_filename, GramManager.__recent_base_filename, GramManager.__base_filename_counter, counter)
+        GramManager.__recent_base_filename = base_filename
         filename = "%s/%s_%d.json" % (self._snapshot_directory, \
                                          base_filename, counter)
+        GramManager.__recent_base_filename = base_filename
         Archiving.write_slices(filename, SliceURNtoSliceObject._slices)
         end_time = time.time()
         config.logger.info("Persisting state to %s in %.2f sec" % \
@@ -363,7 +366,7 @@ class GramManager :
     def prune_snapshots(self):
         files = self.get_snapshots()
         if files and len(files) > config.snapshot_maintain_limit:
-            files_to_remove = files[0:config.snapshot_maintain_limit-1]
+            files_to_remove = files[0:len(files)-config.snapshot_maintain_limit-1]
             for file in files_to_remove:
                 os.unlink(file)
 

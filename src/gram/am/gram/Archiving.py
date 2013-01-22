@@ -59,7 +59,7 @@ class GramJSONEncoder(json.JSONEncoder):
                 "request_rspec":o.getRequestRspec(),
                 "last_subnet_assigned":o._last_subnet_assigned,
                 "next_vm_num":o._next_vm_num,
-                "slivers":[sliver.getUUID() for sliver in o.getSlivers().values()]
+                "slivers":[sliver.getSliverURN() for sliver in o.getSlivers().values()]
                   
                 }
 
@@ -76,7 +76,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "control_net_addr":o.getControlNetAddr(),
                     "installs":o.getInstalls(),
                     "executes":o.getExecutes(),
-                    "network_interfaces":[nic.getUUID() for nic in o.getNetworkInterfaces()],
+                    "network_interfaces":[nic.getSliverURN() for nic in o.getNetworkInterfaces()],
                     "last_octet":o.getLastOctet(),
                     "os_image":o.getOSImageName(),
                     "vm_flavor":o.getVMFlavor(),
@@ -97,8 +97,8 @@ class GramJSONEncoder(json.JSONEncoder):
                     "device_number":o.getDeviceNumber(),
                     "mac_address":o.getMACAddress(),
                     "ip_address":o.getIPAddress(),
-                    "virtual_machine":o.getVM().getUUID(),
-                    "link":o.getLink().getUUID(),
+                    "virtual_machine":o.getVM().getSliverURN(),
+                    "link":o.getLink().getSliverURN(),
                     "vlan_tag":o.getVLANTag()
                     }
 
@@ -114,7 +114,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "allocation_state":o.getAllocationState(),
                     "operational_state":o.getOperationalState(),
                     "subnet":o.getSubnet(),
-                    "endpoints":[ep.getUUID() for ep in o.getEndpoints()],
+                    "endpoints":[ep.getSliverURN() for ep in o.getEndpoints()],
                     "network_uuid":o.getNetworkUUID(),
                     "subnet_uuid":o.getSubnetUUID()
                     }
@@ -145,16 +145,16 @@ class GramJSONDecoder:
         self._slices_by_tenant_uuid = {} 
 
         self._slivers_by_slice_tenant_uuid = {} 
-        self._slivers_by_uuid = {} 
+        self._slivers_by_urn = {} 
 
-        self._virtual_machines_by_uuid = {} 
-        self._network_interfaces_by_virtual_machine_uuid = {} 
+        self._virtual_machines_by_urn = {} 
+        self._network_interfaces_by_virtual_machine_urn = {} 
 
-        self._network_interfaces_by_uuid = {} 
-        self._network_link_by_network_interface_uuid = {} 
-        self._virtual_machine_by_network_interface_uuid = {}
+        self._network_interfaces_by_urn = {} 
+        self._network_link_by_network_interface_urn = {} 
+        self._virtual_machine_by_network_interface_urn = {}
 
-        self._network_links_by_uuid = {}
+        self._network_links_by_urn = {}
 
 
     def decode(self, json_object):
@@ -203,6 +203,7 @@ class GramJSONDecoder:
                 vm.setName(json_object["name"])
                 vm.setUUID(uuid)
                 vm._sliver_urn = json_object["sliver_urn"]
+                sliver_urn = vm._sliver_urn
                 expiration_timestamp = json_object['expiration']
                 expiration_time = \
                     datetime.datetime.fromtimestamp(expiration_timestamp)
@@ -218,23 +219,24 @@ class GramJSONDecoder:
                 vm.setHost(json_object['host'])
                 
                 # network_interfaces
-                self._network_interfaces_by_virtual_machine_uuid[uuid]  = \
+                self._network_interfaces_by_virtual_machine_urn[sliver_urn]  = \
                     json_object['network_interfaces']
 
-                self._virtual_machines_by_uuid[uuid] = vm
-                self._slivers_by_uuid[uuid] = vm
+                self._virtual_machines_by_urn[sliver_urn] = vm
+                self._slivers_by_urn[sliver_urn] = vm
 
                 return vm
 
             if(obj_type == "NetworkInterface"):
                 # network interface  wants a slice and VM in its constructor
                 slice_tenant_uuid = json_object['slice']
-                virtual_machine_uuid = json_object['virtual_machine']
+                virtual_machine_urn = json_object['virtual_machine']
                 uuid = json_object['uuid']
                 slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
                 nic = NetworkInterface(slice, None, uuid)
                 nic.setName(json_object["name"])
                 nic._sliver_urn = json_object["sliver_urn"]
+                sliver_urn = nic._sliver_urn
                 expiration_timestamp = json_object['expiration']
                 expiration_time = \
                     datetime.datetime.fromtimestamp(expiration_timestamp)
@@ -247,13 +249,13 @@ class GramJSONDecoder:
                 nic.setVLANTag(json_object["vlan_tag"])
 
                 # vm
-                self._virtual_machine_by_network_interface_uuid[uuid] = virtual_machine_uuid
+                self._virtual_machine_by_network_interface_urn[sliver_urn] = virtual_machine_urn
             
                 # link
-                self._network_link_by_network_interface_uuid[uuid] = json_object['link']
+                self._network_link_by_network_interface_urn[sliver_urn] = json_object['link']
 
-                self._network_interfaces_by_uuid[uuid] = nic
-                self._slivers_by_uuid[uuid] = nic
+                self._network_interfaces_by_urn[sliver_urn] = nic
+                self._slivers_by_urn[sliver_urn] = nic
 
                 return nic;
 
@@ -265,6 +267,7 @@ class GramJSONDecoder:
                 link = NetworkLink(slice, uuid)
                 link.setName(json_object["name"])
                 link._sliver_urn = json_object["sliver_urn"]
+                sliver_urn = link._sliver_urn
                 expiration_timestamp = json_object['expiration']
                 expiration_time = \
                     datetime.datetime.fromtimestamp(expiration_timestamp)
@@ -275,11 +278,8 @@ class GramJSONDecoder:
                 link.setNetworkUUID(json_object["network_uuid"])
                 link.setSubnetUUID(json_object["subnet_uuid"])
                 
-                # endpoints
-#                self._endpoints_by_network_link_uuid[uuid] = json_object['endpoints']
-                
-                self._network_links_by_uuid[uuid] = link
-                self._slivers_by_uuid[uuid] = link
+                self._network_links_by_urn[sliver_urn] = link
+                self._slivers_by_urn[sliver_urn] = link
                 
                 return link
 
@@ -292,19 +292,19 @@ class GramJSONDecoder:
     def resolve(self):
 
     # Restore virtual_machine <=> network_interfaces link
-        for virtual_machine_uuid in self._virtual_machines_by_uuid.keys():
-            virtual_machine = self._slivers_by_uuid[virtual_machine_uuid]
+        for virtual_machine_urn in self._virtual_machines_by_urn.keys():
+            virtual_machine = self._slivers_by_urn[virtual_machine_urn]
             network_interfaces = \
-                [self._slivers_by_uuid[nic_uuid] \
-                     for nic_uuid in self._network_interfaces_by_virtual_machine_uuid[virtual_machine_uuid]]
+                [self._slivers_by_urn[nic_urn] \
+                     for nic_urn in self._network_interfaces_by_virtual_machine_urn[virtual_machine_urn]]
             virtual_machine._network_interfaces = network_interfaces
             for nic in network_interfaces: nic.setVM(virtual_machine)
 
     # Restore the nic <=> link nic <=> vm
-        for network_interface_uuid in self._network_interfaces_by_uuid.keys():
-            network_interface = self._slivers_by_uuid[network_interface_uuid]
-            link_uuid = self._network_link_by_network_interface_uuid[network_interface_uuid]
-            link = self._slivers_by_uuid[link_uuid]
+        for network_interface_urn in self._network_interfaces_by_urn.keys():
+            network_interface = self._slivers_by_urn[network_interface_urn]
+            link_urn = self._network_link_by_network_interface_urn[network_interface_urn]
+            link = self._slivers_by_urn[link_urn]
             network_interface.setLink(link)
             link.addEndpoint(network_interface)
 
