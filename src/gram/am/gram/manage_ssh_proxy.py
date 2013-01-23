@@ -71,7 +71,8 @@ def _addNewProxy(addr) :
     Access the GRAM SSH proxy daemon and create a new proxy with the given address
     """
 
-    cmd_string = '%s -m C -a %s ' % (sshProxyExe % addr)
+    cmd_string = '%s ' % sshProxyExe
+    cmd_string = cmd_string + '-m C -a %s ' % addr
 
     try :
         _execCommand(cmd_string)
@@ -87,7 +88,8 @@ def _removeProxy(addr) :
     Access the GRAM SSH proxy daemon and delete the with the given address
     """
 
-    cmd_string = '%s -m D -a %s ' % (sshProxyExe % addr)
+    cmd_string = '%s ' % sshProxyExe
+    cmd_string = cmd_string + '-m D -a %s ' % addr
 
     try:
         _execCommand(cmd_string)

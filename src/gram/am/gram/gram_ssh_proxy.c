@@ -28,9 +28,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #define IPTABLES_LOCATION_STR "/sbin/iptables"
 #define PORT_TABLE_LOCATION "/tmp/gram-ssh-port-table.txt"
+#define PORT_TABLE_LOCKFILE "/tmp/gram-ssh-port-table.lock"
 #define PORT_NUMBER_START 3000
 
 #define MAX_PORT_TABLE_ENTRIES 500
@@ -54,7 +56,10 @@ void add_proxy_cmd(char *addr, int portNumber)
 
   cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
 
-  setuid(0);
+  /* NOTE: The "add" iptable commands must use the insert "-I" flag instead of the append "-A"
+     flag because openstack also manipulates the iptables, and the SSH proxy rules must come before
+     the openstack rules- if the SSH proxy rules come after the openstack NAT rules, then the proxy
+     will not work */
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
   cmdlen = sprintf(cmd, "%s -t nat -I PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
                    IPTABLES_LOCATION_STR, portNumber, addr);
@@ -62,7 +67,7 @@ void add_proxy_cmd(char *addr, int portNumber)
   system(cmd);
 
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -A FORWARD -p tcp -s %s -j ACCEPT ",
+  cmdlen = sprintf(cmd, "%s -I FORWARD -p tcp -s %s -j ACCEPT ",
                    IPTABLES_LOCATION_STR, addr);
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
@@ -84,7 +89,6 @@ void delete_proxy_cmd(char *addr, int portNumber)
 
   cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
 
-  setuid(0);
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
   cmdlen = sprintf(cmd, "%s -t nat -D PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
                    IPTABLES_LOCATION_STR, portNumber, addr);  
@@ -107,10 +111,131 @@ void delete_proxy_cmd(char *addr, int portNumber)
 }
 
 
+int acquire_read_lock()
+{
+  struct flock filelock;
+  int lockfile;
+
+  filelock.l_type = F_RDLCK;
+  filelock.l_whence = SEEK_SET;
+  filelock.l_start = 0;
+  filelock.l_len = 0;
+  filelock.l_pid = getpid();
+
+  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY);
+  if (lockfile == -1)
+  {
+    fprintf(stderr, "Unable to open read file lock for %s\n", PORT_TABLE_LOCKFILE);
+    exit(EXIT_FAILURE);
+  }
+
+  if (fcntl(lockfile, F_SETLKW, &filelock) == -1)
+  {
+    fprintf(stderr, "Unable to acquire read file lock for %s\n", PORT_TABLE_LOCKFILE);
+    exit(EXIT_FAILURE);
+  }
+
+  return lockfile;
+}
+
+
+int acquire_write_lock()
+{
+  int lockfile;
+  struct flock filelock;
+
+  filelock.l_type = F_WRLCK;
+  filelock.l_whence = SEEK_SET;
+  filelock.l_start = 0;
+  filelock.l_len = 0;
+  filelock.l_pid = getpid();
+
+  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY);
+  if (lockfile == -1)
+  {
+    fprintf(stderr, "Unable to open write file lock for %s\n", PORT_TABLE_LOCKFILE);
+    exit(EXIT_FAILURE);
+  }
+
+  if (fcntl(lockfile, F_SETLKW, &filelock) == -1)
+  {
+    fprintf(stderr, "Unable to acquire write file lock for %s\n", PORT_TABLE_LOCKFILE);
+    exit(EXIT_FAILURE);
+  }
+ 
+  return lockfile;
+}
+
+
+void release_lock(int lockfile)
+{
+  struct flock filelock;
+
+  filelock.l_type = F_UNLCK;
+  filelock.l_whence = SEEK_SET;
+  filelock.l_start = 0;
+  filelock.l_len = 0;
+  filelock.l_pid = getpid();
+  
+  if (fcntl(lockfile, F_SETLK, filelock) == -1)
+  {
+    fprintf(stderr, "Error trying to release read file lock\n");
+    exit(EXIT_FAILURE);
+  }
+
+  close(lockfile);
+}
+
+
+void parse_address(char *addr, int *addr0, int *addr1, int *addr2, int *addr3)
+{
+  int strlength;
+  char *addrcpy;
+  char *token;
+
+  /* Pasrse the address and check that it's valid */
+  strlength = 0;
+  addrcpy = (char*)malloc(sizeof(char) * strlen(addr) + 1);
+  strcpy(addrcpy, addr);
+  token = strtok(addrcpy, ".");
+  if (token != NULL)
+  {
+    *addr0 = atoi(token);
+    strlength++;
+    token = strtok(NULL, ".");
+    if (token != NULL)
+    {
+      strlength++;
+      *addr1 = atoi(token);
+      token = strtok(NULL, ".");
+      if (token != NULL)
+      {
+        strlength++;
+        *addr2 = atoi(token);
+        token = strtok(NULL, ".");
+        if (token != NULL)
+	{
+          strlength++;
+	  *addr3 = atoi(token);
+	}
+      }
+    }
+  }
+
+  free(addrcpy);
+  if (strlength != 4)
+  {
+    fprintf(stderr, "Bad address %s\n", addr);
+    exit(EXIT_FAILURE);
+  }  
+}
+
+
 int add_proxy(char *addr)
 {
   FILE *pRead;
   FILE *pWrite;
+  int lockfile;
   int strlength;
   int addr0;
   int addr1;
@@ -127,45 +252,9 @@ int add_proxy(char *addr)
   entryType entries[MAX_PORT_TABLE_ENTRIES];
   entryType newEntry;
   int entryIndex;
-  char *token;
-  char *addrcpy;
 
   /* Pasrse the address and check that it's valid */
-  strlength = 0;
-  addrcpy = (char*)malloc(sizeof(char) * strlen(addr) + 1);
-  strcpy(addrcpy, addr);
-  token = strtok(addrcpy, ".");
-  if (token != NULL)
-  {
-    addr0 = atoi(token);
-    strlength++;
-    token = strtok(NULL, ".");
-    if (token != NULL)
-    {
-      strlength++;
-      addr1 = atoi(token);
-      token = strtok(NULL, ".");
-      if (token != NULL)
-      {
-        strlength++;
-        addr2 = atoi(token);
-        token = strtok(NULL, ".");
-        if (token != NULL)
-	{
-          strlength++;
-	  addr3 = atoi(token);
-	}
-      }
-    }
-  }
-
-  free(addrcpy);
-  if (strlength != 4)
-  {
-    fprintf(stderr, "Bad address %s\n", addr);
-    exit(EXIT_FAILURE);
-  }
-
+  parse_address(addr, &addr0, &addr1, &addr2, &addr3);
   /*fprintf(stdout, "Address: %d.%d.%d.%d\n", addr0, addr1, addr2, addr3);*/
 
   /* Initialize state variables */
@@ -173,6 +262,9 @@ int add_proxy(char *addr)
   portCounter = PORT_NUMBER_START;
   finalPortNumber = 0;
   entryIndex = 0;
+
+  /* Acquire the lock for the port address table file */
+  /* lockfile = acquire_read_lock(); */
 
   /* Open the port table for reading */
   pRead = fopen(PORT_TABLE_LOCATION, "r");
@@ -224,6 +316,9 @@ int add_proxy(char *addr)
     fclose(pRead);
   }
 
+  /* Release the port table file lock */
+  /* release_lock(lockfile); */
+
   /* Exit if duplicate */
   if (duplicate)
   {
@@ -237,6 +332,9 @@ int add_proxy(char *addr)
     fprintf(stderr, "Duplicate address %s in port table\n", addr);
     exit(EXIT_FAILURE);
   }
+
+  /* Acquire write lock on port address file */
+  /*lockfile = acquire_write_lock(); */
 
   /* Append port table if port number at end (or its port table is new) */
   if (finalPortNumber == 0)
@@ -263,28 +361,32 @@ int add_proxy(char *addr)
     fclose(pWrite);
 
     /* Return the port number */
-    return portCounter;
+    finalPortNumber = portCounter;
+  } else {
+    /* Otherwise rewrite the port address table file with the updated entries */
+    pWrite = fopen(PORT_TABLE_LOCATION, "w");
+    if (pWrite == NULL)
+    {
+      fprintf(stderr, "Unable to open port address table %s for writing\n", PORT_TABLE_LOCATION);
+      exit(EXIT_FAILURE);
+    }
+
+    /* Iterate through the updated entries and write the contents to file */
+    portCounter = 0;
+    while (portCounter < entryIndex)
+    {
+      fprintf(pWrite, "%s", entries[portCounter]);
+      free(entries[portCounter]);
+      portCounter++;
+    }
+
+    /* Close the file and return the port number */  
+    fclose(pWrite);
   }
 
-  /* Otherwise rewrite the port address table file with the updated entries */
-  pWrite = fopen(PORT_TABLE_LOCATION, "w");
-  if (pWrite == NULL)
-  {
-    fprintf(stderr, "Unable to open port address table %s for writing\n", PORT_TABLE_LOCATION);
-    exit(EXIT_FAILURE);
-  }
+  /* Give up file lock */
+  /* release_lock(lockfile); */
 
-  /* Iterate through the updated entries and write the contents to file */
-  portCounter = 0;
-  while (portCounter < entryIndex)
-  {
-    fprintf(pWrite, "%s", entries[portCounter]);
-    free(entries[portCounter]);
-    portCounter++;
-  }
-
-  /* Close the file and return the port number */  
-  fclose(pWrite);
   return finalPortNumber;
 }
 
@@ -293,6 +395,7 @@ int delete_proxy(char *addr)
 {
   FILE *pRead;
   FILE *pWrite;
+  int lockfile;
   int strlength;
   int addr0;
   int addr1;
@@ -308,46 +411,13 @@ int delete_proxy(char *addr)
   entryType newEntry;
   int entryIndex;
   int finalPortNumber;
-  char *token;
-  char *addrcpy;
 
   /* Pasrse the address and check that it's valid */
-  strlength = 0;
-  addrcpy = (char*)malloc(sizeof(char) * strlen(addr) + 1);
-  strcpy(addrcpy, addr);
-  token = strtok(addrcpy, ".");
-  if (token != NULL)
-  {
-    addr0 = atoi(token);
-    strlength++;
-    token = strtok(NULL, ".");
-    if (token != NULL)
-    {
-      strlength++;
-      addr1 = atoi(token);
-      token = strtok(NULL, ".");
-      if (token != NULL)
-      {
-        strlength++;
-        addr2 = atoi(token);
-        token = strtok(NULL, ".");
-        if (token != NULL)
-	{
-          strlength++;
-	  addr3 = atoi(token);
-	}
-      }
-    }
-  }
-
-  free(addrcpy);
-  if (strlength != 4)
-  {
-    fprintf(stderr, "Bad address %s\n", addr);
-    exit(EXIT_FAILURE);
-  }
-
+  parse_address(addr, &addr0, &addr1, &addr2, &addr3);
   /*fprintf(stdout, "Address: %d.%d.%d.%d\n", addr0, addr1, addr2, addr3);*/
+
+  /* Secure the read lock on the port address file */
+  /* lockfile = acquire_read_lock(); */
 
   /* Open the port table for reading */
   entryIndex = 0;
@@ -384,6 +454,9 @@ int delete_proxy(char *addr)
   /* close the read file */
   fclose(pRead);
 
+  /* Release the read file lock */
+  /* release_lock(lockfile); */
+
   /* Verify that the address was found */
   if (finalPortNumber == 0)
   {
@@ -397,6 +470,9 @@ int delete_proxy(char *addr)
     fprintf(stderr, "Address %s not present in the port address table\n", addr);
     exit(EXIT_FAILURE);
   }
+
+  /* Secure the write lock on the port address file */
+  /* lockfile = acquire_write_lock(); */
 
   /* Otherwise rewrite the port address table file with the updated entries */
   pWrite = fopen(PORT_TABLE_LOCATION, "w");
@@ -417,6 +493,10 @@ int delete_proxy(char *addr)
 
   /* Close the file and return the port number */  
   fclose(pWrite);
+
+  /* Release the port address file lock */
+  /* release_lock(lockfile); */
+
   return finalPortNumber;
 }
 
