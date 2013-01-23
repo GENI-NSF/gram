@@ -22,7 +22,9 @@ class ComputeNodeInterfaceHandler(SocketServer.BaseRequestHandler):
 
     # dictionary of permitted commands (ID => command)
     COMMAND_OVS_VSCTL =  1
-    _PERMITTED_COMMANDS = {COMMAND_OVS_VSCTL:  ['ovs-vsctl', 'show']}
+    COMMAND_OVS_OFCTL =  2
+    _PERMITTED_COMMANDS = {COMMAND_OVS_VSCTL:  ['ovs-vsctl', 'show'],
+                           COMMAND_OVS_OFCTL:  ['ovs-ofctl', 'show', 'br-int']}
 
     # Use the template arguments as they are
     # But if an argument is provided for the argument of that index
