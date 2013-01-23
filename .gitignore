@@ -1,5 +1,6 @@
 *.pem
 *.pyc
+*.pyo
 *~
 *#
 semantic.cache
