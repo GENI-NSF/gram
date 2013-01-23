@@ -353,22 +353,54 @@ def _deleteNetworkLink(link_object) :
     cmd_string = 'quantum net-delete %s' % net_uuid
     _execCommand(cmd_string)
 
-# Return dictionary of 'id' => {'mac_address'=>mac_address, , 'fixed_ips'=>fixed_ips}
-#  for each port associated ith a given tenant
-def _getPortsForTenant(tenant_uuid):
-    cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+# For each network of a given tenant UUID
+# Return {uuid : segmentation_id}
+def _getNetsForTenant(tenant_uuid):
+    cmd_string = 'quantum net-list'
+    if tenant_uuid: 
+        cmd_string = cmd_string + ' -- --tenant_id=%s' % tenant_uuid
     output = _execCommand(cmd_string)
     output_lines = output.split('\n')
-    ports_info = dict()
+    nets_info = dict()
     for i in range(3, len(output_lines)-2):
-        port_info_columns = output_lines[i].split('|');
-        port_id = port_info_columns[1].strip()
-        port_mac_address = port_info_columns[3].strip()
-        port_fixed_ips = port_info_columns[4].strip()
-        port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
-        ports_info[port_id] = port_info
-#    print 'ports for tenant ' + str(tenant_uuid)
-#    print str(ports_info)
+        net_info_columns = output_lines[i].split('|')
+#        print "NIC : " + str(net_info_columns)
+        net_id = net_info_columns[1].strip()
+        net_show_cmd_string = 'quantum net-show %s' % net_id
+        net_show_output = _execCommand(net_show_cmd_string)
+        net_show_output_lines = net_show_output.split('\n')
+        for j in range(3, len(net_show_output_lines)-2):
+            net_show_columns = net_show_output_lines[j].split('|')
+#            print "NSC " + str(net_show_columns)
+            net_show_field = net_show_columns[1].strip()
+            net_show_value = net_show_columns[2].strip()
+            if net_show_field == 'provider:segmentation_id':
+                nets_info[net_id] = int(net_show_value)
+                break
+    return nets_info
+
+# Return dictionary of {'id' : 
+#     {'mac_address':mac_address,'fixed_ips':fixed_ips,
+#          'network_id':network_id}
+#  for each port associated ith a given tenant
+def _getPortsForTenant(tenant_uuid):
+    nets = _getNetsForTenant(tenant_uuid)
+    ports_info = dict()
+    for network_uuid in nets.keys():
+        cmd_string = 'quantum port-list'
+        if tenant_uuid:
+            cmd_string = cmd_string + ' -- --network_id=%s' % network_uuid
+        output = _execCommand(cmd_string)
+        output_lines = output.split('\n')
+        for i in range(3, len(output_lines)-2):
+            port_info_columns = output_lines[i].split('|');
+            port_id = port_info_columns[1].strip()
+            port_mac_address = port_info_columns[3].strip()
+            port_fixed_ips = port_info_columns[4].strip()
+            port_info = {'mac_address' : port_mac_address, \
+                             'fixed_ips' : port_fixed_ips, \
+                             'network_id' : network_uuid}
+            ports_info[port_id] = port_info
     return ports_info
 
 
@@ -639,7 +671,7 @@ def _lookup_vlans_for_tenant(tenant_id):
     ports = _getPortsForTenant(tenant_id)
 #    print str(ports)
     for host in hosts.keys():
-        port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
+        port_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
         port_map = _read_vlan_port_map(port_data)
         for port in ports.keys():
             mac = ports[port]['mac_address']
@@ -647,6 +679,71 @@ def _lookup_vlans_for_tenant(tenant_id):
             if vlan_id: 
                 map[mac] = {'vlan': vlan_id, 'host':host}
     return map
+
+# Find the 'egress' (int-br-eth1) ports relative to the br-int switches
+# Return dictionary {host => {'addr':addr, 'port_num':port_num}}
+def _lookup_egress_ports():
+    ports = {}
+    hosts = _listHosts(onlyForService='compute')
+    for host in hosts:
+        switch_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_OFCTL);
+        switch_data_lines = switch_data.split('\n')
+        for i in range(len(switch_data_lines)):
+            line = switch_data_lines[i]
+            if line.find('int-br-eth1') >= 0:
+                line_parts = line.split(' ')
+                port_num_name = line_parts[1]
+                port_num = port_num_name.split('(')[0]
+                addr = line_parts[2][5:]
+#                print addr + " " + port_num + " " + host
+                ports[host] = {'addr':addr, 'port_num':port_num}
+    return ports
+
+
+# Find the ports associated with a given switch for a given tenant
+# Return [port_id => {'port_name':port_name, 
+#     'port_addr':addr, 'port_num':port_num, 
+#     'host':host, 'network_id':network_id}
+def _lookup_switch_ports(tenant_uuid):
+    port_map = {}
+    hosts = _listHosts(onlyForService='compute')
+    ports = _getPortsForTenant(tenant_uuid)
+
+    # The part that ovs-vsctl names the port, with qvo prefix
+    # E.g. 53398b6f-bf6d-4f60-a931-d87720fed519 => qvo53398b6f-bf
+    ports_by_short_name = {}
+    for port_id in ports.keys():
+        short_name = port_id[:11]
+        ports_by_short_name[short_name] = port_id
+
+    for host in hosts.keys():
+        switch_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_OFCTL);
+        switch_data_lines = switch_data.split('\n')
+        for i in range(len(switch_data_lines)):
+            line = switch_data_lines[i]
+            if line.find('addr:') >= 0 and line.find('LOCAL') < 0:
+                line_parts = line.split(' ')
+                port_num_name = line_parts[1]
+                port_num_name_parts = port_num_name.split('(')
+                port_num = port_num_name_parts[0]
+                port_name_parts = port_num_name_parts[1].split(')')
+                port_name = port_name_parts[0]
+                addr = line_parts[2][5:]
+#                print port_num + " " + port_name + " " + addr + " " + host
+                if port_name[:3] == 'qvo':
+                    short_name = port_name[3:]
+                    port_id = None
+                    network_id = None
+                    if ports_by_short_name.has_key(short_name):
+                        port_id = ports_by_short_name[short_name]
+                        network_id = ports[port_id]['network_id']
+                        port_map[port_id] = {'port_name':port_name, \
+                                                   'port_addr':addr, \
+                                                   'port_num':port_num, \
+                                                   'host':host, \
+                                                   'network_id':network_id}
+    return port_map
+
 
 # Find the VLAN tag associated with given port interface
 # The ovs-vsctl show command returns interfaces with a qvo prefix
@@ -744,6 +841,13 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
         tenant_uuid = sys.argv[1]
+        nets = _getNetsForTenant(tenant_uuid)
         ports = _getPortsForTenant(tenant_uuid)
-        map = _lookup_vlans_for_tenant(tenant_uuid)
-        print str(map)
+        vlan_map = _lookup_vlans_for_tenant(tenant_uuid)
+        port_map = _lookup_switch_ports(tenant_uuid)
+        egress_port_map = _lookup_egress_ports()
+        print str(vlan_map)
+        print str(ports)
+        print str(nets)
+        print str(port_map)
+        print str(egress_port_map)

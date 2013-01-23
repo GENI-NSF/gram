@@ -2,6 +2,7 @@
 # check on open_stack consistency
 
 import open_stack_interface as osi
+from compute_node_interface import compute_node_command, ComputeNodeInterfaceHandler
 
 def check_openstack_consistency():
     # Get all the tenants
@@ -102,7 +103,38 @@ def check_openstack_consistency():
                     tenant_name = tenants[tenant_id]
                 break
         print "NET " + port + " " + tenant_id + " " + str(tenant_name)
+
+# Check that all ports defined on br-int switches are
+# associated with quantum ports
+def check_port_consistency():
+
+    print
+    print "Checking that all ports defined on br-int are associated with quantum ports"
+
+    # Get list of all currently defined quantum ports
+    port_data = osi._getPortsForTenant(None)
+    short_port_names = {}
+    for port_name in port_data.keys():
+        short_name = port_name[:11]
+        short_port_names[short_name] = port_name
+
+#    print short_port_names
+#    print port_data
+
+    hosts = osi._listHosts(onlyForService='compute')
+    for host in hosts:
+        switch_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_OFCTL);
+        switch_data_lines = switch_data.split('\n')
+        for i in range(len(switch_data_lines)):
+            line = switch_data_lines[i]
+            if line.find('qvo') >= 0:
+                line_parts = line.split('(')
+                port_name_part = line_parts[1]
+                port_name = port_name_part.split(')')[0]
+                short_name = port_name[3:]
+                print port_name + " " + host + " *** "
     
 
 if __name__ == "__main__":
     check_openstack_consistency()
+    check_port_consistency()
