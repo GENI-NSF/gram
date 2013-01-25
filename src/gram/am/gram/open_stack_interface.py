@@ -11,6 +11,9 @@ import resources
 import config
 import utils
 import gen_metadata
+import manage_ssh_proxy
+
+import compute_node_interface
 from compute_node_interface import compute_node_command, ComputeNodeInterfaceHandler
 
 
@@ -162,7 +165,7 @@ def deleteAllResourcesForSlice(geni_slice) :
     _deleteUserByUUID(admin_uuid)
 
     # Delete the tenant
-    _deleteTenantByUUID(geni_slice.getTenantUUID())
+    _deleteTenantByUUID(admin_name, admin_pwd, admin_uuid)
 
     return sliver_stat_list.getSliverStatusList()
     
@@ -183,10 +186,17 @@ def _createTenant(tenant_name) :
     return _getValueByPropertyName(output, 'id')
 
 
-def _deleteTenantByUUID(tenant_uuid) :
+def _deleteTenantByUUID(tenant_name, tenant_passwd, tenant_uuid) :
     """
         Delete the tenant with the given uuid.
     """
+    # First delete the security group assigned to the tenant
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (tenant_name, tenant_passwd, tenant_name)
+    cmd_string += ' secgroup-delete %s_secgroup ' % tenant_name
+    _execCommand(cmd_string) 
+
+    # Delete the tenant itself
     cmd_string = 'keystone tenant-delete %s' % tenant_uuid
     _execCommand(cmd_string)
 
@@ -353,54 +363,22 @@ def _deleteNetworkLink(link_object) :
     cmd_string = 'quantum net-delete %s' % net_uuid
     _execCommand(cmd_string)
 
-# For each network of a given tenant UUID
-# Return {uuid : segmentation_id}
-def _getNetsForTenant(tenant_uuid):
-    cmd_string = 'quantum net-list'
-    if tenant_uuid: 
-        cmd_string = cmd_string + ' -- --tenant_id=%s' % tenant_uuid
-    output = _execCommand(cmd_string)
-    output_lines = output.split('\n')
-    nets_info = dict()
-    for i in range(3, len(output_lines)-2):
-        net_info_columns = output_lines[i].split('|')
-#        print "NIC : " + str(net_info_columns)
-        net_id = net_info_columns[1].strip()
-        net_show_cmd_string = 'quantum net-show %s' % net_id
-        net_show_output = _execCommand(net_show_cmd_string)
-        net_show_output_lines = net_show_output.split('\n')
-        for j in range(3, len(net_show_output_lines)-2):
-            net_show_columns = net_show_output_lines[j].split('|')
-#            print "NSC " + str(net_show_columns)
-            net_show_field = net_show_columns[1].strip()
-            net_show_value = net_show_columns[2].strip()
-            if net_show_field == 'provider:segmentation_id':
-                nets_info[net_id] = int(net_show_value)
-                break
-    return nets_info
-
-# Return dictionary of {'id' : 
-#     {'mac_address':mac_address,'fixed_ips':fixed_ips,
-#          'network_id':network_id}
+# Return dictionary of 'id' => {'mac_address'=>mac_address, , 'fixed_ips'=>fixed_ips}
 #  for each port associated ith a given tenant
 def _getPortsForTenant(tenant_uuid):
-    nets = _getNetsForTenant(tenant_uuid)
+    cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    output = _execCommand(cmd_string)
+    output_lines = output.split('\n')
     ports_info = dict()
-    for network_uuid in nets.keys():
-        cmd_string = 'quantum port-list'
-        if tenant_uuid:
-            cmd_string = cmd_string + ' -- --network_id=%s' % network_uuid
-        output = _execCommand(cmd_string)
-        output_lines = output.split('\n')
-        for i in range(3, len(output_lines)-2):
-            port_info_columns = output_lines[i].split('|');
-            port_id = port_info_columns[1].strip()
-            port_mac_address = port_info_columns[3].strip()
-            port_fixed_ips = port_info_columns[4].strip()
-            port_info = {'mac_address' : port_mac_address, \
-                             'fixed_ips' : port_fixed_ips, \
-                             'network_id' : network_uuid}
-            ports_info[port_id] = port_info
+    for i in range(3, len(output_lines)-2):
+        port_info_columns = output_lines[i].split('|');
+        port_id = port_info_columns[1].strip()
+        port_mac_address = port_info_columns[3].strip()
+        port_fixed_ips = port_info_columns[4].strip()
+        port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
+        ports_info[port_id] = port_info
+#    print 'ports for tenant ' + str(tenant_uuid)
+#    print str(ports_info)
     return ports_info
 
 
@@ -446,6 +424,25 @@ def _createVM(vm_object, users) :
         if ports_info.has_key(nic_uuid):
             mac_address = ports_info[nic_uuid]['mac_address']
             nic.setMACAddress(mac_address)
+
+    # Create a security group specific to the tenant
+    # NOTE: This tenant-specific security group support is necessary to implement the GRAM SSH proxy
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, slice_object.getTenantName())
+    cmd_string += ' secgroup-create %s_secgroup tenant-security-group ' % slice_object.getTenantName()
+    output = _execCommand(cmd_string) 
+
+    # Add a rule to the tenant sec group enabling SSH traffic
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, slice_object.getTenantName())
+    cmd_string += ' secgroup-add-rule %s_secgroup tcp 22 22 0.0.0.0/0 ' % slice_object.getTenantName()
+    output = _execCommand(cmd_string)
+            
+    # Add a rule to the tenant sec group enabling ICMP traffic (ping, etc)
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, slice_object.getTenantName())
+    cmd_string += ' secgroup-add-rule %s_secgroup icmp -1 -1 0.0.0.0/0 ' % slice_object.getTenantName()
+    output = _execCommand(cmd_string)
             
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
@@ -459,6 +456,9 @@ def _createVM(vm_object, users) :
     userdata_filename = userdata_file.name
     gen_metadata.configMetadataSvcs(users, userdata_filename)
     cmd_string += (' --user_data %s.gz' % userdata_filename)
+
+    # Add security group support
+    cmd_string += ' --security_groups %s_secgroup' % slice_object.getTenantName()
     
     # Now add to the cmd_string information about the NICs to be instantiated
     # First add the NIC for the control network
@@ -500,6 +500,10 @@ def _createVM(vm_object, users) :
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(config.configuring)
 
+    # Set up the SSH proxy for the new VM
+    portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
+    config.logger.info('SSH Proxy assigned port number %d' % portNumber)
+
     return vm_uuid
 
 
@@ -519,6 +523,14 @@ def _deleteVM(vm_object) :
     if vm_uuid != None :
         cmd_string = 'nova delete %s' % vm_uuid
         _execCommand(cmd_string)
+
+        # Delete the SSH Proxy support for the VM
+        slice_object = vm_object.getSlice()
+        control_net_info = slice_object.getControlNetInfo()
+        control_net_addr = control_net_info['control_net_addr'] # subnet address
+        control_net_prefix = control_net_addr[0 : control_net_addr.rfind('0/24')]
+        control_nic_ipaddr = control_net_prefix + vm_object.getLastOctet()
+        manage_ssh_proxy._removeProxy(control_nic_ipaddr)
 
     
 def _getRouterUUID(router_name) :
@@ -671,7 +683,7 @@ def _lookup_vlans_for_tenant(tenant_id):
     ports = _getPortsForTenant(tenant_id)
 #    print str(ports)
     for host in hosts.keys():
-        port_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
+        port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
         port_map = _read_vlan_port_map(port_data)
         for port in ports.keys():
             mac = ports[port]['mac_address']
@@ -679,71 +691,6 @@ def _lookup_vlans_for_tenant(tenant_id):
             if vlan_id: 
                 map[mac] = {'vlan': vlan_id, 'host':host}
     return map
-
-# Find the 'egress' (int-br-eth1) ports relative to the br-int switches
-# Return dictionary {host => {'addr':addr, 'port_num':port_num}}
-def _lookup_egress_ports():
-    ports = {}
-    hosts = _listHosts(onlyForService='compute')
-    for host in hosts:
-        switch_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_OFCTL);
-        switch_data_lines = switch_data.split('\n')
-        for i in range(len(switch_data_lines)):
-            line = switch_data_lines[i]
-            if line.find('int-br-eth1') >= 0:
-                line_parts = line.split(' ')
-                port_num_name = line_parts[1]
-                port_num = port_num_name.split('(')[0]
-                addr = line_parts[2][5:]
-#                print addr + " " + port_num + " " + host
-                ports[host] = {'addr':addr, 'port_num':port_num}
-    return ports
-
-
-# Find the ports associated with a given switch for a given tenant
-# Return [port_id => {'port_name':port_name, 
-#     'port_addr':addr, 'port_num':port_num, 
-#     'host':host, 'network_id':network_id}
-def _lookup_switch_ports(tenant_uuid):
-    port_map = {}
-    hosts = _listHosts(onlyForService='compute')
-    ports = _getPortsForTenant(tenant_uuid)
-
-    # The part that ovs-vsctl names the port, with qvo prefix
-    # E.g. 53398b6f-bf6d-4f60-a931-d87720fed519 => qvo53398b6f-bf
-    ports_by_short_name = {}
-    for port_id in ports.keys():
-        short_name = port_id[:11]
-        ports_by_short_name[short_name] = port_id
-
-    for host in hosts.keys():
-        switch_data = compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_OFCTL);
-        switch_data_lines = switch_data.split('\n')
-        for i in range(len(switch_data_lines)):
-            line = switch_data_lines[i]
-            if line.find('addr:') >= 0 and line.find('LOCAL') < 0:
-                line_parts = line.split(' ')
-                port_num_name = line_parts[1]
-                port_num_name_parts = port_num_name.split('(')
-                port_num = port_num_name_parts[0]
-                port_name_parts = port_num_name_parts[1].split(')')
-                port_name = port_name_parts[0]
-                addr = line_parts[2][5:]
-#                print port_num + " " + port_name + " " + addr + " " + host
-                if port_name[:3] == 'qvo':
-                    short_name = port_name[3:]
-                    port_id = None
-                    network_id = None
-                    if ports_by_short_name.has_key(short_name):
-                        port_id = ports_by_short_name[short_name]
-                        network_id = ports[port_id]['network_id']
-                        port_map[port_id] = {'port_name':port_name, \
-                                                   'port_addr':addr, \
-                                                   'port_num':port_num, \
-                                                   'host':host, \
-                                                   'network_id':network_id}
-    return port_map
-
 
 # Find the VLAN tag associated with given port interface
 # The ovs-vsctl show command returns interfaces with a qvo prefix
@@ -841,13 +788,6 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
         tenant_uuid = sys.argv[1]
-        nets = _getNetsForTenant(tenant_uuid)
         ports = _getPortsForTenant(tenant_uuid)
-        vlan_map = _lookup_vlans_for_tenant(tenant_uuid)
-        port_map = _lookup_switch_ports(tenant_uuid)
-        egress_port_map = _lookup_egress_ports()
-        print str(vlan_map)
-        print str(ports)
-        print str(nets)
-        print str(port_map)
-        print str(egress_port_map)
+        map = _lookup_vlans_for_tenant(tenant_uuid)
+        print str(map)

@@ -27,7 +27,7 @@ import string
 
 
 portTableFile = '/tmp/gram-ssh-port-table.txt'
-sshProxyExe = '/usr/bin/gram_ssh_proxy'
+sshProxyExe = '/usr/local/bin/gram_ssh_proxy'
 
 def _execCommand(cmd_string) :
     config.logger.info('Issuing command %s' % cmd_string)
