@@ -68,6 +68,15 @@ def provisionResources(geni_slice, users) :
                                           admin_user_info['admin_pwd'],
                                           admin_user_info['admin_uuid'])
         
+        # Create a security group for this tenant
+        # NOTE: This tenant specific security group support is necessary 
+        # to implement the GRAM SSH proxy
+        secgroup_name = \
+            _createTenantSecurityGroup(tenant_name,
+                                       admin_user_info['admin_name'],
+                                       admin_user_info['admin_pwd'])
+        geni_slice.setSecurityGroup(secgroup_name)
+
         ### This section of code is being commented out until we
         ### have namespaces working and can do per slice/tenant routers
         # Create a router for this tenant.  The name of this router is 
@@ -160,8 +169,14 @@ def deleteAllResourcesForSlice(geni_slice) :
     ### Delete tenant router.  This section is empty right now as we don't
     ### do per-tenant routers as yet.
 
-    # Delete the slice (tenant) admin user account
+    # Get information about the tenant admin
     admin_name, admin_pwd, admin_uuid = geni_slice.getTenantAdminInfo()
+
+    # Delete the security group for this tenant
+    _deleteTenantSecurityGroup(admin_name, admin_pwd,
+                               geni_slice.getSecurityGroup())
+
+    # Delete the slice (tenant) admin user account
     _deleteUserByUUID(admin_uuid)
 
     # Delete the tenant
@@ -243,6 +258,42 @@ def _createTenantAdmin(tenant_name, tenant_uuid) :
     # Success!  Return the admin username,  password and uuid.
     return {'admin_name':admin_name, 'admin_pwd':config.tenant_admin_pwd, \
                 'admin_uuid':admin_uuid }
+
+
+def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
+    """
+        Create a security group for this tenant.
+    """
+    secgroup_name = '%s_secgrp' % tenant_name
+
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, tenant_name)
+    cmd_string += ' secgroup-create %s tenant-security-group' % secgroup_name
+    _execCommand(cmd_string) 
+    
+    # Add a rule to the tenant sec group enabling SSH traffic
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, tenant_name)
+    cmd_string += ' secgroup-add-rule %s tcp 22 22 0.0.0.0/0 ' % secgroup_name
+    _execCommand(cmd_string)
+            
+    # Add a rule to the tenant sec group enabling ICMP traffic (ping, etc)
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, tenant_name)
+    cmd_string += ' secgroup-add-rule %s icmp -1 -1 0.0.0.0/0 ' % secgroup_name
+    _execCommand(cmd_string)
+
+    return secgroup_name
+
+
+def _deleteTenantSecurityGroup(admin_name, admin_pwd, secgrp_name) :
+    """
+        Delete the security group created for this tenant
+    """
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, tenant_name)
+    cmd_string += ' secgroup-delete %s' % secgrp_name
+    _execCommand(cmd_string) 
 
 
 def _deleteUserByUUID(user_uuid) :
@@ -377,8 +428,8 @@ def _getPortsForTenant(tenant_uuid):
         port_fixed_ips = port_info_columns[4].strip()
         port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
         ports_info[port_id] = port_info
-#    print 'ports for tenant ' + str(tenant_uuid)
-#    print str(ports_info)
+    print 'ports for tenant ' + str(tenant_uuid)
+    print str(ports_info)
     return ports_info
 
 
@@ -425,30 +476,12 @@ def _createVM(vm_object, users) :
             mac_address = ports_info[nic_uuid]['mac_address']
             nic.setMACAddress(mac_address)
 
-    # Create a security group specific to the tenant
-    # NOTE: This tenant-specific security group support is necessary to implement the GRAM SSH proxy
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-        % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += ' secgroup-create %s_secgroup tenant-security-group ' % slice_object.getTenantName()
-    output = _execCommand(cmd_string) 
-
-    # Add a rule to the tenant sec group enabling SSH traffic
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-        % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += ' secgroup-add-rule %s_secgroup tcp 22 22 0.0.0.0/0 ' % slice_object.getTenantName()
-    output = _execCommand(cmd_string)
-            
-    # Add a rule to the tenant sec group enabling ICMP traffic (ping, etc)
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-        % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += ' secgroup-add-rule %s_secgroup icmp -1 -1 0.0.0.0/0 ' % slice_object.getTenantName()
-    output = _execCommand(cmd_string)
             
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += (' boot %s --poll --image %s --flavor %s' % (vm_name, os_image_id,
-                                                        vm_flavor_id))
+    cmd_string += (' boot %s --poll --image %s --flavor %s' % \
+                       (vm_name, os_image_id, vm_flavor_id))
 
     # Add user meta data to create account, pass keys etc.
     # userdata_filename = '/tmp/userdata.txt'
@@ -458,7 +491,7 @@ def _createVM(vm_object, users) :
     cmd_string += (' --user_data %s.gz' % userdata_filename)
 
     # Add security group support
-    cmd_string += ' --security_groups %s_secgroup' % slice_object.getTenantName()
+    cmd_string += ' --security_groups %s' % slice_object.getSecurityGroup()
     
     # Now add to the cmd_string information about the NICs to be instantiated
     # First add the NIC for the control network
@@ -683,7 +716,9 @@ def _lookup_vlans_for_tenant(tenant_id):
     ports = _getPortsForTenant(tenant_id)
 #    print str(ports)
     for host in hosts.keys():
+        config.logger.info('about to send command to compute node')
         port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
+        config.logger.info('returned from command to compute node')
         port_map = _read_vlan_port_map(port_data)
         for port in ports.keys():
             mac = ports[port]['mac_address']

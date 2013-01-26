@@ -100,7 +100,7 @@ for i in range(1, len(sys.argv)) :
         open_stack_interface._execCommand(cmd_string)
 
     # Delete the security group associated with the tenant
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s secgroup-delete %s_secgroup ' % (tenant_admin, tenant_pwd, tenant_name, tenant_name)
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s secgroup-delete %s_secgrp ' % (tenant_admin, tenant_pwd, tenant_name, tenant_name)
     print cmd_string
     output = open_stack_interface._execCommand(cmd_string)
 
