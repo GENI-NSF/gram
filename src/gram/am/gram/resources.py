@@ -49,6 +49,7 @@ class Slice:
       self._tenant_admin_name = None # Admin user for this tenant
       self._tenant_admin_pwd = None  # Password for the admin user
       self._tenant_admin_uuid = None # UUID of the admin user
+      self._tenant_security_grp = None # Security group for tenant (slice)
       self._router_name = None    # Name of router for this tenant (slice)
       self._router_uuid = None    # UUID of router for this tenant (slice)
       self._control_net_info = None  # name, uuid, ip addr, etc for control net
@@ -142,6 +143,14 @@ class Slice:
       with self._slice_lock :
          return self._tenant_admin_name, self._tenant_admin_pwd, \
              self._tenant_admin_uuid
+
+   def setSecurityGroup(self, sec_grp_name) :
+      with self._slice_lock :
+         self._tenant_security_grp = sec_grp_name
+
+   def getSecurityGroup(self) :
+      with self._slice_lock :
+         return self._tenant_security_grp 
 
    def setControlNetInfo(self, info) :
       with self._slice_lock :

@@ -4,6 +4,7 @@ import sys
 
 import config
 import open_stack_interface
+import manage_ssh_proxy
 
 if len(sys.argv) < 2 :
     print 'Usage: cleanup <slicename>...<slicename>'
@@ -61,6 +62,12 @@ for i in range(1, len(sys.argv)) :
         print cmd_string
         open_stack_interface._execCommand(cmd_string)
 
+        # Delete the SSH Proxy assoicated with the VM
+        cntrlNet = columns[4].split('=')
+        if len(cntrlNet) == 2 :
+            control_nic_ipaddr = cntrlNet[1]
+            manage_ssh_proxy._removeProxy(control_nic_ipaddr)
+
     # Find all ports of this tenant
     ports_cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
     ports_output = open_stack_interface._execCommand(ports_cmd_string)
@@ -91,6 +98,11 @@ for i in range(1, len(sys.argv)) :
         cmd_string = 'quantum net-delete %s' % net_uuid
         print cmd_string
         open_stack_interface._execCommand(cmd_string)
+
+    # Delete the security group associated with the tenant
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s secgroup-delete %s_secgrp ' % (tenant_admin, tenant_pwd, tenant_name, tenant_name)
+    print cmd_string
+    output = open_stack_interface._execCommand(cmd_string)
 
     # Delete the tenant admin account
     cmd_string = 'keystone user-delete %s' % tenant_admin_uuid

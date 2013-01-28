@@ -39,6 +39,8 @@
 #define MAX_ADDR_STRING_LENGTH 21
 #define MAX_IPTABLES_CMD_STR_LEN 200
 
+/* #define ENABLE_FCNTL */
+
 #define MODE_NONE 0
 #define MODE_CREATE 1
 #define MODE_DELETE 2
@@ -263,8 +265,10 @@ int add_proxy(char *addr)
   finalPortNumber = 0;
   entryIndex = 0;
 
+#ifdef ENABLE_FCNTL
   /* Acquire the lock for the port address table file */
-  /* lockfile = acquire_read_lock(); */
+  lockfile = acquire_read_lock();
+#endif
 
   /* Open the port table for reading */
   pRead = fopen(PORT_TABLE_LOCATION, "r");
@@ -316,8 +320,10 @@ int add_proxy(char *addr)
     fclose(pRead);
   }
 
+#ifdef ENABLE_FCNTL
   /* Release the port table file lock */
-  /* release_lock(lockfile); */
+  release_lock(lockfile);
+#endif
 
   /* Exit if duplicate */
   if (duplicate)
@@ -333,8 +339,10 @@ int add_proxy(char *addr)
     exit(EXIT_FAILURE);
   }
 
+#ifdef ENABLE_FCNTL
   /* Acquire write lock on port address file */
-  /*lockfile = acquire_write_lock(); */
+  lockfile = acquire_write_lock();
+#endif
 
   /* Append port table if port number at end (or its port table is new) */
   if (finalPortNumber == 0)
@@ -384,8 +392,10 @@ int add_proxy(char *addr)
     fclose(pWrite);
   }
 
+#ifdef ENABLE_FCNTL
   /* Give up file lock */
-  /* release_lock(lockfile); */
+  release_lock(lockfile);
+#endif
 
   return finalPortNumber;
 }
@@ -416,8 +426,10 @@ int delete_proxy(char *addr)
   parse_address(addr, &addr0, &addr1, &addr2, &addr3);
   /*fprintf(stdout, "Address: %d.%d.%d.%d\n", addr0, addr1, addr2, addr3);*/
 
+#ifdef ENABLE_FCNTL
   /* Secure the read lock on the port address file */
-  /* lockfile = acquire_read_lock(); */
+  lockfile = acquire_read_lock();
+#endif
 
   /* Open the port table for reading */
   entryIndex = 0;
@@ -454,8 +466,10 @@ int delete_proxy(char *addr)
   /* close the read file */
   fclose(pRead);
 
+#ifdef ENABLE_FCNTL
   /* Release the read file lock */
-  /* release_lock(lockfile); */
+  release_lock(lockfile);
+#endif
 
   /* Verify that the address was found */
   if (finalPortNumber == 0)
@@ -471,8 +485,10 @@ int delete_proxy(char *addr)
     exit(EXIT_FAILURE);
   }
 
+#ifdef ENABLE_FCNTL
   /* Secure the write lock on the port address file */
-  /* lockfile = acquire_write_lock(); */
+  lockfile = acquire_write_lock();
+#endif
 
   /* Otherwise rewrite the port address table file with the updated entries */
   pWrite = fopen(PORT_TABLE_LOCATION, "w");
@@ -494,8 +510,10 @@ int delete_proxy(char *addr)
   /* Close the file and return the port number */  
   fclose(pWrite);
 
+#ifdef ENABLE_FCNTL
   /* Release the port address file lock */
-  /* release_lock(lockfile); */
+  release_lock(lockfile);
+#endif
 
   return finalPortNumber;
 }
