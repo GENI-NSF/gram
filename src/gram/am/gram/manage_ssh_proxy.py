@@ -77,7 +77,7 @@ def _addNewProxy(addr) :
     try :
         _execCommand(cmd_string)
     except :
-        congig.logger.error("Unable to create SSH proxy for address  %s" % addr)
+        config.logger.error("Unable to create SSH proxy for address  %s" % addr)
         return 0
 
     return _getPortFromTable(addr)
@@ -94,4 +94,4 @@ def _removeProxy(addr) :
     try:
         _execCommand(cmd_string)
     except :
-        congig.logger.error("Address %s not present in SSH proxy" % addr)
+        config.logger.error("Address %s not present in SSH proxy" % addr)
