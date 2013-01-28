@@ -575,6 +575,7 @@ def _createVM(vm_object, users, placement_hint) :
 
     # Set up the SSH proxy for the new VM
     portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
+    vm_object.setSSHProxyLoginPort(portNumber)
     config.logger.info('SSH Proxy assigned port number %d' % portNumber)
 
     return vm_uuid

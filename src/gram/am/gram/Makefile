@@ -9,7 +9,7 @@ OBJ = gram_ssh_proxy.o
 
 gram_ssh_proxy: $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
-	cp $@ $(INSTALL_DIR)
+	cp -f $@ $(INSTALL_DIR)
 	chmod u+s $(INSTALL_DIR)/$@
 
 .PHONY: clean

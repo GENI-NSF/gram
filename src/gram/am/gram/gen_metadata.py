@@ -27,7 +27,7 @@ import os.path
 import uuid
 import subprocess
 import config
-
+import tempfile
 
 def _generateScriptInstalls(scriptFile, installItem) :
     """ Generate text for a script that handles an _InstallItem object:
@@ -121,7 +121,8 @@ def _generateAccount(user) :
     if userName != "" :
 
         # Open the script file for writing
-        scriptFilename = '/tmp/' + userName + '.txt'
+        tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
+        scriptFilename = '%s.txt' % tempscriptfile.name
         try:
             scriptFile = open(scriptFilename, 'w')
         except IOError:
@@ -184,10 +185,12 @@ def configMetadataSvcs(users, scriptFilename = 'userdata.txt') :
     # When all files are generated, then combine them into a single gzipped mime file
     cmd_count = 0
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
+    rmcmd = 'rm -f '
     for user in users :
         scriptName = _generateAccount(user)
         if scriptName != "" :
-            cmd = cmd + scriptName + ':text/x-shellscript '
+            cmd += scriptName + ':text/x-shellscript '
+            rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
 
     if cmd_count > 0 : 
@@ -200,4 +203,7 @@ def configMetadataSvcs(users, scriptFilename = 'userdata.txt') :
         command = cmd.split()
         subprocess.check_output(command)
 
+        config.logger.info('Issuing command %s' % rmcmd)
+        command = rmcmd.split()
+        subprocess.check_output(command)
 
