@@ -1,4 +1,4 @@
-# Set of classes of resources (and supporting structures)
+ Set of classes of resources (and supporting structures)
 # the aggregate can allocate and about which it maintains state
 
 import datetime
@@ -70,6 +70,7 @@ class Slice:
                               #  starting with 100.  This number is used as the
                               #  last octet for all IP addresses assigned to 
                               #  that VM.
+      self._controller_url = None    # Provided experimenter controller, if any
 
    def __str__(self):
       return resource_image(self, "Slice");
@@ -268,6 +269,13 @@ class Slice:
       with self._slice_lock :
          return self._request_rspec
       
+   def setControllerURL(self, controller_url):
+      with self._slice_lock:
+         self._controller_url = controller_url
+
+   def getControllerURL(self):
+      with self._slice_lock:
+         return self._controller_url
       
 
 # Base class for resource slivers
