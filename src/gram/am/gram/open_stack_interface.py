@@ -133,7 +133,26 @@ def provisionResources(geni_slice, users) :
                 nic.setIPAddress(subnet_prefix + vm.getLastOctet())
 
     # For each VirtualMachine object in the slice, create an OpenStack
-    # VM if such a VM has not already been created
+    # VM if such a VM has not already been created.
+    # We try to put the VMs on different compute nodes.  The algorithm for
+    # doing this on a rack with N compute nodes is:
+    #    1. Let openstack (nova) pick a location for the 1st VM i.e. we don't
+    #       provide any hints for placing this VM.
+    #    2. For the next N-1 VMs we tell nova to place the VM to be created 
+    #       on a node that is different from any of the previous VMs created.
+    #       We do this by sending the _createVM call a list of UUIDs for 
+    #       VMs created so far.  The nodes on which these VMs are placed are
+    #       the ones of avoid.
+    #    3. For the remaining VMs, we don't provide nova with any placements
+    #       hints.  We'll let the nova scheduler pick compute nodes for 
+    #       these VMs.
+
+    # Find out the number of compute nodes we have
+    num_compute_nodes = _getComputeNodeCount()
+    config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
+    
+    # Now create the VMs
+    num_vms_created = 0
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
             vm_uuid = _createVM(vm, users)
@@ -174,6 +193,7 @@ def deleteAllResourcesForSlice(geni_slice) :
 
     # Delete the security group for this tenant
     _deleteTenantSecurityGroup(admin_name, admin_pwd,
+                               geni_slice.getTenantName(),
                                geni_slice.getSecurityGroup())
 
     # Delete the slice (tenant) admin user account
@@ -286,7 +306,8 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
     return secgroup_name
 
 
-def _deleteTenantSecurityGroup(admin_name, admin_pwd, secgrp_name) :
+def _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name, 
+                               secgrp_name) :
     """
         Delete the security group created for this tenant
     """
@@ -676,6 +697,28 @@ def _getValueByPropertyName(output_table, property_name) :
 
     return None   # Failed to find the uuid
 
+
+def _getComputeNodeCount() :
+    """
+        Returns the number of compute nodes on the rack.
+    """
+    cmd_string = 'nova hypervisor-list'
+    output = _execCommand(cmd_string)
+
+    # The output of the above command is a table of the form
+    #    +----+---------------------+
+    #    | ID | Hypervisor hostname |
+    #    +----+---------------------+
+    #    | 3  | compute1            |
+    #    | 4  | compute2            |
+    #    | .. | ...                 |
+    #    | N  | computeN            |
+    #    +----+---------------------+
+    # The number of compute nodes is therefore the number of lines in
+    # the output - 5 (there is an extra newline)
+    output_lines = output.split('\n')
+    return len(output_lines) - 5
+
 # Get dictionary of hostnames : hostname => list of services
 def _listHosts(onlyForService=None):
     hosts = {}
@@ -716,9 +759,7 @@ def _lookup_vlans_for_tenant(tenant_id):
     ports = _getPortsForTenant(tenant_id)
 #    print str(ports)
     for host in hosts.keys():
-        config.logger.info('about to send command to compute node')
         port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
-        config.logger.info('returned from command to compute node')
         port_map = _read_vlan_port_map(port_data)
         for port in ports.keys():
             mac = ports[port]['mac_address']
