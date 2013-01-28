@@ -10,14 +10,16 @@ def parseRequestRspec(geni_slice, rspec) :
         the resources requested by this rspec.  The resources are not actually
         created.
 
-        Returns a tuple (error string, sliver list) :
+        Returns a tuple (error string, sliver list, controller) :
             error string: String describing any error encountered during parsing.
                           None if there is no error.
             sliver list: List of slivers created while parsing the rspec
+            controller is the url of the OF controller or None
     """
     # Initialize return values
     error_string = None
     sliver_list = []
+    controller = None
         
     # Parse the xml rspec
     rspec_dom = parseString(rspec)
@@ -138,7 +140,12 @@ def parseRequestRspec(geni_slice, rspec) :
             # Associate this end point (NetworkInterface) with this link
             link_object.addEndpoint(interface_object)
 
-    return error_string, sliver_list
+    controllers = rspec_dom.getElementsByTagName('openflow:controller')
+    if len(controllers) > 0:
+        controller_node = controllers[0]
+        controller = controller_node.attributes['url'].value
+
+    return error_string, sliver_list, controller
 
 
 def generateManifest(geni_slice, req_rspec) :
