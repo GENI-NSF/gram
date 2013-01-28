@@ -122,7 +122,7 @@ def _generateAccount(user) :
 
         # Open the script file for writing
         tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
-        scriptFilename = '%s.txt' % tempscriptfile.name
+        scriptFilename = '%s' % tempscriptfile.name
         try:
             scriptFile = open(scriptFilename, 'w')
         except IOError:
@@ -185,7 +185,7 @@ def configMetadataSvcs(users, scriptFilename = 'userdata.txt') :
     # When all files are generated, then combine them into a single gzipped mime file
     cmd_count = 0
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
-    rmcmd = 'rm -f '
+    rmcmd = 'rm -f'
     for user in users :
         scriptName = _generateAccount(user)
         if scriptName != "" :

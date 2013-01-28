@@ -35,11 +35,11 @@
 #define PORT_TABLE_LOCKFILE "/tmp/gram-ssh-port-table.lock"
 #define PORT_NUMBER_START 3000
 
-#define MAX_PORT_TABLE_ENTRIES 500
+#define MAX_PORT_TABLE_ENTRIES 1000
 #define MAX_ADDR_STRING_LENGTH 21
 #define MAX_IPTABLES_CMD_STR_LEN 200
 
-/* #define ENABLE_FCNTL */
+#define ENABLE_FCNTL
 
 #define MODE_NONE 0
 #define MODE_CREATE 1
@@ -124,7 +124,7 @@ int acquire_read_lock()
   filelock.l_len = 0;
   filelock.l_pid = getpid();
 
-  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY);
+  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
   if (lockfile == -1)
   {
     fprintf(stderr, "Unable to open read file lock for %s\n", PORT_TABLE_LOCKFILE);
@@ -152,7 +152,7 @@ int acquire_write_lock()
   filelock.l_len = 0;
   filelock.l_pid = getpid();
 
-  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY);
+  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY | O_CREAT, S_IRUSR | S_IRGRP);
   if (lockfile == -1)
   {
     fprintf(stderr, "Unable to open write file lock for %s\n", PORT_TABLE_LOCKFILE);
@@ -179,9 +179,9 @@ void release_lock(int lockfile)
   filelock.l_len = 0;
   filelock.l_pid = getpid();
   
-  if (fcntl(lockfile, F_SETLK, filelock) == -1)
+  if (fcntl(lockfile, F_SETLK, &filelock) == -1)
   {
-    fprintf(stderr, "Error trying to release read file lock\n");
+    fprintf(stderr, "Error trying to release file lock\n");
     exit(EXIT_FAILURE);
   }
 
