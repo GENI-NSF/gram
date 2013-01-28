@@ -491,6 +491,7 @@ def _createVM(vm_object, users, placement_hint) :
     # Now create ports for the experiment data networks
     for nic in vm_object.getNetworkInterfaces() :
         link_object = nic.getLink()
+        if not link_object: continue
         net_uuid = link_object.getNetworkUUID()
         nic_ip_addr = nic.getIPAddress()
         if nic_ip_addr != None :
