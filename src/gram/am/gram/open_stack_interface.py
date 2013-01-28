@@ -152,16 +152,27 @@ def provisionResources(geni_slice, users) :
     config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
     
     # Now create the VMs
-    num_vms_created = 0
+    num_vms_created = 0    # number of VMs created in this provision call
+    vm_uuids = []  # List of uuids of VMs created in this provision call
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
-            vm_uuid = _createVM(vm, users)
+            # This VM object does not have an openstack VM associated with it.
+            # We need to create one.
+            if num_vms_created == 0 or num_vms_created >= num_compute_nodes :
+                # We are in Step 1 or Step 3 of the VM placement algorithm
+                # described above.  We don't give openstack any hints on
+                # where this VM should go
+                vm_uuid = _createVM(vm, users, None)
+            else :
+                vm_uuid = _createVM(vm, users, vm_uuids)
             if vm_uuid == None :
-                config.logger.error('Failed to crate vm for node %s' %
+                config.logger.error('Failed to create vm for node %s' %
                                     vm.getName())
             else :
                 vm.setUUID(vm_uuid)
                 vm.setAllocationState(config.provisioned)
+                num_vms_created += 1
+                vm_uuids.append(vm_uuid)
         
 
 def deleteAllResourcesForSlice(geni_slice) :
@@ -455,7 +466,7 @@ def _getPortsForTenant(tenant_uuid):
 
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
-def _createVM(vm_object, users) :
+def _createVM(vm_object, users, placement_hint) :
     slice_object = vm_object.getSlice()
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()
@@ -524,6 +535,14 @@ def _createVM(vm_object, users) :
         if port_uuid != None :
             cmd_string += (' --nic port-id=%s' % port_uuid)
             
+    # Now add any hints for where these should go.  Specifically, if we
+    # need to provide a placement_hint (placement_hint != None), we ask
+    # nova to try to avoid co-locating this VM with the VMs specified in 
+    # placment_hint.
+    if placement_hint != None :
+        for i in range (0, len(placement_hint)) :
+            cmd_string += (' --hint different_host=%s' % placement_hint[i])
+
     # Issue the command to create the VM
     output = _execCommand(cmd_string) 
 
