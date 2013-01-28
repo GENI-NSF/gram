@@ -1,4 +1,4 @@
- Set of classes of resources (and supporting structures)
+# Set of classes of resources (and supporting structures)
 # the aggregate can allocate and about which it maintains state
 
 import datetime
