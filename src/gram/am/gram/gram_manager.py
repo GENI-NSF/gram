@@ -5,7 +5,7 @@ import signal
 import time
 
 import config
-from resources import Slice
+from resources import Slice, VirtualMachine
 import rspec_handler
 import open_stack_interface
 import utils
@@ -81,6 +81,7 @@ class GramManager :
         """
         config.logger.info('Allocate called for slice %r' % slice_urn)
 
+
         # Check if we already have slivers for this slice
         slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
         if slice_object != None :
@@ -100,7 +101,10 @@ class GramManager :
 
         # Parse the request rspec.  Get back any error message from parsing
         # the rspec and a list of slivers created while parsing
-        err_output, slivers = rspec_handler.parseRequestRspec(slice_object, rspec)
+        # Also OF controller, if any
+        err_output, slivers, controller_url = \
+            rspec_handler.parseRequestRspec(slice_object, rspec)
+
         if err_output != None :
             # Something went wrong.  First remove from the slice any sliver
             # objects created while parsing the bad rspec
@@ -110,6 +114,26 @@ class GramManager :
             # Return an error struct.
             code = {'geni_code': config.REQUEST_PARSE_FAILED}
             return {'code': code, 'value': '', 'output': err_output}
+
+
+        # If we're associating an OpenFlow controller to this slice, 
+        # Each VM must go on its own host. If there are more nodes
+        # than hosts, we fail
+        if controller_url:
+            hosts = open_stack_interface._listHosts('compute')
+            num_vms = 0
+            for sliver in slivers:
+                if isinstance(sliver, VirtualMachine):
+                    num_vms = num_vms + 1
+            if len(hosts) < num_vms:
+                code = {'geni_code': config.REQUEST_PARSE_FAILED}
+                error_output = \
+                    "For OpenFlow controlled slice, limit of " + \
+                    str(len(hosts)) + " VM's"
+                return {'code': code, 'value':'', 'output':error_output}
+        
+        # Set the experimenter provider controller URL (if any)
+        slice_object.setControllerURL(controller_url)
 
         # Set expiration times on the allocated resources
         utils.AllocationTimesSetter(slice_object, creds, \
