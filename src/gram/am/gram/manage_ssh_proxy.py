@@ -24,9 +24,11 @@
 import subprocess
 import config
 import string
-
+import struct
+import fcntl
 
 portTableFile = '/tmp/gram-ssh-port-table.txt'
+portTableLockFile = '/tmp/gram-ssh-port-table.lock'
 sshProxyExe = '/usr/local/bin/gram_ssh_proxy'
 
 def _execCommand(cmd_string) :
@@ -35,23 +37,60 @@ def _execCommand(cmd_string) :
     return subprocess.check_output(command) 
 
 
+def _acquireReadLock() :
+        lockFile = None
+	try:
+            lockFile = open(portTableLockFile, 'r')
+	except IOError:
+            config.logger.error("Unable to open file %s" % portTableLockFile)
+            return None
+
+        lockdata = struct.pack('hhllhh', fcntl.F_RDLCK, 0, 0, 0, 0, 0)
+        try :
+            fcntl.fcntl(lockFile.fileno(), fcntl.F_SETLKW, lockdata)
+        except :
+            config.logger.error("Unable to lock file %s" % portTableLockFile)
+            return None
+
+        return lockFile
+
+
+def _releaseLock(lockFile) :
+        lockdata = struct.pack('hhllhh', fcntl.F_UNLCK, 0, 0, 0, 0, 0)
+        try :
+            fcntl.fcntl(lockFile.fileno(), fcntl.F_SETLK, lockdata)
+        except :
+            config.logger.error("Unable to release lock file %s" % portTableLockFile)
+            return None
+
+        lockFile.close()
+    
+
 def _getPortFromTable(addr) :
 	"""
 	1) Open port file
 	2) Iterate through entries
 	3) Find matching address
 	"""
-	# First attempt to open the port table file for reading
-	portLines = []
-	try:
-		scriptFile = open(portTableFile, 'r')
-		portLines = scriptFile.readlines()
-		scriptFile.close()
-	except IOError:
-		config.logger.error("Unable to open file %s for reading" % portTableFile)
-		return 0
+        # Acquire file lock on SSH port table
+        filelock = _acquireReadLock()
+        if filelock == None :
+            return 0
 
-	# If port table exists than iterate through sorted entries and find an available port
+        # Attempt to open the port table file for reading
+        portLines = []
+        try:
+            scriptFile = open(portTableFile, 'r')
+            portLines = scriptFile.readlines()
+            scriptFile.close()
+	except IOError:
+            config.logger.error("Unable to open file %s for reading" % portTableFile)
+            return 0
+
+        # Release the SSH port table file lock
+        _releaseLock(filelock)
+
+        # If port table exists than iterate through sorted entries and find an available port
 	portNumber = 0
 	for portLine in portLines :
 		# Entries are of the format { address \t port }
