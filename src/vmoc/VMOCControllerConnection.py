@@ -14,9 +14,10 @@ from pox.lib.packet.vlan import vlan
 from pox.openflow.util import make_type_to_class_table
 from pox.openflow.libopenflow_01 import *
 from pox.openflow import libopenflow_01 as of
+from pox.lib.packet.ethernet import ethernet
+from pox.lib.packet.vlan import vlan
 import VMOCSwitchControllerMap as scmap
-from VMOCConfig import VMOCVlanConfiguration
-from VMOCSliceRegistry import slice_registry_lookup_slices, slice_registry_dump
+from VMOCSliceRegistry import slice_registry_lookup_slices_by_url, slice_registry_dump
 
 
 log = core.getLogger() # Use central logging service
@@ -26,9 +27,10 @@ log = core.getLogger() # Use central logging service
 class VMOCControllerConnection(threading.Thread):
 
 
-    def __init__(self, url, switch_connection, open_on_create=True):
+    def __init__(self, url, switch_connection, vlan, open_on_create=True):
         threading.Thread.__init__(self)
         self._running = False
+        self._vlan = vlan
 
         self.ofp_msgs = make_type_to_class_table()
         self.ofp_handlers = {
@@ -81,10 +83,15 @@ class VMOCControllerConnection(threading.Thread):
 #        print "SOCKET CLOSED " + str(self)
         self._running = False
 #        print "RUNNING = FALSE " + str(self)
-        
+
+    def __str__(self):
+        return "[VMOCControllerConnection DPID %s URL %s VLAN %d]" % (self._dpid, self._url, self._vlan)
 
     def getURL(self):
         return self._url
+
+    def getVLAN(self):
+        return self._vlan
 
     def getSwitchConnection(self):
         return self._switch_connection
@@ -170,39 +177,78 @@ class VMOCControllerConnection(threading.Thread):
             switch.send(ofp_revised)
 
     # Determine if message should be forwarded to switch
-    # If it is a flow_mod, make sure that it has proper VLAN, SRC, DEST
-    # If it is a packet_out, make sure that it has proper VLAN, SRC, DEST
-    # Otherwise pass it along
+    # If it is a flow mod:
+    #    - If the match has a vlan tag, make sure it fits the connection's VLAN (else drop)
+    #    - If the match has no VLAN tag, add it in
+    #    - If the action has aset-vlan or strip-vlan,drop it
+    # If it is a packet:
+    #    - If it has a VLAN, make sure it fits in connection's VLAN (else drop)
+    #    - If it doesn't have a VLAN, add the VLAN of the connection to the packet
     def validateMessage(self, ofp, switch):
         ofp_revised = None
         if ofp.header_type == of.OFPT_FLOW_MOD:
-            src=ofp.match.dl_src
-            dst=ofp.match.dl_dst
-            vlan=ofp.match.dl_vlan
-            if self.belongsToSlice(vlan, src, dst):
-                ofp_revised = ofp
+
+            # Check that the match is okay
+            match = ofp.match
+            if match.dl_vlan == of.OFP_VLAN_NONE:
+                # add in the tag to the match if not set
+                match.dl_vlan = self._vlan
+            elif match.dl_vlan != self._vlan:
+                log.debug("Dropping FLOW MOD: match tagged with wrong VLAN : " + \
+                              str(ofp) + " " + str(self))
+                return None
+
+            # Check that the actions are okay
+            actions = ofp.actions
+            for action in actions:
+                if isinstance(ofp_action_vlan_vid) and action.vlan_vid != self._vlan:
+                    log.debug("Dropping FLOW MOD: action to set wrong VLAN : " + \
+                              str(ofp) + " " + str(self))
+                    return None
+
         elif ofp.header_type == of.OFPT_PACKET_OUT:
+
             data = ofp.data
-            if len(ofp.data) == 0:
-                buffer_id = ofp.buffer_id
-                data = switch.lookup_packet_by_buffer_id(buffer_id)
             ethernet_packet = ethernet(raw=data)
-            dst=ethernet_packet.dst
-            src=ethernet_packet.src
-            vlan_id=None
+            # if packet has a VLAN, make sure it fits this connection
             if ethernet_packet.type == ethernet.VLAN_TYPE:
-                vlan_packet = vlan(raw=data)
-                vlan_id = vlan_packet.id
-            if self.belongsToSlice(vlan_id, src, dst):
-                ofp_revised = ofp
-        else:
-            ofp_revised = ofp
-        return ofp_revised
+                vlan_packet = vlan(data[ethernet.MIN_LEN:])
+                if  vlan_packet.id != self._vlan:
+                    log.debug("Dropping PACKET OUT: wrong VLAN set : "  + 
+                              str(vlan_packet) + " " + str(ofp) + " " + str(self))
+                    return None
+            else: 
+                orig_in_port = ofp.in_port
+                # If not, set it
+                # Grab the ethernet packet = E
+                new_ethernet_packet = ethernet(ethernet_packet.raw)
+                new_ethernet_packet.type = ethernet.VLAN_TYPE
+                E = new_ethernet_packet.hdr('')
+                # Create the vlan packet = V
+                vlan_packet = vlan()
+                vlan_packet.id = self._vlan
+                vlan_packet.pcp = 0
+                vlan_packet.eth_type = ethernet_packet.type
+                V = vlan_packet.hdr('')
+                # Grab the rest of the packet = R
+                R = ethernet_packet.raw[ethernet.MIN_LEN:]
+                # Construct E + V + R
+                new_raw = E + V + R
+                new_ethernet_packet = ethernet(new_raw)
+                # Create a new ofp from the new data
+                ofp = of.ofp_packet_out(data=new_raw)
+                ofp.buffer_id = None
+                ofp.in_port = orig_in_port
+                log.debug("Adding vlan to PACKET_OUT : " +  \
+                              str(ethernet_packet) + " " + str(new_ethernet_packet) + " " + \
+                              str(ofp) + " " + str(self))
+
+        return ofp
 
     # Determine if this vlan/src/dest tuple is valid for the slice
     # managed by this controller
     def belongsToSlice(self, vlan_id, src, dst):
-        slice_configs = slice_registry_lookup_slices(self._url)
+        slice_configs = slice_registry_lookup_slices_by_url(self._url)
 
 #        slice_registry_dump(True)
 

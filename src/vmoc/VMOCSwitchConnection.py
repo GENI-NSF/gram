@@ -1,7 +1,7 @@
 # A connection to a switch, paired with a set of connections to controllers
 
 from pox.core import core
-log = core.getLogger() # Use central logging service
+log  = core.getLogger() # Use central logging service
 
 import time
 import threading
@@ -133,16 +133,22 @@ class VMOCSwitchConnection(object):
 
         # Get list of controllers from VMOC Switch Controller MAP
         controller_conns = scmap.lookup_controllers_for_switch_connection(self)
+        if not controller_conns: 
+            print "No controller connection : dropping " + str(event)
+            return
 
         if event.ofp.header_type == of.OFPT_PACKET_IN:
             # Send the event to the client controller associated with this slice
-            # Based on SRC/DST MAC's and VLAN's
+            # Based on VLAN
             ethernet_packet = ethernet(raw=event.ofp.data)
             dst=ethernet_packet.dst
             src=ethernet_packet.src
             vlan_id = None
             if ethernet_packet.type == ethernet.VLAN_TYPE:
-                vlan_packet = vlan(raw=data)
+#                print "EVENT: " + str(event)
+                vlan_data = event.ofp.data[ethernet.MIN_LEN:]
+                vlan_packet = vlan(vlan_data)
+                log.debug("VLAN PACKET : " + str(vlan_packet))
                 vlan_id = vlan_packet.id
             matched_controller_conn = None
             for controller_conn in controller_conns:

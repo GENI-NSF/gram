@@ -1,24 +1,26 @@
 from pox.core import core
 from VMOCSwitchConnection import VMOCSwitchConnection
 from VMOCControllerConnection import VMOCControllerConnection
+from VMOCSliceRegistry import *
 import pdb
 
 log = core.getLogger() # Use the central logging service
 
 # Class that maintains list of all switch connections 
-#    and controller connections (one per switch)
+#    and controller connections (one per managed vlan per switch)
 class VMOCSwitchControllerMap(object):
 
     def __init__(self):
-        self._controller_urls = []
         self._switch_connections = []
-        self._controller_connections_by_url = {}
         self._controller_connections_by_switch = {}
+        self._controller_connections_by_vlan = {}
         self._switch_connection_by_controller = {}
 
     # Find the controller connections associated 
     # with a given switch connection
     def lookup_controllers_for_switch(self, switch_conn):
+        if not self._controller_connections_by_switch.has_key(switch_conn):
+            return None
         return self._controller_connections_by_switch[switch_conn]
 
 
@@ -27,46 +29,61 @@ class VMOCSwitchControllerMap(object):
     def lookup_switch_for_controller(self, controller_conn):
         return self._switch_connection_by_controller[controller_conn]
 
+    # Add a new controller connection for given switch connection
+    def add_controller_connection(self, controller_conn, switch_conn):
+        self._controller_connections_by_switch[switch_conn].append(controller_conn)
+        self._switch_connection_by_controller[controller_conn] = switch_conn
+        vlan = controller_conn.getVLAN()
+        if not self._controller_connections_by_vlan.has_key(vlan):
+            self._controller_connections_by_vlan[vlan] = list()
+        self._controller_connections_by_vlan[vlan].append(controller_conn)
+
     # Create a new controller connection at given URL 
     # and associate with all current switches
-    def add_controller(self, controller_url, open_on_create=True):
-        # Add controller url to list of urls
-        self._controller_urls.append(controller_url)
-        self._controller_connections_by_url[controller_url] = list()
+    def create_controller_connection(self, controller_url, vlan, \
+                                         open_on_create=True):
 
         # Create a new controller connection for each switch
         for switch_conn in self._switch_connections:
             controller_conn = VMOCControllerConnection(controller_url, \
                                                            switch_conn, \
+                                                           vlan, \
                                                            open_on_create)
-            self._controller_connections_by_url[controller_url].\
-                append(controller_conn)
-            self._controller_connections_by_switch[switch_conn].\
-                append(controller_conn)
-            self._switch_connection_by_controller[controller_conn] \
-                = switch_conn
+            self.add_controller_connection(controller_conn, switch_conn)
 
-    # Remove all controller connection at given URL
-    def remove_controller(self, controller_url):
+    # Remove a particular controller connection
+    def remove_controller_connection(self, controller_conn):
 
-        # Remove controller from list of controllers by URL
-        if self._controller_connections_by_url.has_key(controller_url) :
-            del self._controller_connections_by_url[controller_url]
+        # Might have been called by switch connection or controller connection
+        # detecting that we're down
+        if not self._switch_connection_by_controller.has_key(controller_conn): 
+            return
 
-        # Remove controller from list of controllers by switch
-        # And remove switch connection for this controller
-        for switch in self._switch_connections:
-            conns = self._controller_connections_by_switch[switch];
-            for conn in conns:
-                if conn.getURL() == controller_url:
-                    conns.remove(conn)
-                    if self._switch_connection_by_controller.has_key(conn):
-                        del self._switch_connection_by_controller[conn]
+        switch_conn = self._switch_connection_by_controller[controller_conn]
+        vlan = controller_conn.getVLAN()
 
-        # Remove URL from list of urls
-        if controller_url in self._controller_urls:
-            self._controller_urls.remove(controller_url)
+        assert self._switch_connection_by_controller.has_key(controller_conn)
+        del self._switch_connection_by_controller[controller_conn]
 
+        assert self._controller_connections_by_switch.has_key(switch_conn)
+        controllers_for_switch = self._controller_connections_by_switch[switch_conn]
+        controllers_for_switch.remove(controller_conn)
+        self._controller_connections_by_switch[switch_conn] = controllers_for_switch
+
+        assert self._controller_connections_by_vlan.has_key(vlan)
+        controllers_for_vlan = self._controller_connections_by_vlan[vlan]
+        controllers_for_vlan.remove(controller_conn)
+        self._controller_connections_by_vlan[vlan] = controllers_for_vlan
+
+    # Remove all controller connections for a given slice
+    def remove_controller_connections_for_slice(self, slice_id):
+        slice_config = slice_registry_lookup_slice_config_by_slice_id(slice_id)
+        for vlan in slice_config.getVLANs():
+            controller_connections = \
+                self._controller_connections_by_vlan[vlan]
+            for controller_connection in controller_connections:
+#                print "   *** REMOVING " + str(controller_connection) + " ***"
+                self.remove_controller_connection(controller_connection)
 
     # Add a new switch connection to the map, 
     # adding associated controller connections
@@ -79,72 +96,57 @@ class VMOCSwitchControllerMap(object):
         self._switch_connections.append(switch_conn)
         self._controller_connections_by_switch[switch_conn] = list()
         
-        # For each current conenction URL, create a new client connection
-        # And link it  up
-        for controller_url in self._controller_urls:
-            controller_conn = \
-                VMOCControllerConnection(controller_url, switch_conn, \
-                                             open_on_create)
-            self._controller_connections_by_switch[switch_conn].\
-                append(controller_conn)
-            self._controller_connections_by_url[controller_url].\
-                append(controller_conn)
-            self._switch_connection_by_controller[controller_conn] = \
-                switch_conn
-
+        # For each slice configuration, create a new client connection
+        for slice_config in slice_registry_get_slice_configs():
+            controller_url = slice_config.getControllerURL()
+            for vlan in slice_config.getVLANs():
+                controller_conn = VMOCControllerConnection(controller_url, \
+                                                               switch_conn, \
+                                                               vlan, \
+                                                               open_on_create)
+                self.add_controller_connection(controller_conn, switch_conn)
+                    
     # Remove switch connection from map 
     # and all associated controller connections
     def remove_switch(self, switch_conn, close_controller_connections=False):
         # Remove switch from list of switch connections
         if switch_conn in self._switch_connections:
             self._switch_connections.remove(switch_conn)
-            
+
         # Remove controller associated with switch from table
         # of controllers by URL
         # And remove association of this switch with controller
         if self._controller_connections_by_switch.has_key(switch_conn):
             for controller_conn in \
                     self._controller_connections_by_switch[switch_conn]:
-                url = controller_conn.getURL()
-                if self._controller_connections_by_url.has_key(url):
-                    conns = self._controller_connections_by_url[url]
-                    if controller_conn in conns:
-                        conns.remove(controller_conn)
-                        del self._switch_connection_by_controller\
-                            [controller_conn]
+                self.remove_controller_connection(controller_conn)
                 if close_controller_connections:
                     controller_conn.close()
 
-        # Remove controller associated with switch connection
-        del self._controller_connections_by_switch[switch_conn]
-
     # Dump contents of map (for testing)
-    def dump(self):
-        print "VMOCSwitchControllerMap:"
-        print  "  Controllers:"
-        for url in self._controller_urls:
-            print "      " + url
-            for controller in self._controller_connections_by_url[url]:
-                print "         " + str(controller)
-                switch = self._switch_connection_by_controller[controller]
-                print "            " + str(switch)
-        print "   Switches:"
+    def dump(self, print_results = False):
+        image = "VMOCSwitchControllerMap:" + "\n"
+        image +="   Switches:" + "\n"
         for switch in self._switch_connections:
-            print "      " + str(switch)
+            image += "      " + str(switch) + "\n"
             for controller in self._controller_connections_by_switch[switch]:
-                print "         " + str(controller)
-        print "   URLS:"
-        for url in self._controller_urls:
-            print "     " + str(url)
-        print "   Switches(unindexed):"
+                image += "         " + str(controller) + "\n"
+        image += "   Switches(unindexed):" + "\n"
         for switch_connection in self._switch_connections:
-            print "     " + str(switch_connection)
-        print "   Switches (by Controller):"
+            image += "     " + str(switch_connection) + "\n"
+        image += "   Switches (by Controller):" + "\n"
         for controller_conn in self._switch_connection_by_controller.keys():
-            print "     " + str(controller_conn)
+            image += "     " + str(controller_conn) + "\n"
             switch_conn = self._switch_connection_by_controller[controller_conn]
-            print "          " + str(switch_conn)
-
+            image += "          " + str(switch_conn) + "\n"
+        image += "   Controllers (by VLAN) " + "\n"
+        for vlan in self._controller_connections_by_vlan.keys():
+            image += "     " + str(vlan) + "\n "
+            for conn in self._controller_connections_by_vlan[vlan]:
+                image += "         " + str(conn) + "\n"
+        if print_results:
+            print image
+        return image
 
 
 # Singleton instance
@@ -160,14 +162,18 @@ def lookup_controllers_for_switch_connection(switch_conn):
 def lookup_switch_for_controller_connection(controller_conn):
     return _switch_controller_map.lookup_switch_for_controller(controller_conn)
 
-# Create a new controller connection at given URL 
+# Create a new controller connection at given URL and VLAN
 # and associate with all current switches
-def add_controller_connection(controller_url, open_on_create=True):
-    _switch_controller_map.add_controller(controller_url, open_on_create)
+def create_controller_connection(controller_url, vlan, open_on_create=True):
+    _switch_controller_map.create_controller_connection(controller_url, vlan, open_on_create)
 
-# Remove all controller connection at given URL
-def remove_controller_connection(controller_url):
-    _switch_controller_map.remove_controller(controller_url)
+# Remove all controllere connections for a given slice id
+def remove_controller_connections_for_slice(slice_id):
+    _switch_controller_map.remove_controller_connections_for_slice(slice_id)
+
+# Remove this specific controller connection
+def remove_controller_connection(controller_conn):
+    _switch_controller_map.remove_controller_connection(controller_conn)
 
 # Add a new switch connection to the map, 
 # adding associated controller connections
@@ -179,8 +185,8 @@ def remove_switch_connection(switch_conn, close_controller_connections=False):
     _switch_controller_map.remove_switch(switch_conn, close_controller_connections)
 
 # Dump contents of current switch controller map state
-def dump_switch_controller_map():
-    _switch_controller_map.dump()
+def dump_switch_controller_map(print_results=False):
+    return _switch_controller_map.dump(print_results)
 
 # Test procedure:
 # Add switch
@@ -217,10 +223,6 @@ def switch_controller_map_test():
     print("T4:")
     dump_switch_controller_map()
 
-    remove_controller_connection(url1)
-    print("T5:")
-    dump_switch_controller_map()
-
     remove_switch_connection(s1)
     print("T6:")
     dump_switch_controller_map()
@@ -228,11 +230,6 @@ def switch_controller_map_test():
     remove_switch_connection(s2)
     print("T7:")
     dump_switch_controller_map()
-
-    remove_controller_connection(url2)
-    print("T8:")
-    dump_switch_controller_map()
-
 
 
 if __name__ == "__main__":

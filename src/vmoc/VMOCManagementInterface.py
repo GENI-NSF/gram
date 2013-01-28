@@ -30,13 +30,15 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 		slice_config = None
 		if command == 'register':
 			slice_config_json = ' '.join(pieces[1:])
-			slice_config_attribs= json.loads(slice_config_json)
-			slice_config = VMOCSliceConfiguration(attribs=slice_config_attribs)
+			slice_config_attribs = json.loads(slice_config_json)
+			slice_config = VMOCSliceConfiguration(\
+				attribs=slice_config_attribs)
 			slice_id = slice_config.getSliceID()
 		if command == "unregister":
 			slice_id = pieces[1]
 		return command, slice_id, slice_config
 
+	# Handle the request, wrapping in an exception black
 	def handle(self):
 		data = self.request.recv(1024).strip()
 		log.debug("Received " + data)
@@ -44,34 +46,49 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 		response = ""
 		try:
 			if command == 'dump':
-				scmap.dump_switch_controller_map()
-				response = slice_registry_dump(False)
+				response1 = scmap.dump_switch_controller_map()
+				response2 = slice_registry_dump(False)
+				response = response1 + "\n" + response2
+			elif command == "register":
+				response = self.handleRegister(slice_config)
+			elif command == "unregister":
+				response = self.handleUnregister(slice_config)
 			else:
-				if command == "register":
-					slice_id = slice_config.getSliceID()
-					controller_url = slice_config.getControllerURL()
-					if controller_url == None:
-						controller_url = VMOCGlobals.getDefaultControllerURL()
-						slice_config.setControllerURL(controller_url)
-					if slice_registry_is_registered(slice_config):
-						slice_registry_unregister_slice(slice_id)
-						scmap.remove_controller_connection(controller_url)
-					slice_registry_register_slice(slice_config)
-					scmap.add_controller_connection(controller_url, True)
-					response = "Registered slice  : " + str(slice_config)
-				elif command == "unregister":
-					slice_id = slice_config.getSliceID()
-					controller_url = slice_config.getControllerURL()
-					slice_config = slice_registry_lookup_slice_config(slice_id)
-					controller_url = slice_config.getControllerURL()
-					slice_registry_unregister_slice(slice_id)
-					scmap.remove_controller_connection(controller_url)
-					response = "Unregistered slice : " + str(slice_id)
-				else:
-					response = "Illegal command "  + command
+				response = "Illegal command " + command
 		except AssertionError, error:
 			response = str(error)
 		self.request.sendall(response)
+
+	# Handle the register request, returning response 
+	def handleRegister(self, slice_config):
+		slice_id = slice_config.getSliceID()
+		controller_url = slice_config.getControllerURL()
+		vlans = slice_config.getVLANs()
+		if controller_url == None:
+			controller_url = \
+			    VMOCGlobals.getDefaultControllerURL()
+		slice_config.setControllerURL(controller_url)
+		if slice_registry_is_registered(slice_config):
+			scmap.remove_controller_connections_for_slice(slice_id)
+			slice_registry_unregister_slice(slice_id)
+		slice_registry_register_slice(slice_config)
+		for vlan in vlans:
+			scmap.create_controller_connection(controller_url, \
+								   vlan, True)
+		response = "Registered slice  : " + str(slice_config)
+		return response
+
+	def handleUnregisgter(self, slice_config):
+		slice_id = slice_config.getSliceID()
+		controller_url = slice_config.getControllerURL()
+		slice_config = \
+		    slice_registry_lookup_slice_config_by_slice_id(slice_id)
+		controller_url = slice_config.getControllerURL()
+		scmap.remove_controller_connections_for_slice(slice_id)
+		slice_registry_unregister_slice(slice_id)
+		response = "Unregistered slice : " + str(slice_id)
+		return response
+
 
 class VMOCManagementInterface(threading.Thread):
  	def __init__(self, port, default_controller_url):
