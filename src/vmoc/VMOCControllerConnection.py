@@ -18,6 +18,7 @@ from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.vlan import vlan
 import VMOCSwitchControllerMap as scmap
 from VMOCSliceRegistry import slice_registry_lookup_slices_by_url, slice_registry_dump
+from VMOCUtils import *
 
 
 log = core.getLogger() # Use central logging service
@@ -218,25 +219,11 @@ class VMOCControllerConnection(threading.Thread):
                               str(vlan_packet) + " " + str(ofp) + " " + str(self))
                     return None
             else: 
-                orig_in_port = ofp.in_port
                 # If not, set it
-                # Grab the ethernet packet = E
-                new_ethernet_packet = ethernet(ethernet_packet.raw)
-                new_ethernet_packet.type = ethernet.VLAN_TYPE
-                E = new_ethernet_packet.hdr('')
-                # Create the vlan packet = V
-                vlan_packet = vlan()
-                vlan_packet.id = self._vlan
-                vlan_packet.pcp = 0
-                vlan_packet.eth_type = ethernet_packet.type
-                V = vlan_packet.hdr('')
-                # Grab the rest of the packet = R
-                R = ethernet_packet.raw[ethernet.MIN_LEN:]
-                # Construct E + V + R
-                new_raw = E + V + R
-                new_ethernet_packet = ethernet(new_raw)
+                orig_in_port = ofp.in_port
+                new_ethernet_packet = add_vlan_to_packet(ethernet_packet, self._vlan)
                 # Create a new ofp from the new data
-                ofp = of.ofp_packet_out(data=new_raw)
+                ofp = of.ofp_packet_out(data=new_ethernet_packet.raw)
                 ofp.buffer_id = None
                 ofp.in_port = orig_in_port
                 log.debug("Adding vlan to PACKET_OUT : " +  \

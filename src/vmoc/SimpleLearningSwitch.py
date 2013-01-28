@@ -1,6 +1,7 @@
 from pox.core import core
 import pox.openflow.libopenflow_01 as of
 from pox.openflow import *
+from VMOCUtils import *
 
 log = core.getLogger()
 
@@ -31,30 +32,14 @@ class SimpleLearningSwitch(object):
             self._mac_to_port[src] = src_port
 
         if not self._mac_to_port.has_key(dst):
-            log.debug("Flooding " + str(event))
-            self.flood(event)
+            flood_packet(event, self._connection)
         else:
             out_port = self._mac_to_port[dst]
             if self._write_flowmods:
-                msg = of.ofp_flow_mod()
-                msg.match = of.ofp_match.from_packet(packet, event.port)
-                msg.idle_timeout = 10
-                msg.hard_timeout = 30
-                msg.actions.append(of.ofp_action_output(port=out_port))
-                self._connection.send(msg)
-                log.debug("Setting flow mod " + str(msg))
+                send_flowmod_for_packet(event, self._connection, packet, out_port)
 
-            msg = of.ofp_packet_out(data=packet.raw, in_port = src_port)
-            msg.actions.append(of.ofp_action_output(port=out_port))
-            self._connection.send(msg)
-#            log.debug("Sending message : " + str(msg))
+            send_packet_out(self._connection, packet, src_port, out_port)
     
-    def flood(self, event):
-        msg = of.ofp_packet_out()
-        msg.data = event.ofp
-        msg.in_port = event.port
-        msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
-        self._connection.send(msg)
              
             
 
