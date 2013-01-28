@@ -59,6 +59,7 @@ class GramJSONEncoder(json.JSONEncoder):
                 "request_rspec":o.getRequestRspec(),
                 "last_subnet_assigned":o._last_subnet_assigned,
                 "next_vm_num":o._next_vm_num,
+                "controller_url":o.getControllerURL(),
                 "slivers":[sliver.getSliverURN() for sliver in o.getSlivers().values()]
                   
                 }
@@ -185,6 +186,7 @@ class GramJSONDecoder:
                 slice.setRequestRspec(json_object["request_rspec"])
                 slice._last_subnet_assigned = json_object['last_subnet_assigned']
                 slice._next_vm_num = json_object['next_vm_num']
+                slice.setControllerURL(json_object['controller_url'])
                 
                 self._slivers_by_slice_tenant_uuid[tenant_uuid] = \
                     json_object['slivers']
