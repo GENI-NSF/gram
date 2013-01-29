@@ -38,24 +38,19 @@ def send_packet_out(connection, buffer_id, raw_data, in_port, out_port):
     if  buffer_id is not None and buffer_id != -1:
         msg.buffer_id = buffer_id
     else:
-        # IN : We get 
-        # WARN|unexpected flow from datapath in_port(2),eth(src=fa:16:3e:60:0b:ee,dst=fa:16:3e:3d:e2:0a),eth_type(0x8100),vlan(vid=1003,pcp=0),encap(eth_type(0x0800),ipv4(src=10.0.174.100,dst=10.0.174.101,proto=6,tos=0,ttl=64,frag=no),tcp(src=41536,dst=5000))
-        # OUT : We get nothing (no error but no transmission)
-        #
         in_port = of.OFPP_NONE
         if raw_data is None: return
         msg.data = raw_data
         msg.buffer_id = None
 
-    print "SPO : " + str(buffer_id) + " " + str(in_port) + " " + str(of.OFPP_NONE) + " " + str(out_port)
+#    print "SPO : " + str(buffer_id) + " " + str(in_port) + " " + str(of.OFPP_NONE) + " " + str(out_port)
     msg.in_port = in_port
 
     action = of.ofp_action_output(port=out_port)
     msg.actions.append(action)
-    log.debug("Sending packet_out " + str(msg))
-    msg.show()
-    result = connection.send(msg)
-    print "SPO.result = " + str(result)
+#    log.debug("Sending packet_out " + str(msg))
+#    msg.show()
+    connection.send(msg)
 
 # Create a new ethernet packet with vlan tag fields added
 def add_vlan_to_packet(ethernet_packet, vlan_id):

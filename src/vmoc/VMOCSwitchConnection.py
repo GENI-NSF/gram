@@ -131,7 +131,7 @@ class VMOCSwitchConnection(object):
 
     def forwardToAppropriateController(self, event):
 
-        print "forwarding to controller : " + str(event)
+#        print "forwarding to controller : " + str(event)
         
 
         # Get list of controllers from VMOC Switch Controller MAP

@@ -94,46 +94,46 @@ class VMOCTestController(SimpleLearningSwitch):
             new_ofp = of.ofp_packet_in(xid=ofp.xid, buffer_id = None, \
                                            reason = ofp.reason, \
                                            data = new_data, in_port = ofp.in_port)
-            orig_event = event
+#            orig_event = event
             event = PacketIn(self._connection, new_ofp)
 
 
-            print "LEN = " + str(len(new_data)) + " " + str(len(data))
-            print "CSUM = " + str(tcp_packet.csum) + " " + str(new_tcp.csum)
-            print "OFFSET = " + str(tcp_packet.off) + " " + str(new_tcp.off)
-            print "RESERVE = " + str(tcp_packet.res) + " " + str(new_tcp.res)
-            print "OPTiONS = " + str(tcp_packet.options) + " " + str(new_tcp.options)
+            # print "LEN = " + str(len(new_data)) + " " + str(len(data))
+            # print "CSUM = " + str(tcp_packet.csum) + " " + str(new_tcp.csum)
+            # print "OFFSET = " + str(tcp_packet.off) + " " + str(new_tcp.off)
+            # print "RESERVE = " + str(tcp_packet.res) + " " + str(new_tcp.res)
+            # print "OPTiONS = " + str(tcp_packet.options) + " " + str(new_tcp.options)
             
-            print "FLAGS = " + str(tcp_packet.flags) + " " + str(new_tcp.flags)
+            # print "FLAGS = " + str(tcp_packet.flags) + " " + str(new_tcp.flags)
 
-            for opt in tcp_packet.options: print "OLD:    " + str(opt)
-            for opt in new_tcp.options: print "NEW:    " + str(opt)
-            print "TCPLENS = " + str(tcp_packet.tcplen) + " " + str(new_tcp.tcplen)
-            print data
-            print new_data
+            # for opt in tcp_packet.options: print "OLD:    " + str(opt)
+            # for opt in new_tcp.options: print "NEW:    " + str(opt)
+            # print "TCPLENS = " + str(tcp_packet.tcplen) + " " + str(new_tcp.tcplen)
+            # print data
+            # print new_data
 
 
 #            pdb.set_trace()
 
-            print str(eth_packet)
-            new_eth_packet = ethernet(new_data[:ethernet.MIN_LEN])
-            print str(new_eth_packet)
+            # print str(eth_packet)
+            # new_eth_packet = ethernet(new_data[:ethernet.MIN_LEN])
+            # print str(new_eth_packet)
 
-            print str(vlan_packet)
-            new_vlan_packet = vlan(new_data[ethernet.MIN_LEN:])
-            print str(new_vlan_packet)
+            # print str(vlan_packet)
+            # new_vlan_packet = vlan(new_data[ethernet.MIN_LEN:])
+            # print str(new_vlan_packet)
 
-            print str(ip_packet)
-            print str(ip_packet.srcip) + " " + str(ip_packet.dstip) + " " + str(ip_packet.iplen)
-            new_ip_packet = ipv4(new_data[ethernet.MIN_LEN+vlan.MIN_LEN:])
-            print str(new_ip_packet.srcip) + " " + str(new_ip_packet.dstip) + "  "  + str(new_ip_packet.iplen)
-            print str(new_ip_packet)
+            # print str(ip_packet)
+            # print str(ip_packet.srcip) + " " + str(ip_packet.dstip) + " " + str(ip_packet.iplen)
+            # new_ip_packet = ipv4(new_data[ethernet.MIN_LEN+vlan.MIN_LEN:])
+            # print str(new_ip_packet.srcip) + " " + str(new_ip_packet.dstip) + "  "  + str(new_ip_packet.iplen)
+            # print str(new_ip_packet)
 
-            print str(tcp_packet)
-            print str(new_tcp)
-            for i in range(len(data)):
-                if data[i] != new_data[i]:
-                    print str(i) + ": " + data[i] + " " + new_data[i]
+            # print str(tcp_packet)
+            # print str(new_tcp)
+            # for i in range(len(data)):
+            #     if data[i] != new_data[i]:
+            #         print str(i) + ": " + data[i] + " " + new_data[i]
 
 
             # *** TEST ***
@@ -219,14 +219,14 @@ class VMOCTestController(SimpleLearningSwitch):
         # 
         data = event.ofp.data
         ethernet_packet = ethernet(raw=data)
-        print str(ethernet_packet)
+#        print str(ethernet_packet)
         if ethernet_packet.type != ethernet.VLAN_TYPE:
-            print "WEIRD: Got packet without VLAN"
+            log.debug("WEIRD: Got packet without VLAN")
             return data, ethernet_packet, None, None
 
         vlan_packet = vlan(raw=data[ethernet.MIN_LEN:])
         ethernet_packet.set_payload(vlan_packet)
-        print str(vlan_packet)
+#        print str(vlan_packet)
 
         ip_packet = None
         if vlan_packet.eth_type == ethernet.ARP_TYPE:
@@ -238,8 +238,7 @@ class VMOCTestController(SimpleLearningSwitch):
         elif vlan_packet.eth_type == ethernet.IPV6_TYPE:
             pass
         else:
-            print "GOT soemthing that wasn't expecting: " + \
-                vlan_packet.eth_type
+            log.debug("GOT soemthing that wasn't expecting: " + vlan_packet.eth_type)
 
         tcp_packet = None
         if ip_packet and vlan_packet.eth_type == ethernet.IP_TYPE:
@@ -249,8 +248,8 @@ class VMOCTestController(SimpleLearningSwitch):
                 ip_packet.set_payload(tcp_packet)
                 payload = tcp_packet.payload
 #                print "TCP = " + str(tcp_packet) + " PAYLOAD = " + payload
-            print str(ip_packet)
-            ip_packet.dump()
+#            print str(ip_packet)
+#            ip_packet.dump()
         return data, ethernet_packet, vlan_packet, ip_packet, tcp_packet
 
 class VMOCTest(object):
