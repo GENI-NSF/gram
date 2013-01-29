@@ -30,6 +30,7 @@ class SimpleLearningSwitch(object):
         if not self._mac_to_port.has_key(src) or self._mac_to_port[src] != src_port:
             log.debug("Learned that " + str(src) + " => " + str(src_port))
             self._mac_to_port[src] = src_port
+            log.debug("Map = " + str(self._mac_to_port))
 
         if not self._mac_to_port.has_key(dst):
             flood_packet(event, self._connection)
@@ -38,7 +39,8 @@ class SimpleLearningSwitch(object):
             if self._write_flowmods:
                 send_flowmod_for_packet(event, self._connection, packet, out_port)
 
-            send_packet_out(self._connection, packet, src_port, out_port)
+            send_packet_out(self._connection, event.ofp.buffer_id, \
+                                event.ofp.data, src_port, out_port)
     
              
             

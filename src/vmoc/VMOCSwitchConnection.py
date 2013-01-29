@@ -131,6 +131,9 @@ class VMOCSwitchConnection(object):
 
     def forwardToAppropriateController(self, event):
 
+        print "forwarding to controller : " + str(event)
+        
+
         # Get list of controllers from VMOC Switch Controller MAP
         controller_conns = scmap.lookup_controllers_for_switch_connection(self)
         if not controller_conns: 
@@ -157,6 +160,7 @@ class VMOCSwitchConnection(object):
                     break
             if matched_controller_conn is not None:
                 matched_controller_conn.send(event.ofp)
+                log.debug("Sending packet " + str(event) + " " + str(ethernet_packet) +  " " + str(matched_controller_conn) + " " + str(vlan_id))
             else:
                 log.debug("Dropping packet : " + str(event) + " " + str(ethernet_packet))
         else:

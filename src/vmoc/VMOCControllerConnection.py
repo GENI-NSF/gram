@@ -19,6 +19,7 @@ from pox.lib.packet.vlan import vlan
 import VMOCSwitchControllerMap as scmap
 from VMOCSliceRegistry import slice_registry_lookup_slices_by_url, slice_registry_dump
 from VMOCUtils import *
+import gram.am.gram.config as config
 
 
 log = core.getLogger() # Use central logging service
@@ -160,6 +161,8 @@ class VMOCControllerConnection(threading.Thread):
     # For now, forward the ofp to all switches assocaited with VMOC
     def forwardToAllAppropriateSwitches(self, ofp):
 
+#        print "Forwarding to switch : " + str(ofp)
+
         # Send any message back to switch EXCEPT
         #     RECEIVE_FLOW_MOD : Need to add on VLAN tag, DROP if VLAN isn't consistent with slice
         #                      : DROP if SRC and DST isn't consistent with slice
@@ -186,26 +189,56 @@ class VMOCControllerConnection(threading.Thread):
     #    - If it has a VLAN, make sure it fits in connection's VLAN (else drop)
     #    - If it doesn't have a VLAN, add the VLAN of the connection to the packet
     def validateMessage(self, ofp, switch):
+
         ofp_revised = None
         if ofp.header_type == of.OFPT_FLOW_MOD:
 
+            # Need to narrow down between the sub-cases for FLOW MOD below
             # Check that the match is okay
             match = ofp.match
-            if match.dl_vlan == of.OFP_VLAN_NONE:
+            
+#           print "COMMAND = " + str(ofp.command) + " " + str(of.OFPFC_DELETE)
+#            print "WC = " + str(match.wildcards) + " " + str(OFPFW_ALL)
+            if ofp.command == of.OFPFC_DELETE and not match.dl_vlan:
+                if not config.vmoc_accept_clear_all_flows_on_startup:
+                    return None
+                # Weird case of getting a 'clear all entries' at startup
+#                print "OFP = " + str(ofp)
+#                print "*** CASE 0 ***"
+                return ofp
+            elif match.dl_vlan == of.OFP_VLAN_NONE or not match.dl_vlan:
+                if not config.vmoc_set_vlan_on_untagged_flow_mod:
+                    return ofp
                 # add in the tag to the match if not set
+#                print "OFP = " + str(ofp)
+#                print "MATCH = " + str(match)
                 match.dl_vlan = self._vlan
+#                print "MATCH = " + str(match)
+#                print "MATCH.DL_VLAN = " + str(match.dl_vlan) + " " + str(of.OFP_VLAN_NONE)
+#               print "*** CASE 1 ***"
+#               
+#               pdb.set_trace()
+                return ofp 
+
             elif match.dl_vlan != self._vlan:
+                return ofp # ***
                 log.debug("Dropping FLOW MOD: match tagged with wrong VLAN : " + \
                               str(ofp) + " " + str(self))
+#                print "*** CASE 2 ***"
+#               pdb.set_trace()
                 return None
 
             # Check that the actions are okay
             actions = ofp.actions
             for action in actions:
-                if isinstance(ofp_action_vlan_vid) and action.vlan_vid != self._vlan:
+                if isinstance(action, ofp_action_vlan_vid) and action.vlan_vid != self._vlan:
                     log.debug("Dropping FLOW MOD: action to set wrong VLAN : " + \
                               str(ofp) + " " + str(self))
+#                    print "*** CASE 3 ***"
+#                    pdb.set_trace()
                     return None
+
+            return ofp
 
         elif ofp.header_type == of.OFPT_PACKET_OUT:
 
@@ -217,36 +250,60 @@ class VMOCControllerConnection(threading.Thread):
                 if  vlan_packet.id != self._vlan:
                     log.debug("Dropping PACKET OUT: wrong VLAN set : "  + 
                               str(vlan_packet) + " " + str(ofp) + " " + str(self))
+#                    print "*** CASE 4 ***"
+#                   pdb.set_trace()
                     return None
+                else:
+                    return ofp
             else: 
+                if not config.vmoc_set_vlan_on_untagged_packet_out:
+                    return ofp 
                 # If not, set it
                 orig_in_port = ofp.in_port
                 new_ethernet_packet = add_vlan_to_packet(ethernet_packet, self._vlan)
                 # Create a new ofp from the new data
+                ofp_orig = ofp
                 ofp = of.ofp_packet_out(data=new_ethernet_packet.raw)
                 ofp.buffer_id = None
                 ofp.in_port = orig_in_port
+                ofp.actions = ofp_orig.actions
+                ofp.xid = ofp_orig.xid
                 log.debug("Adding vlan to PACKET_OUT : " +  \
                               str(ethernet_packet) + " " + str(new_ethernet_packet) + " " + \
                               str(ofp) + " " + str(self))
+#                print str(ethernet_packet)
+#                ip_packet = ipv4(ethernet_packet.raw[ethernet.MIN_LEN:])
+#                print str(ip_packet)
+#                print str(ofp_orig)
+#                print str(ofp)
+#                print str(new_ethernet_packet)
+#                vlan_packet = vlan(new_ethernet_packet.raw[ethernet.MIN_LEN:])
+#                print str(vlan_packet)
+#                ip_packet = ipv4(new_ethernet_packet.raw[ethernet.MIN_LEN+vlan.MIN_LEN:])
+#                print str(ip_packet)
+#                pdb.set_trace()
+                return ofp
 
-        return ofp
+        else:  # Not a FLOW_MOD or PACKET_OUT
+            return ofp
 
     # Determine if this vlan/src/dest tuple is valid for the slice
     # managed by this controller
     def belongsToSlice(self, vlan_id, src, dst):
-        slice_configs = slice_registry_lookup_slices_by_url(self._url)
+        return vlan_id == self._vlan
 
-#        slice_registry_dump(True)
+#         slice_configs = slice_registry_lookup_slices_by_url(self._url)
 
-        belongs = False
-        for slice_config in slice_configs:
-            if slice_config.belongsToSlice(vlan_id, src, dst): 
-                belongs = True
-                break
+# #        slice_registry_dump(True)
+
+#         belongs = False
+#         for slice_config in slice_configs:
+#             if slice_config.belongsToSlice(vlan_id, src, dst): 
+#                 belongs = True
+#                 break
 #         print "Belongs (Controller) = " + str(self) + " " + str(belongs) + " " + \
 #             str(vlan_id) + " " + str(src) + " " + str(dst)
-        return belongs
+#         return belongs
         
     # Parse URL of form http://host:port
     def parseURL(self, url):
