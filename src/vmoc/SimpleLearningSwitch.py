@@ -41,6 +41,12 @@ class SimpleLearningSwitch(object):
 
             send_packet_out(self._connection, event.ofp.buffer_id, \
                                 event.ofp.data, src_port, out_port)
+
+    def lookup_port_for_mac(self, mac):
+        if self._mac_to_port.has_key(mac):
+            return self._mac_to_port[mac]
+        else:
+            return None
     
              
             

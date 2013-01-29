@@ -8,7 +8,7 @@
 
 # Then there are several test 'modes' provided by this controller
 # 'asterisk' - Turn all characters in header into '*'
-# 'bounce' - Turn the IP dst to the IP src of all traffic
+# 'portmod' - Modifies the port of 5000 traffic to 5001
 # 'bad' - Generate flow mods and packets not within your VLAN
 # 'simple' - Just do a simple learning switch , W/O writing flow mods to OF switch
 # 'stripped' - Pass packets without any VLAN tagging
@@ -52,8 +52,8 @@ class VMOCTestController(SimpleLearningSwitch):
             self._handle_PacketIn_asterisk(event)
         elif self._test_mode == 'simple':
             self._handle_PacketIn_simple(event)
-        elif self._test_mode == 'bounce':
-            self._handle_PacketIn_bounce(event)
+        elif self._test_mode == 'portmod':
+            self._handle_PacketIn_portmod(event)
         elif self._test_mode == 'bad':
             self._handle_PacketIn_bad(event)
         elif self._test_mode == 'stripped':
@@ -149,29 +149,41 @@ class VMOCTestController(SimpleLearningSwitch):
     def _handle_PacketIn_simple(self, event):
         SimpleLearningSwitch._handle_PacketIn(self, event)
 
-    # This test case changes the destination of any IP packet into its source
-    # When you get an IP packet from A to B, write a flow-mod that says
-    #   Match: src_ip=A, Action : dst_ip=A
+    # This test case changes the destination port of TCP packets from 5000 to 5001
     # It is up to VMOC to make sure that the VLAN is added onto the match clause
-    def _handle_PacketIn_bounce(self, event):
+    def _handle_PacketIn_portmod(self, event):
         data, eth_packet, vlan_packet, ip_packet, tcp_packet = self.parsePacket(event)
 #        print "*** " + str(eth_packet) + " " + str(vlan_packet) + " " + str(ip_packet)
 
-        if vlan_packet.type == ethernet.IP_TYPE:
-
-            ip_src = ip_packet.srcip
-
-            match_clause = of.ofp_match()
-            match_clause.set_nw_src(ip_src)
+        # Switch the request over to 5001
+        if tcp_packet and tcp_packet.dstport == 5000:
+            match_clause = of.ofp_match.from_packet(eth_packet, event.port)
             
-            action_clause = of.ofp_action_nw_addr()
-            action_clause.type = of.OFPAT_SET_NW_DST
-            action_clause.nw_addr = ip_src
-            msg = of.ofp_flow_mod(match=match_clause, action=action_clause)
-            self._connection.send(msg)
+            dst_mac = eth_packet.dst
+            out_port = self.lookup_port_for_mac(dst_mac)
+            if out_port:
+                set_dst_action_clause = of.ofp_action_tp_port.set_dst(5001);
+                output_action_clause = of.ofp_action_output(port=out_port)
+                action_clauses = [set_dst_action_clause, output_action_clause]
+                msg = of.ofp_flow_mod(match=match_clause, actions=action_clauses)
+                self._connection.send(msg)
 
-        # In addition, handle the packet as is
-        SimpleLearningSwitch._handle_PacketIn(self, event)
+        # Switch to response back to 5000
+        elif tcp_packet and tcp_packet.srcport == 5001:
+            match_clause = of.ofp_match.from_packet(eth_packet, event.port)
+
+            dst_mac = eth_packet.dst
+            out_port = self.lookup_port_for_mac(dst_mac)
+            if out_port:
+                set_dst_action_clause = of.ofp_action_tp_port.set_src(5000);
+                output_action_clause = of.ofp_action_output(port=out_port)
+                action_clauses = [set_dst_action_clause, output_action_clause]
+                msg = of.ofp_flow_mod(match=match_clause, actions=action_clauses)
+                self._connection.send(msg)
+
+        # Oherwise (not part of this test), handle the packet as is
+        else: 
+            SimpleLearningSwitch._handle_PacketIn(self, event)
 
     # This test case creates flow mods for other VLAN's.
     # Should get filtered out by VMOC
