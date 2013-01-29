@@ -412,7 +412,8 @@ class VirtualMachine(Sliver): #
       self._flavor = config.default_VM_flavor
       self._os_image = config.default_OS_image
       self._host = None # name of compute node on which VM resides
-      self._ssh_proxy_login_port = None # Port number assigned for remote SSH proxy login
+      self._ssh_proxy_login_port = None # Port number assigned for remote 
+                                        # SSH proxy login
       Sliver.__init__(self, my_slice, uuid)
 
    def __str__(self):

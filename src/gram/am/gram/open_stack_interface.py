@@ -203,6 +203,7 @@ def deleteAllResourcesForSlice(geni_slice) :
     admin_name, admin_pwd, admin_uuid = geni_slice.getTenantAdminInfo()
 
     # Delete the security group for this tenant
+    time.sleep(10)
     _deleteTenantSecurityGroup(admin_name, admin_pwd,
                                geni_slice.getTenantName(),
                                geni_slice.getSecurityGroup())
@@ -211,7 +212,7 @@ def deleteAllResourcesForSlice(geni_slice) :
     _deleteUserByUUID(admin_uuid)
 
     # Delete the tenant
-    _deleteTenantByUUID(admin_name, admin_pwd, admin_uuid)
+    _deleteTenantByUUID(geni_slice.getTenantUUID())
 
     return sliver_stat_list.getSliverStatusList()
     
@@ -232,17 +233,10 @@ def _createTenant(tenant_name) :
     return _getValueByPropertyName(output, 'id')
 
 
-def _deleteTenantByUUID(tenant_name, tenant_passwd, tenant_uuid) :
+def _deleteTenantByUUID(tenant_uuid) :
     """
         Delete the tenant with the given uuid.
     """
-    # First delete the security group assigned to the tenant
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-        % (tenant_name, tenant_passwd, tenant_name)
-    cmd_string += ' secgroup-delete %s_secgroup ' % tenant_name
-    _execCommand(cmd_string) 
-
-    # Delete the tenant itself
     cmd_string = 'keystone tenant-delete %s' % tenant_uuid
     _execCommand(cmd_string)
 
