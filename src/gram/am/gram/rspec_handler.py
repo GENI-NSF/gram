@@ -1,5 +1,6 @@
 
 from xml.dom.minidom import *
+import socket
 
 import config
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
@@ -11,7 +12,7 @@ def parseRequestRspec(geni_slice, rspec) :
         created.
 
         Returns a tuple (error string, sliver list, controller) :
-            error string: String describing any error encountered during parsing.
+            error string: String describing any error encountered during parsing
                           None if there is no error.
             sliver list: List of slivers created while parsing the rspec
             controller is the url of the OF controller or None
@@ -208,7 +209,20 @@ def generateManifest(geni_slice, req_rspec) :
             # Child elements of node include sliver_type, services, 
             # interface, etc.
             sliver_type_set=False
+            login_info_set = False
             for child_of_node in child.childNodes :
+                # First create a new element that has login information
+                login_port = vm_object.getSSHProxyLoginPort()
+                if login_port != None :
+                    login_element = Element('login')
+                    login_element.setAttribute('authentication', 'ssh-keys')
+                    my_host_name = socket.gethostbyaddr(socket.gethostname())[0]
+                    login_element.setAttribute('hostname', my_host_name)
+                    login_element.setAttribute('port', login_port)
+                    login_element.setAttribute('username', 'bob')
+                else :
+                    login_element = None
+
                 if child_of_node.nodeName == 'sliver_type' :
                     sliver_type = child_of_node.attributes['name'].value
                     child.setAttribute('name', sliver_type)
@@ -235,11 +249,23 @@ def generateManifest(geni_slice, req_rspec) :
                         child_of_node.setAttribute('mac_address', mac_address)
                     child_of_node.setAttribute('sliver_id', 
                                                nic_object.getSliverURN())
-            if not sliver_type_set:
+                elif child_of_node.nodeName == 'services' :
+                    # Add a sub-element for the login port for the VM
+                    if login_element != None :
+                        child_of_node.appendChild(login_element)
+                        login_info_set = True
+                        
+            if not sliver_type_set :
                 sliver_type = "virtual-machine"
                 sliver_type_attribute = Element('sliver_type')
                 sliver_type_attribute.setAttribute('name', sliver_type)
                 child.appendChild(sliver_type_attribute)
+
+            if not login_info_set and login_element != None :
+                services_element = Element('services')
+                services_element.appendChild(login_element)
+                child.appendChild(services_element)
+                
 
             # Set the hostname element of the manifest (how the VM calls itself)
             host_attribute = Element('host')

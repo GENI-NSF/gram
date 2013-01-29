@@ -14,7 +14,8 @@ import gen_metadata
 import manage_ssh_proxy
 
 import compute_node_interface
-from compute_node_interface import compute_node_command, ComputeNodeInterfaceHandler
+from compute_node_interface import compute_node_command, \
+    ComputeNodeInterfaceHandler
 
 
 def init() :
