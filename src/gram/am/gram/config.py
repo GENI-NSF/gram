@@ -76,3 +76,11 @@ gram_am_urn = ''
 
 # PORT on which to communicate with compute_node_interace
 compute_node_interface_port = 9501
+
+# PORT on which to communicate to VMOC interface manager
+vmoc_interface_port = 7001
+
+# Variables for VMOC/GRAM switch behavior/configuration
+vmoc_set_vlan_on_untagged_packet_out = False
+vmoc_set_vlan_on_untagged_flow_mod = True
+vmoc_accept_clear_all_flows_on_startup = True
