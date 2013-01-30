@@ -152,6 +152,14 @@ def _generateAccount(user) :
         #   because non-VASL characters in the cloud-config syntax require a qualifier in order to be properly parsed
         scriptFile.write('chmod 644 ~%s/.ssh/authorized_keys \n' % userName)
         scriptFile.write('chown -R %s\\:%s ~%s/.ssh \n' % (userName, userName, userName))
+
+        scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+        scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
+
+        scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
+        scriptFile.write('    route add default gw $desiredgw\n')
+        scriptFile.write('    route delete default gw $currentgw\n')
+        scriptFile.write('fi\n')
         scriptFile.close()
 
     return scriptFilename
