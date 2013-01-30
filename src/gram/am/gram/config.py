@@ -8,7 +8,8 @@ default_VM_flavor = 'm1.smaller'
 #default_OS_image = 'cirros-4nic'
 #default_OS_image = 'f17-x86_64-openstack-sda'
 #default_OS_image = 'ubuntu-12.04'
-default_OS_image = 'ubuntu-12.04-2nic'
+#default_OS_image = 'ubuntu-12.04-2nic'
+default_OS_image = 'ubuntu-2nic-wkey'
 
 external_router_name = 'externalRouter'
 
