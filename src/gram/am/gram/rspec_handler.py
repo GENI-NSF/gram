@@ -212,20 +212,39 @@ def generateManifest(geni_slice, req_rspec) :
             login_info_set = False
             for child_of_node in child.childNodes :
                 # First create a new element that has login information
-                login_port = vm_object.getSSHProxyLoginPort()
-                if login_port != None :
-                    login_element = Element('login')
-                    login_element.setAttribute('authentication', 'ssh-keys')
-                    my_host_name = socket.gethostbyaddr(socket.gethostname())[0]
-                    login_element.setAttribute('hostname', my_host_name)
-                    login_element.setAttribute('port', login_port)
-                    login_element.setAttribute('username', 'bob')
-                else :
-                    login_element = None
+                # for users (if user accounts have been set up)
+                user_names = vm_object.getAuthorizedUsers()
 
+                # Create a list that holds login info for each user
+                login_elements_list = list() 
+                if user_names != None :
+                    login_port = str(vm_object.getSSHProxyLoginPort())
+                    my_host_name = \
+                        socket.gethostbyaddr(socket.gethostname())[0]
+                    for i in range(0, len(user_names)) :
+                        login_element = Element('login')
+                        login_element.setAttribute('authentication', 'ssh-keys')
+                        login_element.setAttribute('hostname', my_host_name)
+                        login_element.setAttribute('port', login_port)
+                        login_element.setAttribute('username', user_names[i])
+                        login_elements_list.append(login_element)
+                        
                 if child_of_node.nodeName == 'sliver_type' :
-                    sliver_type = child_of_node.attributes['name'].value
-                    child.setAttribute('name', sliver_type)
+                    # sliver_type = child_of_node.attributes['name'].value
+                    child_of_node.setAttribute('name', 'virtual-machine')
+                    # Look for the <disk_image> child of <sliver_type> and
+                    # set it to the correct value
+                    for sliver_type_child in child_of_node.childNodes :
+                        # Find the child <disk_image>
+                        if sliver_type_child.nodeName == 'disk_image' :
+                            image_urn = \
+                                'urn:publicid:IDN+emulab.net+image+emulab-ops:'
+                            image_urn += config.default_OS_image
+                            sliver_type_child.setAttribute('name', image_urn)
+                            sliver_type_child.setAttribute('os', 
+                                                         config.default_OS_type)
+                            sliver_type_child.setAttribute('version', 
+                                                      config.default_OS_version)
                     sliver_type_set = True
                 elif child_of_node.nodeName == 'interface' :
                     # Find the NetworkInterface object for this interface
@@ -251,22 +270,36 @@ def generateManifest(geni_slice, req_rspec) :
                                                nic_object.getSliverURN())
                 elif child_of_node.nodeName == 'services' :
                     # Add a sub-element for the login port for the VM
-                    if login_element != None :
-                        child_of_node.appendChild(login_element)
-                        login_info_set = True
+                    login_info_set = True
+                    for i in range(0, len(login_elements_list)) :
+                        child_of_node.appendChild(login_elements_list[i])
                         
             if not sliver_type_set :
+                # There was no sliver_type set on the manifest because there
+                # was no sliver_type element in the request rspec.  We add
+                # a new element for sliver_type
                 sliver_type = "virtual-machine"
-                sliver_type_attribute = Element('sliver_type')
-                sliver_type_attribute.setAttribute('name', sliver_type)
-                child.appendChild(sliver_type_attribute)
+                sliver_type_elem = Element('sliver_type')
+                sliver_type_elem.setAttribute('name', sliver_type)
+                # Create a <disk_image> child for <silver_type>
+                disk_image = Element('disk_image')
+                image_urn =  'urn:publicid:IDN+emulab.net+image+emulab-ops:'
+                image_urn += config.default_OS_image
+                disk_image.setAttribute('name', image_urn)
+                disk_image.setAttribute('os', config.default_OS_type)
+                disk_image.setAttribute('version', config.default_OS_version)
+                sliver_type_elem.appendChild(disk_image)
+                child.appendChild(sliver_type_elem)
 
-            if not login_info_set and login_element != None :
+            if not login_info_set and len(login_elements_list) != 0 :
+                # There was no login information set on the manifest because 
+                # there was no services element in the request rspec.  We add
+                # a new element for services and a sub-element for login info
                 services_element = Element('services')
-                services_element.appendChild(login_element)
+                for i in range(0, len(login_elements_list)) :
+                    services_element.appendChild(login_elements_list[i])
                 child.appendChild(services_element)
                 
-
             # Set the hostname element of the manifest (how the VM calls itself)
             host_attribute = Element('host')
             host_attribute.setAttribute('name', node_name)
