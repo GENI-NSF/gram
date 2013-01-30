@@ -152,7 +152,18 @@ def provisionResources(geni_slice, users) :
     num_compute_nodes = _getComputeNodeCount()
     config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
     
-    # Now create the VMs
+    # Before we create the VMs, we get a list of usernames that get accounts
+    # on the VMs when they are created
+    user_names = list() 
+    for user in users :
+        for key in user.keys() :
+            # Found a user, there should only be one of these per key in 'user'
+            if key == "urn" :
+                # We have a urn for the user.  The username is the part of the
+                # urn that follows the last +
+                user_names.append(user[key].split('+')[-1])
+          
+    # Now create the VMs.
     num_vms_created = 0    # number of VMs created in this provision call
     vm_uuids = []  # List of uuids of VMs created in this provision call
     for vm in geni_slice.getVMs() :
@@ -174,7 +185,7 @@ def provisionResources(geni_slice, users) :
                 vm.setAllocationState(config.provisioned)
                 num_vms_created += 1
                 vm_uuids.append(vm_uuid)
-        
+                vm.setAuthorizedUsers(user_names)
 
 def deleteAllResourcesForSlice(geni_slice) :
     """

@@ -408,10 +408,10 @@ class VirtualMachine(Sliver): #
       self._network_interfaces = []   # Associated network interfaces
       self._ip_last_octet = my_slice.getVMNumber() # All IP addresses
                      # assigned to this VM will be of the form x.x.x.last_octet
-      self._authorized_user_urns = None
       self._flavor = config.default_VM_flavor
       self._os_image = config.default_OS_image
       self._host = None # name of compute node on which VM resides
+      self._authorized_users =  None # List of User names with accts on the VM
       self._ssh_proxy_login_port = None # Port number assigned for remote 
                                         # SSH proxy login
       Sliver.__init__(self, my_slice, uuid)
@@ -470,6 +470,14 @@ class VirtualMachine(Sliver): #
    def setHost(self, host): # Set VirtualMachine host for NIC
       with self._slice.getLock() :
          self._host = host;
+
+   def setAuthorizedUsers(self, user_list) :
+      with self._slice.getLock() :
+         self._authorized_users = user_list
+
+   def getAuthorizedUsers(self) :
+      with self._slice.getLock() :
+         return self._authorized_users 
 
    def setSSHProxyLoginPort(self, port_number) :
       with self._slice.getLock() :

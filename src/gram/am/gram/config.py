@@ -5,11 +5,22 @@ import logging
 default_VM_flavor = 'm1.smaller'  
 
 #default_OS_image = 'cirros-0.3-x86_64'
+#default_OS_type = 'Linux'
+#default_OS_version = '0.3'
+
 #default_OS_image = 'cirros-4nic'
+#default_OS_type = 'Linux'
+#default_OS_version = '0.3'
+
 #default_OS_image = 'f17-x86_64-openstack-sda'
+#default_OS_type = 'Linux'
+#default_OS_version = '17'
+
 #default_OS_image = 'ubuntu-12.04'
 #default_OS_image = 'ubuntu-12.04-2nic'
 default_OS_image = 'ubuntu-2nic-wkey'
+default_OS_type = 'Linux'
+default_OS_version = '12'
 
 external_router_name = 'externalRouter'
 
@@ -63,3 +74,11 @@ gram_am_urn = ''
 
 # PORT on which to communicate with compute_node_interace
 compute_node_interface_port = 9501
+
+# PORT on which to communicate to VMOC interface manager
+vmoc_interface_port = 7001
+
+# Variables for VMOC/GRAM switch behavior/configuration
+vmoc_set_vlan_on_untagged_packet_out = False
+vmoc_set_vlan_on_untagged_flow_mod = True
+vmoc_accept_clear_all_flows_on_startup = True
