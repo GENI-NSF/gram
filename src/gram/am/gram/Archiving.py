@@ -87,6 +87,10 @@ class GramJSONEncoder(json.JSONEncoder):
 
         if isinstance(o, NetworkInterface):
             expiration_time = time.mktime(o.getExpiration().timetuple())
+            vm_urn = None
+            if o.getVM(): vm_urn = o.getVM().getSliverURN();
+            link_urn = None
+            if o.getLink(): link_urn = o.getLink().getSliverURN()
             return {"__type__":"NetworkInterface",
                     "name":o.getName(),
                     "uuid":o.getUUID(),
@@ -98,8 +102,8 @@ class GramJSONEncoder(json.JSONEncoder):
                     "device_number":o.getDeviceNumber(),
                     "mac_address":o.getMACAddress(),
                     "ip_address":o.getIPAddress(),
-                    "virtual_machine":o.getVM().getSliverURN(),
-                    "link":o.getLink().getSliverURN(),
+                    "virtual_machine":vm_urn,
+                    "link":link_urn,
                     "vlan_tag":o.getVLANTag()
                     }
 
@@ -306,9 +310,10 @@ class GramJSONDecoder:
         for network_interface_urn in self._network_interfaces_by_urn.keys():
             network_interface = self._slivers_by_urn[network_interface_urn]
             link_urn = self._network_link_by_network_interface_urn[network_interface_urn]
-            link = self._slivers_by_urn[link_urn]
-            network_interface.setLink(link)
-            link.addEndpoint(network_interface)
+            if link_urn:
+                link = self._slivers_by_urn[link_urn]
+                network_interface.setLink(link)
+                link.addEndpoint(network_interface)
 
 def read_slices(filename):
     file = open(filename, "r")
