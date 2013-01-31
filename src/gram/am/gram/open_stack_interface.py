@@ -115,6 +115,23 @@ def provisionResources(geni_slice, users) :
             link.setSubnetUUID(uuids['subnet_uuid'])
             link.setAllocationState(config.provisioned)
 
+    # Associate the VLAN's for the control and data networks
+    nets_info = _getNetsForTenant(tenant_uuid)
+    control_net_info = geni_slice.getControlNetInfo()
+    for net_uuid in nets_info.keys():
+        net_info = nets_info[net_uuid]
+        vlan = net_info['vlan']
+        if net_uuid == control_net_info['control_net_uuid']:
+            config.logger.info("Setting control net vlan to " + str(vlan))
+            control_net_info['control_net_vlan'] = vlan
+        else:
+            for link in geni_slice.getNetworkLinks():
+                print "NET_UUID = " + net_uuid + " LINK_NET_UUID = " + link.getNetworkUUID()
+                if link.getNetworkUUID() == net_uuid:
+                    name = net_info['name']
+                    config.logger.info("Setting data net " + name + " VLAN to " + vlan)
+                    link.setVLANTag(vlan)
+
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
     for vm in geni_slice.getVMs() :
@@ -451,6 +468,45 @@ def _deleteNetworkLink(link_object) :
     net_uuid = link_object.getNetworkUUID()
     cmd_string = 'quantum net-delete %s' % net_uuid
     _execCommand(cmd_string)
+
+def _getNetsForTenant(tenant_uuid):
+    cmd_string = 'quantum net-list -- --tenant_id=%s' % tenant_uuid
+#    print 'Executing : ' + cmd_string
+    output = _execCommand(cmd_string)
+    output_lines = output.split('\n')
+    nets_info = dict()
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        line_parts = line.split('|')
+        net_id = line_parts[1].strip()
+        name = line_parts[2].strip()
+        subnets = line_parts[3].strip()
+
+#        print "NET_ID = " + net_id + " NAME = " + name
+
+        cmd_string = 'quantum net-show %s' % net_id
+#        print 'Executing : ' + cmd_string
+        net_output = _execCommand(cmd_string)
+        net_output_lines = net_output.split('\n')
+        belongs = True
+        attributes = {'name' : name}
+        for j in range(3, len(net_output_lines)-2):
+            net_line = net_output_lines[j]
+            net_line_parts = net_line.split('|')
+            field = net_line_parts[1].strip()
+            value = net_line_parts[2].strip()
+#            print "FIELD = " + field + " VALUE = " + value
+            if field == 'name' and value != name:
+#                print "NAME MISMATCH: " + field + " " + value + " " + name
+                belongs = False
+            elif field == 'tenant_id' and value != tenant_uuid:
+#                print "TID MISMATCH: " + field + " " + value + " " + tenant_uuid
+                belongs = False
+            elif field == 'provider:segmentation_id':
+                attributes['vlan'] = value
+        if belongs:
+            nets_info[net_id] = attributes
+    return nets_info
 
 # Return dictionary of 'id' => {'mac_address'=>mac_address, , 'fixed_ips'=>fixed_ips}
 #  for each port associated ith a given tenant
@@ -891,6 +947,13 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
         tenant_uuid = sys.argv[1]
+
+        hosts = _listHosts('compute')
+        print "COMPUTE NODES = " + str(hosts)
+
+        nets = _getNetsForTenant(tenant_uuid)
+        print str(nets)
+        
         ports = _getPortsForTenant(tenant_uuid)
         map = _lookup_vlans_for_tenant(tenant_uuid)
         print str(map)

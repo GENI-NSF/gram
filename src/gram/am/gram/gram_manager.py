@@ -198,20 +198,20 @@ class GramManager :
         # Create a sliver status list for the slivers in this slice
         sliver_status_list = utils.SliverList().getStatusAllSlivers(slice_object)
 
-        # Set host and VLAN information
-        vlan_map = open_stack_interface._lookup_vlans_for_tenant(slice_object.getTenantUUID())
-        for vm in slice_object.getVMs():
-            for nic in vm.getNetworkInterfaces():
-                mac = nic.getMACAddress()
-                if vlan_map.has_key(mac):
-                    vlan = vlan_map[mac]['vlan']
-                    hostname = vlan_map[mac]['host']
-                    vm.setHost(hostname)
-                    nic.setVLANTag(vlan)
-                    config.logger.info("Setting VLAN of NIC " + str(nic.getUUID()) + " to " + str(vlan))
-                    config.logger.info("Setting HOST of VM " + str(vm.getUUID()) + " to " + str(hostname))
-                else:
-                    config.logger.error("MAC not found: in ovs-vsctl data: " + str(mac))
+        # # Set host and VLAN information
+        # vlan_map = open_stack_interface._lookup_vlans_for_tenant(slice_object.getTenantUUID())
+        # for vm in slice_object.getVMs():
+        #     for nic in vm.getNetworkInterfaces():
+        #         mac = nic.getMACAddress()
+        #         if vlan_map.has_key(mac):
+        #             vlan = vlan_map[mac]['vlan']
+        #             hostname = vlan_map[mac]['host']
+        #             vm.setHost(hostname)
+        #             nic.setVLANTag(vlan)
+        #             config.logger.info("Setting VLAN of NIC " + str(nic.getUUID()) + " to " + str(vlan))
+        #             config.logger.info("Setting HOST of VM " + str(vm.getUUID()) + " to " + str(hostname))
+        #         else:
+        #             config.logger.error("MAC not found: in ovs-vsctl data: " + str(mac))
 
         # Persist new GramManager state
         self.persist_state()

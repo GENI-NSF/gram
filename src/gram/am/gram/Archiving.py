@@ -120,6 +120,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "operational_state":o.getOperationalState(),
                     "subnet":o.getSubnet(),
                     "endpoints":[ep.getSliverURN() for ep in o.getEndpoints()],
+                    'vlan_tag':o.getVLANTag(),
                     "network_uuid":o.getNetworkUUID(),
                     "subnet_uuid":o.getSubnetUUID()
                     }
@@ -283,6 +284,7 @@ class GramJSONDecoder:
                 link.setSubnet(json_object["subnet"])
                 link.setNetworkUUID(json_object["network_uuid"])
                 link.setSubnetUUID(json_object["subnet_uuid"])
+                link.setVLANTag(json_object['vlan_tag'])
                 
                 self._network_links_by_urn[sliver_urn] = link
                 self._slivers_by_urn[sliver_urn] = link
