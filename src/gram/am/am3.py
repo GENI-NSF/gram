@@ -33,6 +33,7 @@ import datetime
 import dateutil.parser
 import logging
 import os
+import time
 import traceback
 import uuid
 import xml.dom.minidom as minidom
@@ -46,6 +47,7 @@ from geni.am.am3 import *
 
 from gram import config
 from gram.gram_manager import GramManager
+import gram.open_stack_interface
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
     '''A reference Aggregate Manager that manages fake resources.'''
@@ -264,6 +266,22 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
                 # This should have been caught above
                 msg = "Unsupported: action %s is not supported" % (action)
                 raise ApiErrorException(AM_API.UNSUPPORTED, msg)
+
+        # If we're starting VM's, 
+        # Wait for all VM's to be 'ready' (operational state)
+        # if action == 'geni_start':
+        #     while True:
+        #         every_vm_ready = True
+        #         gram.open_stack_interface.updateOperationalStatus(the_slice);
+        #         for vm in the_slice.getVMs():
+        #             if vm.getOperationalState() != config.ready: 
+        #                 every_vm_ready = False
+        #                 print "VM " + str(vm) + " is not ready"
+        #                 break
+        #         if every_vm_ready: 
+        #             print "ALL VM's READY"
+        #             break
+        #         time.sleep(1)
 
         # Save the state with the new allocation and operational states
         self._gram_manager.persist_state()
