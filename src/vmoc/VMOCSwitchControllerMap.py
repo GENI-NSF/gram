@@ -1,8 +1,13 @@
+import pdb
+import socket
+import threading
+import time
+
 from pox.core import core
 from VMOCSwitchConnection import VMOCSwitchConnection
 from VMOCControllerConnection import VMOCControllerConnection
 from VMOCSliceRegistry import *
-import pdb
+
 
 log = core.getLogger() # Use the central logging service
 
@@ -43,13 +48,9 @@ class VMOCSwitchControllerMap(object):
     def create_controller_connection(self, controller_url, vlan, \
                                          open_on_create=True):
 
-        # Create a new controller connection for each switch
-        for switch_conn in self._switch_connections:
-            controller_conn = VMOCControllerConnection(controller_url, \
-                                                           switch_conn, \
-                                                           vlan, \
-                                                           open_on_create)
-            self.add_controller_connection(controller_conn, switch_conn)
+        # Creates a thread to try to connect, and wait until controller is up
+        ControllerURLCreationThread(controller_url, vlan, self).start()
+
 
     # Remove a particular controller connection
     def remove_controller_connection(self, controller_conn):
@@ -79,11 +80,12 @@ class VMOCSwitchControllerMap(object):
     def remove_controller_connections_for_slice(self, slice_id):
         slice_config = slice_registry_lookup_slice_config_by_slice_id(slice_id)
         for vlan in slice_config.getVLANs():
-            controller_connections = \
-                self._controller_connections_by_vlan[vlan]
-            for controller_connection in controller_connections:
+            if self._controller_connections_by_vlan.has_key(vlan):
+                controller_connections = \
+                    self._controller_connections_by_vlan[vlan]
+                for controller_connection in controller_connections:
 #                print "   *** REMOVING " + str(controller_connection) + " ***"
-                self.remove_controller_connection(controller_connection)
+                    self.remove_controller_connection(controller_connection)
 
     # Add a new switch connection to the map, 
     # adding associated controller connections
@@ -187,6 +189,60 @@ def remove_switch_connection(switch_conn, close_controller_connections=False):
 # Dump contents of current switch controller map state
 def dump_switch_controller_map(print_results=False):
     return _switch_controller_map.dump(print_results)
+
+# Class that that spanws a thread and creates a connection to a controller
+# URL when the URL responds
+class ControllerURLCreationThread(threading.Thread):
+    def __init__(self, controller_url, vlan, scmap):
+        threading.Thread.__init__(self)
+        host, port = VMOCControllerConnection.parseURL(controller_url)
+        self._controller_url = controller_url
+        self._host = host
+        self._port = port
+        self._vlan = vlan
+        self._scmap = scmap
+        self._running = False
+
+    def run(self):
+        self._running = True
+        while self._running:
+
+            url_responsive = False
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect((self._host, self._port))
+                sock.close()
+                url_responsive = True
+            except Exception as e:
+                log.info("Controller URL unresponsive: " + \
+                             self._controller_url + " " + str(e))
+
+            if url_responsive:
+                # Once the controller is avaiable, 
+                # check that the controller and the vlan are still paired
+                # Otherwise, don't create connection
+                slice_config = \
+                    slice_registry_lookup_slice_config_by_vlan(self._vlan)
+                if not slice_config or slice_config.getControllerURL() != self._controller_url:
+                    log.info("VLAN/Controller mapping changed : " + \
+                                 " not startng connection" + \
+                                 str(self._controller_url) + " " + str(self._vlan))
+                    self._running = False
+                else:
+                    # Create a new controller connection for each switch
+                    for switch_conn in self._scmap._switch_connections:
+                        controller_conn = \
+                            VMOCControllerConnection(self._controller_url, \
+                                                         switch_conn, \
+                                                         self._vlan, True)
+                        self._scmap.add_controller_connection(controller_conn, \
+                                                                  switch_conn)
+                    self._running = False
+            else:
+                time.sleep(1)
+
+        log.debug("Exiting ControllerURLCreationThread");
+
 
 # Test procedure:
 # Add switch

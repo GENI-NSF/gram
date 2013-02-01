@@ -159,10 +159,14 @@ class VMOCSwitchConnection(object):
                     matched_controller_conn = controller_conn
                     break
             if matched_controller_conn is not None:
-                matched_controller_conn.send(event.ofp)
                 log.debug("Sending packet " + str(event) + " " + str(ethernet_packet) +  " " + str(matched_controller_conn) + " " + str(vlan_id))
+                try:
+                    matched_controller_conn.send(event.ofp)
+                except Exception as e:
+                    log.debug("Error writing to controller connection: resetting")
+                    matched_controller_conn.close()
             else:
-                log.debug("Dropping packet : " + str(event) + " " + str(ethernet_packet))
+                log.debug("Dropping packet : " + str(event) + " " + str(ethernet_packet) + " " + str(vlan_id))
         else:
             # Send every non-packet message directly to each controller
             # And the controller connection will send back every response
