@@ -29,21 +29,30 @@ import subprocess
 import config
 import tempfile
 
-def _generateScriptInstalls(scriptFile, installItem) :
+def _generateScriptInstalls(installItem) :
     """ Generate text for a script that handles an _InstallItem object:
         1) Get the file from the source URL
         2) Uncompress and/or untar the file, if applicable
         3) Copy the resulting file/tarball to the destination location
     """
     
-    theSourceURL = installItem.sourceURL
+    # Open the script file for writing
+    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
+    scriptFilename = '%s' % tempscriptfile.name
+    try:
+        scriptFile = open(scriptFilename, 'w')
+    except IOError:
+        config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
+        return ""
+
+    scriptFile.write('#!/bin/sh \n')
+    theSourceURL = installItem.source_url
     theDestinationDirectory = installItem.destination
 
     # Perform the wget on the source URL
     scriptFile.write('wget -P /tmp %s \n' % theSourceURL)
     scriptFile.write('if [ $? -eq 0 ] \n')
     scriptFile.write('then \n')
-    scriptFile.write('    # Download successful \n')
 
     downloadedFile = '/tmp/%s' % os.path.basname(theSourceURL)
 
@@ -82,19 +91,60 @@ def _generateScriptInstalls(scriptFile, installItem) :
     scriptFile.write('    chmod -R 777 %s \n' % dest)
             
     # Delete the downloaded file
-    scriptFile.write('    rm %s \n' % downloadedFile)
-            
+    scriptFile.write('    rm %s \n' % downloadedFile)            
     scriptFile.write('fi \n\n')
+    scriptFile.close()
+
+    return scriptFilename
 
 
-def _generateScriptExecutes(scriptFile, executeItem) :
+def _generateScriptExecutes(executeItem) :
     """ Generate text for a script that handles an _ExecuteItem object by
         invoking its execution in the generated script
     """
+    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
+    scriptFilename = '%s' % tempscriptfile.name
+    try:
+        scriptFile = open(scriptFilename, 'w')
+    except IOError:
+        config.logger.error("Failed to open file that creates user executable script: %s" % scriptFilename)
+        return ""
+
     if executeItem.shell == 'sh' or 'bash' :
+        scriptFile.write('#!/bin/%s \n' % executeItem.shell)
         scriptFile.write('%s \n\n' % executeItem.command)
     else :
         config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
+        scriptFilename = ""
+
+    scriptFile.close()
+    return scriptFilename
+
+
+def _generateNetworkSupportScript() :
+    """ Generate a script that configure the local network support
+    """
+
+    # Open the script file for writing
+    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
+    scriptFilename = '%s' % tempscriptfile.name
+    try:
+        scriptFile = open(scriptFilename, 'w')
+    except IOError:
+        config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
+        return ""
+
+    scriptFile.write('#!/bin/sh \n')
+    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+    scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
+
+    scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
+    scriptFile.write('    route add default gw $desiredgw\n')
+    scriptFile.write('    route delete default gw $currentgw\n')
+    scriptFile.write('fi\n')
+    scriptFile.close()
+
+    return scriptFilename
 
 
 def _generateAccount(user) :
@@ -129,8 +179,8 @@ def _generateAccount(user) :
             config.logger.error("Failed to open file that creates metadata: %s" % scriptFilename)
             return ""
 
+        # Use sh script
         scriptFile.write('#!/bin/sh \n')
-#        scriptFile.write('# This textual script is auto-generated\n\n')
 
         # Create account with default shell
         scriptFile.write('useradd -c "%s user" -s /bin/bash -m %s \n' % (userName, userName))
@@ -153,54 +203,60 @@ def _generateAccount(user) :
         scriptFile.write('chmod 644 ~%s/.ssh/authorized_keys \n' % userName)
         scriptFile.write('chown -R %s\\:%s ~%s/.ssh \n' % (userName, userName, userName))
 
-        scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
-        scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
-
-        scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
-        scriptFile.write('    route add default gw $desiredgw\n')
-        scriptFile.write('    route delete default gw $currentgw\n')
-        scriptFile.write('fi\n')
         scriptFile.close()
 
     return scriptFilename
 
 
-#def configMetadataSvcs(install_list, execute_list, users)
-def configMetadataSvcs(users, scriptFilename = 'userdata.txt') :
+def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'userdata.txt') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
+            users: dictionary of json specs describing new accounts to create at boot
             install_list: list of _InstallItem class objects to incorporate into the script
             execute_list: list of _ExecuteItem class objects to incorporate into the script
-            users: dictionary of json specs describing new accounts to create at boot
+            scriptFilename: the pathname for the combined generated script
     """
 
-    """
-    # Generate support for file installs
-    if len(install_list) > 0 :
-        scriptFile.write('# Install files from source URL''s\n\n')
-        for item in install_list :
-            _generateScriptInstalls(scriptFile, item)
-
-    # Generate support for execute invocations
-    if len(execute_list) > 0 :
-        scriptFile.write('# Execute commands after boot\n\n')
-        for item in execute_list :
-            _generateScriptExecutes(scriptFile, item)
-    """
-
-    # Generate support for creating new user accounts
-    # Iterate through the list of users and create a separate script text file for each
+    # Generate script files for network configuration support, file installs, boot executable
+    # invocations, and user accounts.
     # When all files are generated, then combine them into a single gzipped mime file
     cmd_count = 0
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
     rmcmd = 'rm -f'
+
+    # Generate support for file installs
+    for item in install_list :
+        scriptName = _generateScriptInstalls(item)
+        if scriptName != "" :
+            cmd += scriptName + ':text/x-shellscript '
+            rmcmd += ' %s' % scriptName 
+            cmd_count = cmd_count + 1
+
+    # Generate support for execute invocations
+    for item in execute_list :
+        scriptName = _generateScriptExecutes(item)
+        if scriptName != "" :
+            cmd += scriptName + ':text/x-shellscript '
+            rmcmd += ' %s' % scriptName 
+            cmd_count = cmd_count + 1
+
+    # Generate support for creating new user accounts
+    # Iterate through the list of users and create a separate script text file for each
     for user in users :
         scriptName = _generateAccount(user)
         if scriptName != "" :
             cmd += scriptName + ':text/x-shellscript '
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
+  
+    # Generate support for a network configuraiton script
+    scriptName = _generateNetworkSupportScript()
+    if scriptName != "" :
+        cmd += scriptName + ':text/x-shellscript '
+        rmcmd += ' %s' % scriptName 
+        cmd_count = cmd_count + 1
 
+    # Combine all scripts into a single mime'd and gzip'ed file, if necessary
     if cmd_count > 0 : 
         config.logger.info('Issuing command %s' % cmd)
         command = cmd.split()
@@ -211,6 +267,7 @@ def configMetadataSvcs(users, scriptFilename = 'userdata.txt') :
         command = cmd.split()
         subprocess.check_output(command)
 
+        # Delete the temporary files
         config.logger.info('Issuing command %s' % rmcmd)
         command = rmcmd.split()
         subprocess.check_output(command)

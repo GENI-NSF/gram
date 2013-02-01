@@ -582,7 +582,9 @@ def _createVM(vm_object, users, placement_hint) :
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
-    gen_metadata.configMetadataSvcs(users, userdata_filename)
+    vm_installs = vm_object.getInstalls()
+    vm_executes = vm_object.getExecutes()
+    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, userdata_filename)
     cmd_string += (' --user_data %s.gz' % userdata_filename)
 
     # Add security group support
