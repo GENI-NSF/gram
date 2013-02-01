@@ -56,8 +56,10 @@ class VMOCSliceRegistry:
 
     # Lookup slice config by slice_id
     def lookup_slice_config_by_slice_id(self, slice_id):
-        assert self._slice_by_slice_id.has_key(slice_id)
-        return self._slice_by_slice_id[slice_id]
+        config = None
+        if self._slice_by_slice_id.has_key(slice_id):
+            config = self._slice_by_slice_id[slice_id]
+        return config
 
     # Lookup slice config by vlan tag
     def lookup_slice_config_by_vlan(self, vlan_tag):

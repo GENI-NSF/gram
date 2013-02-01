@@ -22,26 +22,26 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 	# register slice_config(JSON)
 	# unregister slice_id
 	# dump
+	# ping
 	# Return command, controller_url, slice_config [last two could be None]
 	def parseCommand(self, command_line):
 		pieces=command_line.split(' ')
 		command = pieces[0]
 		slice_id = None
 		slice_config = None
-		if command == 'register':
+		if command == 'register' or command == 'unregister':
 			slice_config_json = ' '.join(pieces[1:])
 			slice_config_attribs = json.loads(slice_config_json)
 			slice_config = VMOCSliceConfiguration(\
 				attribs=slice_config_attribs)
 			slice_id = slice_config.getSliceID()
-		if command == "unregister":
-			slice_id = pieces[1]
 		return command, slice_id, slice_config
 
 	# Handle the request, wrapping in an exception black
 	def handle(self):
 		data = self.request.recv(1024).strip()
-		log.debug("Received " + data)
+		if data != 'ping':
+			log.debug("Received " + data)
 		command, slice_id, slice_config = self.parseCommand(data)
 		response = ""
 		try:
@@ -49,6 +49,8 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 				response1 = scmap.dump_switch_controller_map()
 				response2 = slice_registry_dump(False)
 				response = response1 + "\n" + response2
+			elif command == 'ping':
+				response = ''
 			elif command == "register":
 				response = self.handleRegister(slice_config)
 			elif command == "unregister":
@@ -78,15 +80,18 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 		response = "Registered slice  : " + str(slice_config)
 		return response
 
-	def handleUnregisgter(self, slice_config):
+	def handleUnregister(self, slice_config):
 		slice_id = slice_config.getSliceID()
 		controller_url = slice_config.getControllerURL()
 		slice_config = \
 		    slice_registry_lookup_slice_config_by_slice_id(slice_id)
-		controller_url = slice_config.getControllerURL()
-		scmap.remove_controller_connections_for_slice(slice_id)
-		slice_registry_unregister_slice(slice_id)
-		response = "Unregistered slice : " + str(slice_id)
+		if slice_config:
+			controller_url = slice_config.getControllerURL()
+			scmap.remove_controller_connections_for_slice(slice_id)
+			slice_registry_unregister_slice(slice_id)
+			response = "Unregistered slice : " + str(slice_id)
+		else:
+			response = "No such slice registered: " + slice_id
 		return response
 
 
