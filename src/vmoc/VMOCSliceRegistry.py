@@ -51,8 +51,10 @@ class VMOCSliceRegistry:
 
     # Lookup slice associated with controller url
     def lookup_slices_by_url(self, controller_url):
-        assert self._slices_by_url.has_key(controller_url)
-        return self._slices_by_url[controller_url]
+        slices = None
+        if self._slices_by_url.has_key(controller_url):
+            slices = self._slices_by_url[controller_url]
+        return slices
 
     # Lookup slice config by slice_id
     def lookup_slice_config_by_slice_id(self, slice_id):
@@ -63,8 +65,10 @@ class VMOCSliceRegistry:
 
     # Lookup slice config by vlan tag
     def lookup_slice_config_by_vlan(self, vlan_tag):
-        assert self._slice_by_vlan.has_key(vlan_tag)
-        return self._slice_by_vlan[vlan_tag]
+        config = None
+        if self._slice_by_vlan.has_key(vlan_tag):
+            config = self._slice_by_vlan[vlan_tag]
+        return config
 
     # Dump contents of registry
     def dump(self, print_results=False):

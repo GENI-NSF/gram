@@ -61,7 +61,7 @@ class VMOCControllerConnection(threading.Thread):
         if  not hasattr(switch_connection, '_dpid'): pdb.set_trace()
         self._dpid = switch_connection._dpid
         self._url = url
-        (host, port) = self.parseURL(url)
+        (host, port) = VMOCControllerConnection.parseURL(url)
         self._host = host;
         self._port = port
         self._sock = None
@@ -306,7 +306,8 @@ class VMOCControllerConnection(threading.Thread):
 #         return belongs
         
     # Parse URL of form http://host:port
-    def parseURL(self, url):
+    @staticmethod
+    def parseURL(url):
         pieces = url.replace("/", "").split(':');
         host = pieces[1]
         port = int(pieces[2])
@@ -337,7 +338,12 @@ class VMOCControllerConnection(threading.Thread):
                 if not input_ready:
                     continue
 
-                new_buf = self._sock.recv(_buf_size)
+                new_buf = ''
+                try:
+                    new_buf = self._sock.recv(_buf_size)
+                except:
+                    # if we get an empty buffer or exception, kill connection
+                    pass 
 #                print "AFTER RECV " + str(self._sock)
                 if len(new_buf) == 0:
                     self._sock.close()
@@ -383,11 +389,15 @@ class VMOCControllerConnection(threading.Thread):
                         h(msg_obj)
 
                 except Exception as e:
-                    print "Exception " + str(e)
+#                    print "Exception " + str(e)
                     log.exception(e)
                     self._running = False
 
         scmap.remove_controller_connection(self)
+        # If the controller connection died, we should try to restart 
+        # it if or when the controller comes back
+        scmap.create_controller_connection(self._url, self._vlan)
+
         log.debug("Exiting VMCControllerConnection.run")
 
 
