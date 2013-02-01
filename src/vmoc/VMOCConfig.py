@@ -3,7 +3,6 @@
 import json
 import pdb
 import sys
-from pox.lib.addresses import EthAddr
 from VMOCGlobals import VMOCGlobals
 
 # Class for representing the details of a slice from the
