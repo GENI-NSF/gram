@@ -102,7 +102,11 @@ for i in range(1, len(sys.argv)) :
     # Delete the security group associated with the tenant
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s secgroup-delete %s_secgrp ' % (tenant_admin, tenant_pwd, tenant_name, tenant_name)
     print cmd_string
-    output = open_stack_interface._execCommand(cmd_string)
+    try :
+        open_stack_interface._execCommand(cmd_string)
+    except :
+        # Sometimes the security group is reused by other tenants- if this is the case, simply swallow the exception and go on
+        pass
 
     # Delete the tenant admin account
     cmd_string = 'keystone user-delete %s' % tenant_admin_uuid

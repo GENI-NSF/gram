@@ -124,7 +124,7 @@ int acquire_read_lock()
   filelock.l_len = 0;
   filelock.l_pid = getpid();
 
-  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
+  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (lockfile == -1)
   {
     fprintf(stderr, "Unable to open read file lock for %s\n", PORT_TABLE_LOCKFILE);
@@ -152,7 +152,7 @@ int acquire_write_lock()
   filelock.l_len = 0;
   filelock.l_pid = getpid();
 
-  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY | O_CREAT, S_IRUSR | S_IRGRP);
+  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (lockfile == -1)
   {
     fprintf(stderr, "Unable to open write file lock for %s\n", PORT_TABLE_LOCKFILE);
