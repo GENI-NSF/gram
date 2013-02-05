@@ -54,7 +54,13 @@ def _generateScriptInstalls(installItem) :
     scriptFile.write('if [ $? -eq 0 ] \n')
     scriptFile.write('then \n')
 
-    downloadedFile = '/tmp/%s' % os.path.basname(theSourceURL)
+    # For HTTP gets, remove anything after the first "?" character
+    strendindex = theSourceURL.find("?")
+    theSoureURLsubstr = theSourceURL
+    if strendindex != -1 :
+        theSourceURLsubstr = theSourceURL[:strendindex]
+        
+    downloadedFile = '/tmp/%s' % os.path.basename(theSourceURLsubstr)
 
     # Now make sure destination path does not end with a / (unless it
     #    is the directory /)
@@ -71,11 +77,11 @@ def _generateScriptInstalls(installItem) :
     # ISSUE: Do we use the file extension or the installItem.file_type?
     if (downloadedFile.endswith("tgz") or downloadedFile.endswith("tar.gz")) :
         # Uncompress and untar file, and copy to destination location
-        scriptFile.write('    tar -C %s -zxvf %s \n' % (dest, downloadedFile))
+        scriptFile.write('    tar -C %s -zxf %s \n' % (dest, downloadedFile))
 
     elif (downloadedFile.endswith("tar")) :
         # Untar file and copy to destination location
-        scriptFile.write('    tar -C %s -xvf %s \n' % (dest, downloadedFile))
+        scriptFile.write('    tar -C %s -xf %s \n' % (dest, downloadedFile))
 
     elif (downloadedFile.endswith("gz")) :
         # Copy file to destimation and unzip

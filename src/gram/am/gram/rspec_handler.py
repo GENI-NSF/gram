@@ -63,7 +63,7 @@ def parseRequestRspec(geni_slice, rspec) :
                 return error_string, sliver_list
 
         # Get the list of services for this node (install and execute services)
-        service_list = node.getElementsByTagName('service')
+        service_list = node.getElementsByTagName('services')
         # First handle all the install items in the list of services requested
         for service in service_list :
             install_list = service.getElementsByTagName('install')
@@ -76,12 +76,14 @@ def parseRequestRspec(geni_slice, rspec) :
                     return error_string, sliver_list
 
                 source_url = install_attributes['url'].value
-                destination = install_attribtues['install_path'].value
+                destination = install_attributes['install_path'].value
                 if install_attributes.has_key('file_type') :
                     file_type = install_attributes['file_type'].value
                 else :
                     file_type = None
                 vm_object.addInstallItem(source_url, destination, file_type)
+                info_string = 'Added install %s to %s' % (source_url, destination)
+                config.logger.info(info_string)
         
         # Next take care of the execute services requested
         for service in service_list :
@@ -99,6 +101,8 @@ def parseRequestRspec(geni_slice, rspec) :
                 else :
                     exec_shell = config.default_execute_shell
                 vm_object.addExecuteItem(exec_command, exec_shell)
+                info_string = 'Added executable %s of %s' % (exec_command, exec_shell)
+                config.logger.info(info_string)
 
     # Done getting information about nodes in the rspec.  Now get information
     # about links.
