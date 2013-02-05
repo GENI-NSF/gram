@@ -78,6 +78,9 @@ compute_node_interface_port = 9501
 # PORT on which to communicate to VMOC interface manager
 vmoc_interface_port = 7001
 
+# Should GRAM automatically register slices with VMOC?
+vmoc_slice_autoregister = True # Set to False to disable GRAM/VMOC interface
+
 # Variables for VMOC/GRAM switch behavior/configuration
 vmoc_set_vlan_on_untagged_packet_out = False
 vmoc_set_vlan_on_untagged_flow_mod = True
