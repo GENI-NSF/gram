@@ -12,6 +12,9 @@ import utils
 import Archiving
 import threading
 
+from vmoc.VMOCClientInterface import VMOCClientInterface
+from vmoc.VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
+
 class SliceURNtoSliceObject :
     """
         Class maps slice URNs to slice objects
@@ -64,8 +67,20 @@ class GramManager :
             self._snapshot_directory = \
                 config.gram_snapshot_directory + "/" + getpass.getuser()
 
+        # Client interface to VMOC - update VMOC on current
+        # State of all slices and their associated 
+        # network VLAN's and controllers
+        if config.vmoc_slice_autoregister:
+            VMOCClientInterface.startup()
+            config.logger.info("Started VMOC Client Interface from gram manager")
+
         # Recover state from snapshot, if configured to do so
         self.restore_state()
+
+        # If any slices restored from snapshot, report to VMOC
+        with SliceURNtoSliceObject._lock:
+            for slice in SliceURNtoSliceObject._slices:
+                self.registerSliceToVMOC(slice)
         
         # Remove extraneous snapshots
         self.prune_snapshots()
@@ -216,6 +231,9 @@ class GramManager :
         # Persist new GramManager state
         self.persist_state()
 
+        # Report the new slice to VMOC
+        self.registerSliceToVMOC(slice_object)
+
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
         result_struct = {'geni_rspec':manifest, 'geni_slivers':sliver_status_list}
@@ -270,6 +288,9 @@ class GramManager :
         # Persist new GramManager state
         self.persist_state()
 
+        # Update VMOC
+        self.registerSliceToVMOC(slice_object, False)
+
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
         return {'code': code, 'value': sliver_status_list,  'output': ''}
@@ -298,6 +319,41 @@ class GramManager :
         end_time = time.time()
         config.logger.info("Persisting state to %s in %.2f sec" % \
                                (filename, (end_time - start_time)))
+
+    # Update VMOC about state of given slice (register or unregister)
+    # Register both the control network and all data networks
+    def registerSliceToVMOC(self, slice, register=True):
+        if not config.vmoc_slice_autoregister: return
+
+        slice_id = slice.getSliceURN()
+        controller_url = slice.getControllerURL()
+
+        vlan_configs = []
+
+        # Register/unregister control network
+        control_network_info = slice.getControlNetInfo()
+        control_network_vlan = control_network_info['control_net_vlan']
+        control_net_config = \
+            VMOCVLANConfiguration(vlan_tag=control_network_vlan, \
+                                      controller_url=None)
+        vlan_configs.append(control_net_config)
+
+        # Register/unregister data networks
+        for link in slice.getNetworkLinks():
+            data_network_vlan = link.getVLANTag()
+            data_net_config = \
+                VMOCVLANConfiguration(vlan_tag=data_network_vlan, \
+                                          controller_url=controller_url)
+            vlan_configs.append(data_net_config)
+
+        slice_config=VMOCSliceConfiguration(slice_id=slice_id, \
+                                                vlan_configs=vlan_configs)
+        if register:
+            VMOCClientInterface.register(slice_config)
+        else:
+            VMOCClientInterface.unregister(slice_config)
+
+
 
     # Resolve a set of URN's to a slice and set of slivers
     # Either:

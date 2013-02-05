@@ -1,37 +1,44 @@
 #!/usr/bin/python
 
+import json
 import sys
 
-# Usage register_controller.sh slice controller VLANs 
+from vmoc.VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
 
-if len(sys.argv) < 3:
-    print "Usage: register_controller.py slice controller vlans [unregister]"
+# Usage register_controller.sh slice [vlan controller ....] [unregister]
+
+if len(sys.argv) < 2:
+    print "Usage: register_controller.py slice [vlan controller ...] [unregister]"
     sys.exit()
 
+print sys.argv[1]
+print sys.argv[2]
 
 slice_id = sys.argv[1]
-controller_url = sys.argv[2]
-vlans = sys.argv[3]
+vlan_controllers = json.loads(sys.argv[2])
+vlan_configs = []
+for i in range(len(vlan_controllers)):
+    if i == 2*(i/2):
+        vlan_tag = vlan_controllers[i]
+        controller_url = vlan_controllers[i+1]
+        vlan_config = \
+            VMOCVLANConfiguration(vlan_tag=vlan_tag, \
+                                      controller_url=controller_url)
+        vlan_configs.append(vlan_config)
+
+slice_config = \
+    VMOCSliceConfiguration(slice_id=slice_id, vlan_configs=vlan_configs)
 
 unregister = False
-if len(sys.argv)>4: 
-    unregister = bool(sys.argv[4])
+if len(sys.argv)>3: 
+    unregister = bool(sys.argv[3])
 
-#print str(slice_id)
-#print str(controller_url)
-#print str(vlans)
-
-controller_clause = controller_url
-if controller_url != 'null': 
-    controller_clause = '"' + controller_url  + '"'
+print str(slice_config)
 
 command = 'register'
 if unregister: command = 'unregister'
 
-
-command = command + ' {"slice_id":' + '"' + slice_id + '", ' + \
-    '"controller_url":' + controller_clause + ', ' + \
-    '"vlans":' + '' + vlans + '}'
+command = command + " " + json.dumps(slice_config.__attr__())
 
 print command
 

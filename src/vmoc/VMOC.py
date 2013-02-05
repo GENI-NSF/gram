@@ -7,7 +7,6 @@
 
 from pox.core import core
 import pox.openflow.libopenflow_01 as of
-from pox.lib.util import dpid_to_str
 from  VMOCManagementInterface import VMOCManagementInterface 
 from VMOCSwitchConnection import VMOCSwitchConnection
 import VMOCSwitchControllerMap as scmap

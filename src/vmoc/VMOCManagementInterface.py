@@ -64,17 +64,21 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 	# Handle the register request, returning response 
 	def handleRegister(self, slice_config):
 		slice_id = slice_config.getSliceID()
-		controller_url = slice_config.getControllerURL()
-		vlans = slice_config.getVLANs()
-		if controller_url == None:
-			controller_url = \
-			    VMOCGlobals.getDefaultControllerURL()
-		slice_config.setControllerURL(controller_url)
+		vlan_configs = slice_config.getVLANConfigurations()
+
+
+		# Insert default controller if none provided
+		for vc in vlan_configs:
+			if not vc.getControllerURL() or len(vc.getControllerURL()) == 0:
+				vc.setControllerURL(VMOCGlobals.getDefaultControllerURL())
+
 		if slice_registry_is_registered(slice_config):
 			scmap.remove_controller_connections_for_slice(slice_id)
 			slice_registry_unregister_slice(slice_id)
 		slice_registry_register_slice(slice_config)
-		for vlan in vlans:
+		for vc in vlan_configs:
+			vlan = vc.getVLANTag()
+			controller_url = vc.getControllerURL()
 			scmap.create_controller_connection(controller_url, \
 								   vlan, True)
 		response = "Registered slice  : " + str(slice_config)
@@ -82,11 +86,9 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 
 	def handleUnregister(self, slice_config):
 		slice_id = slice_config.getSliceID()
-		controller_url = slice_config.getControllerURL()
 		slice_config = \
 		    slice_registry_lookup_slice_config_by_slice_id(slice_id)
 		if slice_config:
-			controller_url = slice_config.getControllerURL()
 			scmap.remove_controller_connections_for_slice(slice_id)
 			slice_registry_unregister_slice(slice_id)
 			response = "Unregistered slice : " + str(slice_id)

@@ -1,4 +1,3 @@
-# Registry of all slices managed by VMOC
 #
 # Manages list of all slices and associated controller (by URL)
 # register_slice(slice_config, url)
@@ -6,7 +5,7 @@
 # lookup_slices(url) => slice_configs
 # lookup_slice_config(slice_id) => slice_config
 
-from VMOCConfig import VMOCSliceConfiguration
+from VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
 import pdb
 
 class VMOCSliceRegistry:
@@ -27,26 +26,35 @@ class VMOCSliceRegistry:
 
     # Register slice configuration by id and URL
     def register_slice(self, slice_config):
-        url = slice_config.getControllerURL()
         slice_id = slice_config.getSliceID()
-        assert not self._slice_by_slice_id.has_key(slice_id) or \
-            self._slice_by_slice_id[slice_id].getControllerURL() == url
-        if not self._slices_by_url.has_key(url):
-            self._slices_by_url[url] = []
-        self._slices_by_url[url].append(slice_config)
+
         self._slice_by_slice_id[slice_id] = slice_config
-        for vlan in slice_config._vlans:
+
+        for vc in slice_config.getVLANConfigurations():
+            url = vc.getControllerURL()
+            vlan = vc.getVLANTag()
+            assert not self._slices_by_url.has_key(url) or \
+                not slice_config in self._slices_by_url[url]
+            if not self._slices_by_url.has_key(url):
+                self._slices_by_url[url] = []
+            self._slices_by_url[url].append(slice_config)
+
             self._slice_by_vlan[vlan] = slice_config
+
 
     # Remove information about slice associated with given slice ID
     def unregister_slice(self, slice_id):
         assert self._slice_by_slice_id.has_key(slice_id)
         slice_config = self._slice_by_slice_id[slice_id]
-        url = slice_config.getControllerURL()
+
         del self._slice_by_slice_id[slice_id]
-        assert self._slices_by_url.has_key(url)
-        self._slices_by_url[url].remove(slice_config)
-        for vlan in slice_config._vlans:
+
+        for vc in slice_config.getVLANConfigurations():
+            url = vc.getControllerURL()
+            vlan = vc.getVLANTag()
+            assert self._slices_by_url.has_key(url)
+            self._slices_by_url[url].remove(slice_config)
+            assert self._slice_by_vlan.has_key(vlan)
             del self._slice_by_vlan[vlan]
 
     # Lookup slice associated with controller url
@@ -76,7 +84,7 @@ class VMOCSliceRegistry:
         for slice_id in self._slice_by_slice_id.keys():
             image += slice_id + ": " + str(self._slice_by_slice_id[slice_id]) + "\n"
         for controller_url in self._slices_by_url.keys():
-            image += controller_url + "\n "
+            image += str(controller_url) + "\n "
             for slice in self._slices_by_url[controller_url]:
                 image += "   " + str(slice) + "\n"
         for vlan in self._slice_by_vlan.keys():
@@ -127,19 +135,21 @@ if __name__ == "__main__":
     slice_id2 = 'S2'
     controller1 = 'http://localhost:9001'
     controller2 = 'http://localhost:9002'
-    vlans_full = [VMOCVlanConfiguration(100, []), VMOCVlanConfiguration(101, [])]
+    vlan1 = VMOCVLANConfiguration(vlan_tag=100, controller_url=None)
+    vlan2 = VMOCVLANConfiguration(vlan_tag=101, controller_url=controller1)
+    vlans_full = [vlan1, vlan2]
     vlans_empty = []
-    slice1 = VMOCSliceConfiguration(slice_id1, controller1, vlans_full)
-    slice2 = VMOCSliceConfiguration(slice_id2, controller2, vlans_empty)
+    slice1 = VMOCSliceConfiguration(slice_id1, vlans_full)
+    slice2 = VMOCSliceConfiguration(slice_id2, vlans_empty)
     slice_registry_register_slice(slice1)
     slice_registry_register_slice(slice2)
     slice_registry_dump(True)
-    print "LOOKUP S1 " + str(slice_registry_lookup_slice_config(slice_id1))
-    print "LOOKUP S2 " + str(slice_registry_lookup_slice_config(slice_id2))
-    print "LOOKUP C1 " + str(slice_registry_lookup_slices(controller1))
-    print "LOOKUP C2 " + str(slice_registry_lookup_slices(controller2))
+    print "LOOKUP S1 " + str(slice_registry_lookup_slice_config_by_slice_id(slice_id1))
+    print "LOOKUP S2 " + str(slice_registry_lookup_slice_config_by_slice_id(slice_id2))
+    print "LOOKUP C1 " + str(slice_registry_lookup_slices_by_url(controller1))
+    print "LOOKUP C2 " + str(slice_registry_lookup_slices_by_url(controller2))
     slice_registry_unregister_slice(slice_id2)
-    slice2a = VMOCSliceConfiguration(slice_id2, controller1, vlans_empty)
+    slice2a = VMOCSliceConfiguration(slice_id2, vlans_empty)
     slice_registry_register_slice(slice2a)
     slice_registry_dump(True)
 

@@ -32,7 +32,7 @@ class VMOCControllerConnection(threading.Thread):
     def __init__(self, url, switch_connection, vlan, open_on_create=True):
         threading.Thread.__init__(self)
         self._running = False
-        self._vlan = vlan
+        self._vlan = int(vlan)
 
         self.ofp_msgs = make_type_to_class_table()
         self.ofp_handlers = {
@@ -59,7 +59,30 @@ class VMOCControllerConnection(threading.Thread):
 
         self._switch_connection = switch_connection
         if  not hasattr(switch_connection, '_dpid'): pdb.set_trace()
-        self._dpid = switch_connection._dpid
+
+        # The controller sees VMOC as a switch. And we want each
+        # connection to a controller to have a different DPID (or controllers
+        # get confused). So VMOC has a different connection to a controller
+        # by VLAN. And a controller may connect to multiple VMOCs.
+        # So we need to construct a DPID that is unique over the space
+        # of VLAN and switch_DPID.
+        #
+        # Here's what we do.
+        # DPID's are 64 bits, of which the lower 48 are MAC addresses
+        # and the top 16 are 'implementer defined' (Openflow spec).
+        # The MAC should be unique and (for the contoller to talk to VMOC
+        # we don't need to maintain the switch implementation features.
+        # The vlan is 3 hex digits or 12 bits. 
+        # So we take the VLAN and put it at the top three hex bytes of
+        # the switch's DPID to form the VMOC-Controller-VLAN-specific DPIC
+        #
+        # VLAN in top 3 hex chars
+        # Switch DPID in lower 13 hex chars
+        controller_connection_dpid = \
+            ((self._vlan & 0xfff) << 48) + \
+            (switch_connection._dpid & 0x000fffffffffffff)  
+        self._dpid = controller_connection_dpid
+
         self._url = url
         (host, port) = VMOCControllerConnection.parseURL(url)
         self._host = host;
