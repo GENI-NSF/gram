@@ -56,7 +56,7 @@ def _generateScriptInstalls(installItem) :
 
     # For HTTP gets, remove anything after the first "?" character
     strendindex = theSourceURL.find("?")
-    theSoureURLsubstr = theSourceURL
+    theSourceURLsubstr = theSourceURL
     if strendindex != -1 :
         theSourceURLsubstr = theSourceURL[:strendindex]
         
@@ -234,7 +234,7 @@ def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'user
     for item in install_list :
         scriptName = _generateScriptInstalls(item)
         if scriptName != "" :
-            cmd += scriptName + ':text/x-shellscript '
+            cmd += scriptName + ':text/cloud-boothook '
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
 

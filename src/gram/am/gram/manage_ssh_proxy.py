@@ -27,8 +27,8 @@ import string
 import struct
 import fcntl
 
-portTableFile = '/tmp/gram-ssh-port-table.txt'
-portTableLockFile = '/tmp/gram-ssh-port-table.lock'
+portTableFile = '/etc/gram/gram-ssh-port-table.txt'
+portTableLockFile = '/etc/gram/gram-ssh-port-table.lock'
 sshProxyExe = '/usr/local/bin/gram_ssh_proxy'
 
 def _execCommand(cmd_string) :
