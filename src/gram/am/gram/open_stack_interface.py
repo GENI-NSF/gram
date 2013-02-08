@@ -585,7 +585,7 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     userdata_filename = userdata_file.name
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
-    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, userdata_filename)
+    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
     cmd_string += (' --user_data %s.gz' % userdata_filename)
 
     # Add security group support

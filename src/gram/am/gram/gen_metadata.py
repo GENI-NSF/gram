@@ -129,7 +129,7 @@ def _generateScriptExecutes(executeItem) :
     return scriptFilename
 
 
-def _generateNetworkSupportScript() :
+def _generateNetworkSupportScript(control_nic_prefix) :
     """ Generate a script that configure the local network support
     """
 
@@ -142,8 +142,10 @@ def _generateNetworkSupportScript() :
         config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
         return ""
 
+    # Generate the script to assign the default gateway
     scriptFile.write('#!/bin/sh \n')
-    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+#    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+    scriptFile.write('desiredgw="%s1"\n' % control_nic_prefix)
     scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
 
     scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
@@ -229,6 +231,7 @@ def _generateNicInterfaceScript(num_nics) :
         config.logger.error("Failed to open file that creates the network interface script: %s" % scriptFilename)
         return ""
 
+    # Generate contents of new /etc/network/interfaces file and put it in a temporary file
     scriptFile.write('#!/bin/sh \n')
     scriptFile.write('echo \'# This file describes the network interfaces available on your system\' > %s \n' % nicInterfaceTempFilePath)
     scriptFile.write('echo \'# and how to activate them. For more information, see interfaces(5).\' >> %s \n' % nicInterfaceTempFilePath)
@@ -237,6 +240,7 @@ def _generateNicInterfaceScript(num_nics) :
     scriptFile.write('echo \'auto lo\' >> %s \n' % nicInterfaceTempFilePath)
     scriptFile.write('echo \'iface lo inet loopback\' >> %s \n' % nicInterfaceTempFilePath)
 
+    # Create the requisite number of interfaces based on the total number of NICs accross all VMs
     nic_count = 0
     while nic_count < num_nics :
         scriptFile.write('echo \'\' >> %s \n' % nicInterfaceTempFilePath)
@@ -246,6 +250,8 @@ def _generateNicInterfaceScript(num_nics) :
         scriptFile.write('echo \'iface %s inet dhcp\' >> %s \n' % (eth_name, nicInterfaceTempFilePath))
         nic_count = nic_count + 1
 
+    # Complete the script with commands to bring down the current interfaces, install the new config file,
+    # and bring the interfaces back up
     scriptFile.write('ifdown --all \n')
     scriptFile.write('mv -f %s /etc/network/interfaces\n' % nicInterfaceTempFilePath)
     scriptFile.write('chmod 666 /etc/network/interfaces\n')
@@ -256,7 +262,7 @@ def _generateNicInterfaceScript(num_nics) :
     return scriptFilename
 
 
-def configMetadataSvcs(users, install_list, execute_list, num_nics, scriptFilename = 'userdata.txt') :
+def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_prefix, scriptFilename = 'userdata.txt') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
             users: dictionary of json specs describing new accounts to create at boot
@@ -305,7 +311,7 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, scriptFilena
             cmd_count = cmd_count + 1
   
     # Generate support for a network configuraiton script
-    scriptName = _generateNetworkSupportScript()
+    scriptName = _generateNetworkSupportScript(control_nic_prefix)
     if scriptName != "" :
         cmd += scriptName + ':text/x-shellscript '
         rmcmd += ' %s' % scriptName 
