@@ -29,6 +29,8 @@ import subprocess
 import config
 import tempfile
 
+nicInterfaceTempFilePath = '/tmp/tmp_net_inf'
+
 def _generateScriptInstalls(installItem) :
     """ Generate text for a script that handles an _InstallItem object:
         1) Get the file from the source URL
@@ -214,7 +216,47 @@ def _generateAccount(user) :
     return scriptFilename
 
 
-def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'userdata.txt') :
+def _generateNicInterfaceScript(num_nics) :
+    """ Generate a script that configure the local network support
+    """
+
+    # Open the script file for writing
+    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
+    scriptFilename = '%s' % tempscriptfile.name
+    try:
+        scriptFile = open(scriptFilename, 'w')
+    except IOError:
+        config.logger.error("Failed to open file that creates the network interface script: %s" % scriptFilename)
+        return ""
+
+    scriptFile.write('#!/bin/sh \n')
+    scriptFile.write('echo \'# This file describes the network interfaces available on your system\' > %s \n' % nicInterfaceTempFilePath)
+    scriptFile.write('echo \'# and how to activate them. For more information, see interfaces(5).\' >> %s \n' % nicInterfaceTempFilePath)
+    scriptFile.write('echo \'\' >> %s \n' % nicInterfaceTempFilePath)
+    scriptFile.write('echo \'# The loopback network interface\' >> %s \n' % nicInterfaceTempFilePath)
+    scriptFile.write('echo \'auto lo\' >> %s \n' % nicInterfaceTempFilePath)
+    scriptFile.write('echo \'iface lo inet loopback\' >> %s \n' % nicInterfaceTempFilePath)
+
+    nic_count = 0
+    while nic_count < num_nics :
+        scriptFile.write('echo \'\' >> %s \n' % nicInterfaceTempFilePath)
+        scriptFile.write('echo \'# The primary network interface\' >> %s \n' % nicInterfaceTempFilePath)
+        eth_name = 'eth%d' % nic_count
+        scriptFile.write('echo \'auto %s\' >> %s \n' % (eth_name, nicInterfaceTempFilePath))
+        scriptFile.write('echo \'iface %s inet dhcp\' >> %s \n' % (eth_name, nicInterfaceTempFilePath))
+        nic_count = nic_count + 1
+
+    scriptFile.write('ifdown --all \n')
+    scriptFile.write('mv -f %s /etc/network/interfaces\n' % nicInterfaceTempFilePath)
+    scriptFile.write('chmod 666 /etc/network/interfaces\n')
+    scriptFile.write('ifup --all \n')
+
+    scriptFile.close()
+
+    return scriptFilename
+
+
+def configMetadataSvcs(users, install_list, execute_list, num_nics, scriptFilename = 'userdata.txt') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
             users: dictionary of json specs describing new accounts to create at boot
@@ -230,11 +272,18 @@ def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'user
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
     rmcmd = 'rm -f'
 
+    # Generate boothook script to reset network interfaces
+    scriptName = _generateNicInterfaceScript(num_nics)
+    if scriptName != "" :
+        cmd += scriptName + ':text/cloud-boothook '
+        rmcmd += ' %s' % scriptName 
+        cmd_count = cmd_count + 1
+
     # Generate support for file installs
     for item in install_list :
         scriptName = _generateScriptInstalls(item)
         if scriptName != "" :
-            cmd += scriptName + ':text/cloud-boothook '
+            cmd += scriptName + ':text/x-shellscript '
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
 

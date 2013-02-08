@@ -134,8 +134,10 @@ def provisionResources(geni_slice, users) :
 
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
+    total_nic_count = 0
     for vm in geni_slice.getVMs() :
         for nic in vm.getNetworkInterfaces() :
+            total_nic_count = total_nic_count + 1
             if nic.getIPAddress() == None :
                 # NIC needs an IP, if it is connected to a link
                 link = nic.getLink()
@@ -191,9 +193,9 @@ def provisionResources(geni_slice, users) :
                 # We are in Step 1 or Step 3 of the VM placement algorithm
                 # described above.  We don't give openstack any hints on
                 # where this VM should go
-                vm_uuid = _createVM(vm, users, None)
+                vm_uuid = _createVM(vm, users, total_nic_count, None)
             else :
-                vm_uuid = _createVM(vm, users, vm_uuids)
+                vm_uuid = _createVM(vm, users, total_nic_count, vm_uuids)
             if vm_uuid == None :
                 config.logger.error('Failed to create vm for node %s' %
                                     vm.getName())
@@ -528,7 +530,7 @@ def _getPortsForTenant(tenant_uuid):
 
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
-def _createVM(vm_object, users, placement_hint) :
+def _createVM(vm_object, users, total_nic_count, placement_hint) :
     slice_object = vm_object.getSlice()
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()
@@ -571,7 +573,6 @@ def _createVM(vm_object, users, placement_hint) :
             mac_address = ports_info[nic_uuid]['mac_address']
             nic.setMACAddress(mac_address)
 
-            
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
@@ -584,7 +585,7 @@ def _createVM(vm_object, users, placement_hint) :
     userdata_filename = userdata_file.name
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
-    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, userdata_filename)
+    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, userdata_filename)
     cmd_string += (' --user_data %s.gz' % userdata_filename)
 
     # Add security group support

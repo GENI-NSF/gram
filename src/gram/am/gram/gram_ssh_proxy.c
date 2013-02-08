@@ -31,8 +31,8 @@
 #include <fcntl.h>
 
 #define IPTABLES_LOCATION_STR "/sbin/iptables"
-#define PORT_TABLE_LOCATION "/tmp/gram-ssh-port-table.txt"
-#define PORT_TABLE_LOCKFILE "/tmp/gram-ssh-port-table.lock"
+#define PORT_TABLE_LOCATION "/etc/gram/gram-ssh-port-table.txt"
+#define PORT_TABLE_LOCKFILE "/etc/gram/gram-ssh-port-table.lock"
 #define PORT_NUMBER_START 3000
 
 #define MAX_PORT_TABLE_ENTRIES 1000
