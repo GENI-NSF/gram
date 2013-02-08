@@ -2,7 +2,8 @@
 import logging
 
 # OpenStack related configuration
-default_VM_flavor = 'm1.smaller'  
+#default_VM_flavor = 'm1.smaller'  
+default_VM_flavor = 'm1.tiny'  
 
 #default_OS_image = 'cirros-0.3-x86_64'
 #default_OS_type = 'Linux'
@@ -18,7 +19,8 @@ default_VM_flavor = 'm1.smaller'
 
 #default_OS_image = 'ubuntu-12.04'
 #default_OS_image = 'ubuntu-12.04-2nic'
-default_OS_image = 'ubuntu-2nic-wkey'
+#default_OS_image = 'ubuntu-2nic-wkey'
+default_OS_image = 'cirros-2nic-x86_64'
 default_OS_type = 'Linux'
 default_OS_version = '12'
 
@@ -64,7 +66,7 @@ SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
 logger = logging.getLogger('gcf.am3.gram')
 
 # Parameters regarding archiving/restoration of GRAM aggregste state
-gram_snapshot_directory = '/tmp/gram_snapshots' # Directory of snapshots
+gram_snapshot_directory = '/etc/gram/snapshots' # Directory of snapshots
 recover_from_snapshot = None # Specific file from which to recover 
 recover_from_most_recent_snapshot = True # Should we restore from most recent
 snapshot_maintain_limit = 10 # Remove all snapshots earlier than this #
