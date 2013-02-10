@@ -97,8 +97,8 @@ class VMOCClientInterface(threading.Thread):
                   slice_configs = \
                       VMOCClientInterface._configs_by_slice.values()
                   VMOCClientInterface._pending_queue = []
-                  config.logger.info("Disconnected from VMOC: " + 
-                                     "restoring slice configs")
+#                  config.logger.info("Disconnected from VMOC: " + 
+#                                     "restoring slice configs")
                   for slice_config in slice_configs:
                       VMOCClientInterface.register(slice_config)
 
@@ -109,7 +109,7 @@ class VMOCClientInterface(threading.Thread):
                   entry = VMOCClientInterface._pending_queue[0]
                   msg = entry['msg']
                   try:
-                      print " Trying to send " + str(entry)
+#                      print " Trying to send " + str(entry)
                       sock = self.connectionToVMOC()
                       if sock:
                           sock.send(msg)
