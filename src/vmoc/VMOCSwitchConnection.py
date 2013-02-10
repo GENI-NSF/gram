@@ -162,7 +162,7 @@ class VMOCSwitchConnection(object):
         # Get list of controllers from VMOC Switch Controller MAP
         controller_conns = scmap.lookup_controllers_for_switch_connection(self)
         if not controller_conns: 
-            print "No controller connection : dropping " + str(event)
+            log.debug("No controller connection : dropping " + str(event))
             return
 
         if event.ofp.header_type == of.OFPT_PACKET_IN:
