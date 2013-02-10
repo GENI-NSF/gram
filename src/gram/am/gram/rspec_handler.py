@@ -86,9 +86,21 @@ def parseRequestRspec(geni_slice, rspec) :
                     config.logger.error(error_string)
                     return error_string, sliver_list, None
 
-        # Get disk image by name from node
-        # *** WRITE ME ***
-        
+            # Get disk image by name from node
+            # *** WRITE ME ***
+            disk_image_list = sliver_type.getElementsByTagName('disk_image')
+            for disk_image in disk_image_list:
+                disk_image_name = disk_image.attributes['name'].value
+                disk_image_uuid = \
+                    open_stack_interface._getImageUUID(disk_image_name)
+                print "DISK = " + str(disk_image_name) + " " + str(disk_image_uuid)
+                if disk_image_uuid:
+                    vm_object.setOSImageName(disk_image_name)
+                else:
+                    error_string = "Unsupported disk image: " + \
+                        str(disk_image_name)
+                    config.logger.error(error_string)
+                    return error_string, sliver_list, None
 
         # Get interfaces associated with the node
         interface_list = node.getElementsByTagName('interface')

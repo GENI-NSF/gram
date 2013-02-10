@@ -474,6 +474,10 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          return self._os_image
 
+   def setOSImageName(self, os_image) :
+      with self._slice.getLock() :
+         self._os_image = os_image
+
    def getVMFlavor(self) :
       with self._slice.getLock() :
          return self._flavor
