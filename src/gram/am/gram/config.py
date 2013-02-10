@@ -58,6 +58,7 @@ failed = 'geni_failed'
 SUCCESS = 0
 REQUEST_PARSE_FAILED = 1        # aka BADARGS
 UNKNOWN_SLICE = 12              # aka SEARCHFAILED
+UNSUPPORTED = 13                
 SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
 
 # GRAM specific codes
