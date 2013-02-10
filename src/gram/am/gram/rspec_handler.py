@@ -25,6 +25,7 @@ from xml.dom.minidom import *
 import socket
 
 import config
+import open_stack_interface
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import utils
 
@@ -46,7 +47,7 @@ def parseRequestRspec(geni_slice, rspec) :
         
     # Parse the xml rspec
     rspec_dom = parseString(rspec)
- 
+
     # Look for DOM elements tagged 'node'.  These are the VMs requested by the
     # experimenter.
     # For each node in the rspec, extract experimenter specified information
@@ -64,11 +65,30 @@ def parseRequestRspec(geni_slice, rspec) :
         else :
             error_string = 'Malformed rspec: Node name not specified' 
             config.logger.error(error_string)
-            return error_string, sliver_list
+            return error_string, sliver_list, None
 
         # Set optional flavor of the node
         if node_attributes.has_key('flavor') :
             vm_object.setVMFlavor(node_attributes['flavor'].value)
+
+        # Alternatively, get flavor from the sliver_type
+        sliver_type_list = node.getElementsByTagName('sliver_type')
+        for sliver_type in sliver_type_list:
+            if sliver_type.attributes.has_key('name'):
+                sliver_type_name = sliver_type.attributes['name'].value
+                if open_stack_interface._getFlavorID(sliver_type_name):
+                    vm_object.setVMFlavor(sliver_type_name)
+                    config.logger.info("Setting VM to " + \
+                                               str(sliver_type_name))
+                else:
+                    error_string = "Undefined sliver_type flavor " + \
+                        str(sliver_type_name)
+                    config.logger.error(error_string)
+                    return error_string, sliver_list, None
+
+        # Get disk image by name from node
+        # *** WRITE ME ***
+        
 
         # Get interfaces associated with the node
         interface_list = node.getElementsByTagName('interface')
@@ -86,7 +106,7 @@ def parseRequestRspec(geni_slice, rspec) :
             else :
                 error_string = 'Malformed rspec: Interface name not specified'
                 config.logger.error(error_string)
-                return error_string, sliver_list
+                return error_string, sliver_list, None
 
         # Get the list of services for this node (install and execute services)
         service_list = node.getElementsByTagName('services')
@@ -99,7 +119,7 @@ def parseRequestRspec(geni_slice, rspec) :
                         install_attributes.has_key('install_path')) :
                     error_string = 'Source URL or destination path missing for install element in request rspec'
                     config.logger.error(error_string)
-                    return error_string, sliver_list
+                    return error_string, sliver_list, None
 
                 source_url = install_attributes['url'].value
                 destination = install_attributes['install_path'].value
@@ -119,7 +139,7 @@ def parseRequestRspec(geni_slice, rspec) :
                 if not execute_attributes.has_key('command') :
                     error_string = 'Command missing for execute element in request rspec'
                     config.logger.error(error_string)
-                    return error_string, sliver_list
+                    return error_string, sliver_list, None
 
                 exec_command = execute_attributes['command'].value
                 if execute_attributes.has_key('shell') :
@@ -145,7 +165,7 @@ def parseRequestRspec(geni_slice, rspec) :
         else :
             error_string = 'Malformed rspec: Link name not specified'
             config.logger.error(error_string)
-            return error_string, sliver_list
+            return error_string, sliver_list, None
         
         # Get the end-points for this link.  Each end_point is a network
         # interface
@@ -163,7 +183,7 @@ def parseRequestRspec(geni_slice, rspec) :
             if interface_object == None :
                 error_string = 'Malformed rspec: Unknown interface_ref %s specified for link %s' % (interface_name, link_object.getName())
                 config.logger.error(error_string)
-                return error_string, sliver_list
+                return error_string, sliver_list, None
 
             # Set the interface to point to this link
             interface_object.setLink(link_object)

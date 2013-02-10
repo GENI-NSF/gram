@@ -126,7 +126,7 @@ def provisionResources(geni_slice, users) :
             control_net_info['control_net_vlan'] = vlan
         else:
             for link in geni_slice.getNetworkLinks():
-                print "NET_UUID = " + net_uuid + " LINK_NET_UUID = " + link.getNetworkUUID()
+#                print "NET_UUID = " + net_uuid + " LINK_NET_UUID = " + link.getNetworkUUID()
                 if link.getNetworkUUID() == net_uuid:
                     name = net_info['name']
                     config.logger.info("Setting data net " + name + " VLAN to " + vlan)
@@ -234,16 +234,19 @@ def deleteAllResourcesForSlice(geni_slice) :
     admin_name, admin_pwd, admin_uuid = geni_slice.getTenantAdminInfo()
 
     # Delete the security group for this tenant
-    time.sleep(10)
-    _deleteTenantSecurityGroup(admin_name, admin_pwd,
-                               geni_slice.getTenantName(),
-                               geni_slice.getSecurityGroup())
+    if admin_name and admin_pwd and admin_uuid:
+        time.sleep(10)
+        _deleteTenantSecurityGroup(admin_name, admin_pwd,
+                                   geni_slice.getTenantName(),
+                                   geni_slice.getSecurityGroup())
 
-    # Delete the slice (tenant) admin user account
-    _deleteUserByUUID(admin_uuid)
+        # Delete the slice (tenant) admin user account
+        _deleteUserByUUID(admin_uuid)
 
     # Delete the tenant
-    _deleteTenantByUUID(geni_slice.getTenantUUID())
+    tenant_uuid = geni_slice.getTenantUUID()
+    if tenant_uuid:
+        _deleteTenantByUUID(geni_slice.getTenantUUID())
 
     return sliver_stat_list.getSliverStatusList()
     
@@ -412,10 +415,12 @@ def _deleteControlNetwork(slice_object) :
     """
         Delete the control network for this slice.
     """
-    control_net_uuid = slice_object.getControlNetInfo()['control_net_uuid']
-    if control_net_uuid != None :
-        cmd_string = 'quantum net-delete %s' % control_net_uuid
-        _execCommand(cmd_string)
+    control_net_info = slice_object.getControlNetInfo()
+    if control_net_info:
+        control_net_uuid = control_net_info['control_net_uuid']
+        if control_net_uuid:
+            cmd_string = 'quantum net-delete %s' % control_net_uuid
+            _execCommand(cmd_string)
         
 
 def _createNetworkForLink(link_object) :
@@ -468,8 +473,9 @@ def _deleteNetworkLink(link_object) :
        Delete network and subnet associated with this link_object
     """
     net_uuid = link_object.getNetworkUUID()
-    cmd_string = 'quantum net-delete %s' % net_uuid
-    _execCommand(cmd_string)
+    if net_uuid:
+        cmd_string = 'quantum net-delete %s' % net_uuid
+        _execCommand(cmd_string)
 
 def _getNetsForTenant(tenant_uuid):
     cmd_string = 'quantum net-list -- --tenant_id=%s' % tenant_uuid
@@ -524,8 +530,8 @@ def _getPortsForTenant(tenant_uuid):
         port_fixed_ips = port_info_columns[4].strip()
         port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
         ports_info[port_id] = port_info
-    print 'ports for tenant ' + str(tenant_uuid)
-    print str(ports_info)
+#    print 'ports for tenant ' + str(tenant_uuid)
+#    print str(ports_info)
     return ports_info
 
 
@@ -655,8 +661,9 @@ def _deleteVM(vm_object) :
     # Delete ports associatd with the VM
     for nic in vm_object.getNetworkInterfaces() :
         port_uuid = nic.getUUID()
-        cmd_string = 'quantum port-delete %s' % port_uuid
-        _execCommand(cmd_string)
+        if port_uuid:
+            cmd_string = 'quantum port-delete %s' % port_uuid
+            _execCommand(cmd_string)
 
     # Delete the VM
     vm_uuid = vm_object.getUUID()

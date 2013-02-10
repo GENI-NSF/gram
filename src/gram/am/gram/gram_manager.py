@@ -332,6 +332,10 @@ class GramManager :
 
         # Register/unregister control network
         control_network_info = slice.getControlNetInfo()
+        if not control_network_info or \
+                not control_network_info.has_key('control_net_vlan'):
+            return
+
         control_network_vlan = control_network_info['control_net_vlan']
         control_net_config = \
             VMOCVLANConfiguration(vlan_tag=control_network_vlan, \
