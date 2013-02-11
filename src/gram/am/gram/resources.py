@@ -29,6 +29,7 @@ import dateutil.parser
 import inspect
 import uuid
 import threading
+import os
 
 import config
 
@@ -222,10 +223,21 @@ class Slice:
       with self._slice_lock :
          self._last_subnet_assigned += 1
          #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
+         if not os.path.isfile(config.subnet_numfile) :
+            # The file with the subnet numbers does not exist; create it
+            subnet_num_file = open(config.subnet_numfile, 'w')
+            subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
+                                           # arbitrary.  19 seems to be safe
+            subnet_num_file.close()
+            
+         # Read from file the number of the last subnet assigned
+         subnet_num_file = open(config.subnet_numfile, 'r')
          last_subnet_assigned = int(subnet_num_file.readline().rstrip())
          subnet_num_file.close()
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
+
+         # Increment the number in the file by 1.  Roll back to 19 if count
+         # is at 256
+         subnet_num_file = open(config.subnet_numfile, 'w')
          last_subnet_assigned += 1
          if last_subnet_assigned == 256 :
             last_subnet_assigned = 19
@@ -239,10 +251,21 @@ class Slice:
       with self._slice_lock :
          self._last_subnet_assigned += 1
          #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
+         if not os.path.isfile(config.subnet_numfile) :
+            # The file with the subnet numbers does not exist; create it
+            subnet_num_file = open(config.subnet_numfile, 'w')
+            subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
+                                           # arbitrary.  19 seems to be safe
+            subnet_num_file.close()
+         
+         # Read from file the number of the last subnet assigned
+         subnet_num_file = open(config.subnet_numfile, 'r')
          last_subnet_assigned = int(subnet_num_file.readline().rstrip())
          subnet_num_file.close()
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
+
+         # Increment the number in the file by 1.  Roll back to 19 if count
+         # is at 256
+         subnet_num_file = open(config.subnet_numfile, 'w')
          last_subnet_assigned += 1
          if last_subnet_assigned == 256 :
             last_subnet_assigned = 19

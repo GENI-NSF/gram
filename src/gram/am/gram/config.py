@@ -72,6 +72,11 @@ recover_from_snapshot = None # Specific file from which to recover
 recover_from_most_recent_snapshot = True # Should we restore from most recent
 snapshot_maintain_limit = 10 # Remove all snapshots earlier than this #
 
+# File where GRAM stores the subnet number for the last allocated sub-net
+# This is used in resources.py.  This file is temporary.  It should not be
+# needed when we have namespaces working.
+subnet_numfile = '/etc/gram/GRAM-next-subnet.txt'
+
 # GRAM AM URN (Component ID of AM)
 gram_am_urn = ''
 
