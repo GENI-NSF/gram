@@ -53,7 +53,7 @@ def _generateScriptInstalls(installItem) :
 
     # Perform the wget on the source URL
     scriptFile.write('wget -P /tmp %s \n' % theSourceURL)
-    scriptFile.write('if [ $? -eq 0 ] \n')
+    scriptFile.write('if [ $? -eq 0 ]; \n')
     scriptFile.write('then \n')
 
     # For HTTP gets, remove anything after the first "?" character
@@ -130,7 +130,7 @@ def _generateScriptExecutes(executeItem) :
 
 
 def _generateNetworkSupportScript(control_nic_prefix) :
-    """ Generate a script that configure the local network support
+    """ Generate a script that configure the local default gateway configuration
     """
 
     # Open the script file for writing
@@ -218,8 +218,62 @@ def _generateAccount(user) :
     return scriptFilename
 
 
+def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
+    """ Generate the network interface configuration content specific to a Fedora image
+    """
+
+    # Generate contents of new /etc/network/interfaces file and put it in a temporary file
+    scriptFile.write('%sifdown --all \n' % indent)
+
+    # Create the requisite number of interfaces based on the total number of NICs accross all VMs
+    nic_count = 0
+    while nic_count < num_nics :
+        eth_name = 'eth%d' % nic_count
+        scriptFile.write('%secho \'DEVICE=eth%s\' > %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'BOOTPROTOT=dhcp\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'ONBOOT=yes\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+
+        scriptFile.write('%smv -f %s /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, nicInterfaceTempFilePath, eth_name))
+        scriptFile.write('%schmod 666 /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, eth_name))
+        nic_count = nic_count + 1
+
+    # Complete the script with commands to bring down the current interfaces, install the new config file,
+    # and bring the interfaces back up
+    scriptFile.write('%sifup --all \n' % indent)
+
+
+def _generateNicInterfaceScriptDefault(num_nics, indent, scriptFile) :
+    """ Generate the default network interface configuration content
+    """
+
+    # Generate contents of new /etc/network/interfaces file and put it in a temporary file
+    scriptFile.write('%secho \'# This file describes the network interfaces available on your system\' > %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'# and how to activate them. For more information, see interfaces(5).\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'# The loopback network interface\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'auto lo\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'iface lo inet loopback\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+
+    # Create the requisite number of interfaces based on the total number of NICs accross all VMs
+    nic_count = 0
+    while nic_count < num_nics :
+        scriptFile.write('%secho \'\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'# The primary network interface\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        eth_name = 'eth%d' % nic_count
+        scriptFile.write('%secho \'auto %s\' >> %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'iface %s inet dhcp\' >> %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        nic_count = nic_count + 1
+
+    # Complete the script with commands to bring down the current interfaces, install the new config file,
+    # and bring the interfaces back up
+    scriptFile.write('%sifdown --all \n' % indent)
+    scriptFile.write('%smv -f %s /etc/network/interfaces\n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%schmod 666 /etc/network/interfaces\n' % indent)
+    scriptFile.write('%sifup --all \n' % indent)
+
+
 def _generateNicInterfaceScript(num_nics) :
-    """ Generate a script that configure the local network support
+    """ Generate a script that configure the local network interfaces
     """
 
     # Open the script file for writing
@@ -231,32 +285,26 @@ def _generateNicInterfaceScript(num_nics) :
         config.logger.error("Failed to open file that creates the network interface script: %s" % scriptFilename)
         return ""
 
-    # Generate contents of new /etc/network/interfaces file and put it in a temporary file
+    # First generate portion of script that determines the version of Linux
     scriptFile.write('#!/bin/sh \n')
-    scriptFile.write('echo \'# This file describes the network interfaces available on your system\' > %s \n' % nicInterfaceTempFilePath)
-    scriptFile.write('echo \'# and how to activate them. For more information, see interfaces(5).\' >> %s \n' % nicInterfaceTempFilePath)
-    scriptFile.write('echo \'\' >> %s \n' % nicInterfaceTempFilePath)
-    scriptFile.write('echo \'# The loopback network interface\' >> %s \n' % nicInterfaceTempFilePath)
-    scriptFile.write('echo \'auto lo\' >> %s \n' % nicInterfaceTempFilePath)
-    scriptFile.write('echo \'iface lo inet loopback\' >> %s \n' % nicInterfaceTempFilePath)
+    scriptFile.write('if [ -f /etc/issue ]; then\n')
+    scriptFile.write('    grep -iq fedora /etc/issue\n')
+    scriptFile.write('    if [ $? -eq 0 ]; then \n')
 
-    # Create the requisite number of interfaces based on the total number of NICs accross all VMs
-    nic_count = 0
-    while nic_count < num_nics :
-        scriptFile.write('echo \'\' >> %s \n' % nicInterfaceTempFilePath)
-        scriptFile.write('echo \'# The primary network interface\' >> %s \n' % nicInterfaceTempFilePath)
-        eth_name = 'eth%d' % nic_count
-        scriptFile.write('echo \'auto %s\' >> %s \n' % (eth_name, nicInterfaceTempFilePath))
-        scriptFile.write('echo \'iface %s inet dhcp\' >> %s \n' % (eth_name, nicInterfaceTempFilePath))
-        nic_count = nic_count + 1
+    # If image is Fedora, then use the default config
+    _generateNicInterfaceScriptFedora(num_nics, "        ", scriptFile)
 
-    # Complete the script with commands to bring down the current interfaces, install the new config file,
-    # and bring the interfaces back up
-    scriptFile.write('ifdown --all \n')
-    scriptFile.write('mv -f %s /etc/network/interfaces\n' % nicInterfaceTempFilePath)
-    scriptFile.write('chmod 666 /etc/network/interfaces\n')
-    scriptFile.write('ifup --all \n')
+    # If image is not Fedora, then use the Fedora specific content
+    scriptFile.write('    else\n')
+    _generateNicInterfaceScriptDefault(num_nics, "        ", scriptFile)
 
+    # if the /etc/issue file is not present, then use the default content    
+    scriptFile.write('    fi\n')
+    scriptFile.write('else\n')
+    _generateNicInterfaceScriptDefault(num_nics, "    ", scriptFile)
+
+    # Close out the file
+    scriptFile.write('fi\n')
     scriptFile.close()
 
     return scriptFilename
@@ -268,6 +316,8 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
             users: dictionary of json specs describing new accounts to create at boot
             install_list: list of _InstallItem class objects to incorporate into the script
             execute_list: list of _ExecuteItem class objects to incorporate into the script
+            num_nics: total number of NICs defined for the overall slice
+            control_nic_prefix: the first three octets of the control NIC IP address
             scriptFilename: the pathname for the combined generated script
     """
 
