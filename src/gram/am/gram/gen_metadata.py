@@ -129,34 +129,6 @@ def _generateScriptExecutes(executeItem) :
     return scriptFilename
 
 
-def _generateNetworkSupportScript(control_nic_prefix) :
-    """ Generate a script that configure the local default gateway configuration
-    """
-
-    # Open the script file for writing
-    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
-    scriptFilename = '%s' % tempscriptfile.name
-    try:
-        scriptFile = open(scriptFilename, 'w')
-    except IOError:
-        config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
-        return ""
-
-    # Generate the script to assign the default gateway
-    scriptFile.write('#!/bin/sh \n')
-#    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
-    scriptFile.write('desiredgw="%s1"\n' % control_nic_prefix)
-    scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
-
-    scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
-    scriptFile.write('    route add default gw $desiredgw\n')
-    scriptFile.write('    route delete default gw $currentgw\n')
-    scriptFile.write('fi\n')
-    scriptFile.close()
-
-    return scriptFilename
-
-
 def _generateAccount(user) :
     """ Generate a script that creates a new user account and adds SSH authentiation
     """
@@ -218,28 +190,43 @@ def _generateAccount(user) :
     return scriptFilename
 
 
+def _generateDefaultGatewaySupport(control_nic_prefix, scriptFile) :
+    """ Generate script content that configures the local default gateway
+    """
+
+    # Generate the script content to assign the default gateway
+#    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+    scriptFile.write('desiredgw="%s1"\n' % control_nic_prefix)
+    scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
+
+    scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
+    scriptFile.write('    route add default gw $desiredgw\n')
+    scriptFile.write('    route delete default gw $currentgw\n')
+    scriptFile.write('fi\n')
+
+
 def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
     """ Generate the network interface configuration content specific to a Fedora image
     """
 
     # Generate contents of new /etc/network/interfaces file and put it in a temporary file
-    scriptFile.write('%sifdown --all \n' % indent)
+    scriptFile.write('%s/sbin/service network stop \n' % indent)
 
     # Create the requisite number of interfaces based on the total number of NICs accross all VMs
     nic_count = 0
     while nic_count < num_nics :
         eth_name = 'eth%d' % nic_count
-        scriptFile.write('%secho \'DEVICE=eth%s\' > %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
-        scriptFile.write('%secho \'BOOTPROTOT=dhcp\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'DEVICE=%s\' > %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'BOOTPROTO=dhcp\' >> %s \n' % (indent, nicInterfaceTempFilePath))
         scriptFile.write('%secho \'ONBOOT=yes\' >> %s \n' % (indent, nicInterfaceTempFilePath))
 
         scriptFile.write('%smv -f %s /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, nicInterfaceTempFilePath, eth_name))
-        scriptFile.write('%schmod 666 /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, eth_name))
+        scriptFile.write('%schmod 644 /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, eth_name))
         nic_count = nic_count + 1
 
     # Complete the script with commands to bring down the current interfaces, install the new config file,
     # and bring the interfaces back up
-    scriptFile.write('%sifup --all \n' % indent)
+    scriptFile.write('%s/sbin/service network start \n' % indent)
 
 
 def _generateNicInterfaceScriptDefault(num_nics, indent, scriptFile) :
@@ -272,7 +259,7 @@ def _generateNicInterfaceScriptDefault(num_nics, indent, scriptFile) :
     scriptFile.write('%sifup --all \n' % indent)
 
 
-def _generateNicInterfaceScript(num_nics) :
+def _generateNicInterfaceScript(num_nics, control_nic_prefix) :
     """ Generate a script that configure the local network interfaces
     """
 
@@ -298,13 +285,16 @@ def _generateNicInterfaceScript(num_nics) :
     scriptFile.write('    else\n')
     _generateNicInterfaceScriptDefault(num_nics, "        ", scriptFile)
 
-    # if the /etc/issue file is not present, then use the default content    
+    # If the /etc/issue file is not present, then use the default content    
     scriptFile.write('    fi\n')
     scriptFile.write('else\n')
     _generateNicInterfaceScriptDefault(num_nics, "    ", scriptFile)
 
-    # Close out the file
+    # Generate support to set default gateway
     scriptFile.write('fi\n')
+    _generateDefaultGatewaySupport(control_nic_prefix, scriptFile)
+
+    # Close out the file
     scriptFile.close()
 
     return scriptFilename
@@ -328,8 +318,8 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
     rmcmd = 'rm -f'
 
-    # Generate boothook script to reset network interfaces
-    scriptName = _generateNicInterfaceScript(num_nics)
+    # Generate boothook script to reset network interfaces and default gateway
+    scriptName = _generateNicInterfaceScript(num_nics, control_nic_prefix)
     if scriptName != "" :
         cmd += scriptName + ':text/cloud-boothook '
         rmcmd += ' %s' % scriptName 
@@ -360,13 +350,6 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
   
-    # Generate support for a network configuraiton script
-    scriptName = _generateNetworkSupportScript(control_nic_prefix)
-    if scriptName != "" :
-        cmd += scriptName + ':text/x-shellscript '
-        rmcmd += ' %s' % scriptName 
-        cmd_count = cmd_count + 1
-
     # Combine all scripts into a single mime'd and gzip'ed file, if necessary
     if cmd_count > 0 : 
         config.logger.info('Issuing command %s' % cmd)
