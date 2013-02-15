@@ -1,3 +1,26 @@
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
+
 
 import logging
 
@@ -6,23 +29,20 @@ import logging
 default_VM_flavor = 'm1.tiny'  
 
 #default_OS_image = 'cirros-0.3-x86_64'
-#default_OS_type = 'Linux'
-#default_OS_version = '0.3'
-
+default_OS_image = 'cirros-2nic-x86_64'
 #default_OS_image = 'cirros-4nic'
 #default_OS_type = 'Linux'
 #default_OS_version = '0.3'
 
-#default_OS_image = 'f17-x86_64-openstack-sda'
+#default_OS_image = 'f18-x86_64-openstack-sda'
 #default_OS_type = 'Linux'
 #default_OS_version = '17'
 
 #default_OS_image = 'ubuntu-12.04'
 #default_OS_image = 'ubuntu-12.04-2nic'
 #default_OS_image = 'ubuntu-2nic-wkey'
-default_OS_image = 'cirros-2nic-x86_64'
-default_OS_type = 'Linux'
-default_OS_version = '12'
+#default_OS_type = 'Linux'
+#default_OS_version = '12'
 
 external_router_name = 'externalRouter'
 
@@ -76,6 +96,15 @@ snapshot_maintain_limit = 10 # Remove all snapshots earlier than this #
 # This is used in resources.py.  This file is temporary.  It should not be
 # needed when we have namespaces working.
 subnet_numfile = '/etc/gram/GRAM-next-subnet.txt'
+
+# File where GRAM stores the SSH proxy port state table, and its assoicated
+# lock file. These files are used in manage_ssh_proxy.py
+port_table_file = '/etc/gram/gram-ssh-port-table.txt'
+port_table_lock_file = '/etc/gram/gram-ssh-port-table.lock'
+
+# Location of the GRAM SSH proxy utility binary, which enables GRAM
+# to create and delete proxies for each user requested VM
+ssh_proxy_exe = '/usr/local/bin/gram_ssh_proxy'
 
 # GRAM AM URN (Component ID of AM)
 gram_am_urn = ''

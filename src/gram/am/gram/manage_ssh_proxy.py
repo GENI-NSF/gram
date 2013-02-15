@@ -27,9 +27,6 @@ import string
 import struct
 import fcntl
 
-portTableFile = '/etc/gram/gram-ssh-port-table.txt'
-portTableLockFile = '/etc/gram/gram-ssh-port-table.lock'
-sshProxyExe = '/usr/local/bin/gram_ssh_proxy'
 
 def _execCommand(cmd_string) :
     config.logger.info('Issuing command %s' % cmd_string)
@@ -40,16 +37,16 @@ def _execCommand(cmd_string) :
 def _acquireReadLock() :
         lockFile = None
 	try:
-            lockFile = open(portTableLockFile, 'r')
+            lockFile = open(config.port_table_lock_file, 'r')
 	except IOError:
-            config.logger.error("Unable to open file %s" % portTableLockFile)
+            config.logger.error("Unable to open file %s" % config.port_table_lock_file)
             return None
 
         lockdata = struct.pack('hhllhh', fcntl.F_RDLCK, 0, 0, 0, 0, 0)
         try :
             fcntl.fcntl(lockFile.fileno(), fcntl.F_SETLKW, lockdata)
         except :
-            config.logger.error("Unable to lock file %s" % portTableLockFile)
+            config.logger.error("Unable to lock file %s" % config.port_table_lock_file)
             return None
 
         return lockFile
@@ -60,7 +57,7 @@ def _releaseLock(lockFile) :
         try :
             fcntl.fcntl(lockFile.fileno(), fcntl.F_SETLK, lockdata)
         except :
-            config.logger.error("Unable to release lock file %s" % portTableLockFile)
+            config.logger.error("Unable to release lock file %s" % config.port_table_lock_file)
             return None
 
         lockFile.close()
@@ -80,11 +77,11 @@ def _getPortFromTable(addr) :
         # Attempt to open the port table file for reading
         portLines = []
         try:
-            scriptFile = open(portTableFile, 'r')
+            scriptFile = open(config.port_table_file, 'r')
             portLines = scriptFile.readlines()
             scriptFile.close()
 	except IOError:
-            config.logger.error("Unable to open file %s for reading" % portTableFile)
+            config.logger.error("Unable to open file %s for reading" % config.port_table_file)
             return 0
 
         # Release the SSH port table file lock
@@ -101,7 +98,7 @@ def _getPortFromTable(addr) :
 			if addr == tokens[0] :
 				return int(tokens[1])
 
-	config.logger.error("Unable to find the address %s in port table file %s" % (addr % portTableFile))
+	config.logger.error("Unable to find the address %s in port table file %s" % (addr % config.port_table_file))
 	return 0
 
 
@@ -110,7 +107,7 @@ def _addNewProxy(addr) :
     Access the GRAM SSH proxy daemon and create a new proxy with the given address
     """
 
-    cmd_string = '%s ' % sshProxyExe
+    cmd_string = '%s ' % config.ssh_proxy_exe
     cmd_string = cmd_string + '-m C -a %s ' % addr
 
     try :
@@ -127,7 +124,7 @@ def _removeProxy(addr) :
     Access the GRAM SSH proxy daemon and delete the with the given address
     """
 
-    cmd_string = '%s ' % sshProxyExe
+    cmd_string = '%s ' % config.ssh_proxy_exe
     cmd_string = cmd_string + '-m D -a %s ' % addr
 
     try:
