@@ -42,7 +42,9 @@ import zlib
 import geni
 from geni.util.urn_util import publicid_to_urn
 import geni.util.urn_util as urn
-from geni.SecureXMLRPCServer import SecureXMLRPCServer
+# from geni.SecureXMLRPCServer import SecureXMLRPCServer
+from GramSecureXMLRPCServer import GramSecureXMLRPCServer
+from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
 from geni.am.am3 import *
 
 from gram import config
@@ -392,10 +394,11 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.normalize_credential(c) for c in credentials]
         credentials = \
             [c['geni_value'] for c in filter(isGeniCred, credentials)]
-        creds = self._cred_verifier.verify_from_strings(self._server.pem_cert,
-                                                        credentials,
-                                                        slice_urn,
-                                                        privileges)
+        creds = self._cred_verifier.verify_from_strings(
+            GSecureXMLRPCRequestHandler.get_pem_cert(),
+            credentials,
+            slice_urn,
+            privileges)
         return creds
 
     # See https://www.protogeni.net/trac/protogeni/wiki/RspecAdOpState
@@ -427,7 +430,7 @@ class GramAggregateManagerServer(object):
                                              certfile, 
                                              server_url)
         # FIXME: set logRequests=true if --debug
-        self._server = SecureXMLRPCServer(addr, keyfile=keyfile,
+        self._server = GramSecureXMLRPCServer(addr, keyfile=keyfile,
                                           certfile=certfile, ca_certs=ca_certs)
         self._server.register_instance(AggregateManager(delegate))
         # Set the server on the delegate so it can access the
