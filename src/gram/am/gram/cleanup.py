@@ -64,8 +64,9 @@ for i in range(1, len(sys.argv)) :
 
         # Delete the SSH Proxy assoicated with the VM
         cntrlNet = columns[4].split('=')
-        if len(cntrlNet) == 2 :
-            control_nic_ipaddr = cntrlNet[1]
+        net_str_length = len(cntrlNet)
+        if net_str_length >= 2 :
+            control_nic_ipaddr = cntrlNet[net_str_length - 1].strip()
             manage_ssh_proxy._removeProxy(control_nic_ipaddr)
 
     # Find all ports of this tenant
