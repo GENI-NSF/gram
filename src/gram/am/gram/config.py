@@ -60,6 +60,7 @@ REQUEST_PARSE_FAILED = 1        # aka BADARGS
 UNKNOWN_SLICE = 12              # aka SEARCHFAILED
 UNSUPPORTED = 13                
 SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
+OUT_OF_RANGE = 19               # typically for time mismatches
 
 # GRAM specific codes
 

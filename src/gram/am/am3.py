@@ -89,9 +89,18 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         component_name = str(uuid.uuid4())
         component_id = 'urn:public:geni:gpo:vm+' + component_name
         exclusive = False
-        sliver_type = 'VM'
+        client_id="VM"
+
+        flavors = self._gram_manager.list_flavors()
+        sliver_type = config.default_VM_flavor
+        node_types = ""
+        for flavor_name in flavors.values():
+            node_type = '<node_type type_name="%s"/>' % flavor_name
+            node_types = node_types + node_type + "\n"
+
         available = True
         tmpl = '''  <node component_manager_id="%s"
+        client_id="%s"
         component_name="%s"
         component_id="%s"
         exclusive="%s">
@@ -100,13 +109,17 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     <available now="%s"/>
   </node></rspec>
   '''
-        flavors = self._gram_manager.list_flavors()
-        node_types = ""
-        for flavor_name in flavors.values():
-            node_type = '<node_type type_name="%s"/>' % flavor_name
-            node_types = node_types + node_type + "\n"
-        result = self.advert_header() + \
-            (tmpl % (component_manager_id, component_name, \
+
+        schema_locs = ["http://www.geni.net/resources/rspec/3",
+                       "http://www.geni.net/resources/rspec/3/ad.xsd",
+                       "http://www.geni.net/resources/rspec/ext/opstate/1",
+                       "http://www.geni.net/resources/rspec/ext/opstate/1/ad.xsd"]
+        advert_header = '''<?xml version="1.0" encoding="UTF-8"?> 
+         <rspec xmlns="http://www.geni.net/resources/rspec/3"                     
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+       xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
+        result = advert_header + \
+            (tmpl % (component_manager_id, client_id, component_name, \
                          component_id, exclusive, node_types, sliver_type, available)) 
         
         if 'geni_compressed' in options and options['geni_compressed']:
@@ -336,7 +349,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.describe(the_slice.getSliceURN(), options)
+        gram_ret = self._gram_manager.describe(the_slice.getSliceURN(), options)
+        return gram_ret
 
     def Renew(self, urns, credentials, expiration_time, options):
         '''Renew the local sliver that is part of the named Slice
@@ -355,7 +369,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.renew_slivers(slivers, expiration_time)
+        gram_ret = self._gram_manager.renew_slivers(slivers, creds, expiration_time)
+        
+        return gram_ret
 
     def Shutdown(self, slice_urn, credentials, options):
         '''For Management Authority / operator use: shut down a badly
@@ -365,8 +381,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         privileges = (SHUTDOWNSLIVERPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               slice_urn)
-        # *** WRITE ME
-        return self._gram_manager.shutdown_slice(slice_urn)
+        gram_ret = self._gram_manager.shutdown_slice(slice_urn)
+
+        return gram_ret
 
     # Read URN from certificate file
     def readURNFromCertfile(self, certfile):

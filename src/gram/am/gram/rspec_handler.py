@@ -213,7 +213,6 @@ def parseRequestRspec(geni_slice, rspec) :
 
 def generateManifest(geni_slice, req_rspec) :
 
-
     """
         Returns a manifets rspec that corresponds to the given request rspec
         i.e. annotat the request rspec with information about the resources.
@@ -225,6 +224,15 @@ def generateManifest(geni_slice, req_rspec) :
     request = parseString(req_rspec).childNodes[0]
     manifest.appendChild(request)
     request.setAttribute('type', 'manifest')
+
+    # If the request doesn't have xmlns tag, add it
+    if not request.hasAttribute("xmlns"):
+        request.setAttribute('xmlns', 'http://www.geni.net/resources/rspec/3')
+
+    # If the request doesn't ahve the xmlns:xsi tag, add it
+    if not request.hasAttribute('xmlns:xsi'):
+        request.setAttribute('xmlns:xsi', \
+                                 'http://www.w3.org/2001/XMLSchema-instance')
 
     # If the request rspec has a xsi:schemaLocation element in the header
     # set the appropriate value to say "manifest" instead of "request"
