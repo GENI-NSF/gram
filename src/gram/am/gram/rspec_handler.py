@@ -27,6 +27,7 @@ import socket
 import config
 import open_stack_interface
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
+import uuid
 import utils
 
 def parseRequestRspec(geni_slice, rspec) :
@@ -87,14 +88,14 @@ def parseRequestRspec(geni_slice, rspec) :
                     return error_string, sliver_list, None
 
             # Get disk image by name from node
-            # *** WRITE ME ***
             disk_image_list = sliver_type.getElementsByTagName('disk_image')
             for disk_image in disk_image_list:
                 disk_image_name = disk_image.attributes['name'].value
                 disk_image_uuid = \
                     open_stack_interface._getImageUUID(disk_image_name)
-                print "DISK = " + str(disk_image_name) + " " + str(disk_image_uuid)
                 if disk_image_uuid:
+                    config.logger.info("DISK = " + str(disk_image_name) + \
+                                           " " + str(disk_image_uuid))
                     vm_object.setOSImageName(disk_image_name)
                 else:
                     error_string = "Unsupported disk image: " + \
@@ -399,3 +400,45 @@ def generateManifest(geni_slice, req_rspec) :
 
     return clean_manifest
 
+# Generate advertisement RSPEC for aggeregate based on 
+# flavors and disk images registered with open stack
+def generateAdvertisement(am_urn):
+
+    component_manager_id = am_urn
+    component_name = str(uuid.uuid4())
+    component_id = 'urn:public:geni:gpo:vm+' + component_name
+    exclusive = False
+    client_id="VM"
+
+    flavors = open_stack_interface._listFlavors()
+    sliver_type = config.default_VM_flavor
+    node_types = ""
+    for flavor_name in flavors.values():
+        node_type = '<node_type type_name="%s"/>' % flavor_name
+        node_types = node_types + node_type + "\n"
+
+    available = True
+    tmpl = '''  <node component_manager_id="%s"
+        client_id="%s"
+        component_name="%s"
+        component_id="%s"
+        exclusive="%s">
+        %s
+    <sliver_type name="%s"/>
+    <available now="%s"/>
+  </node></rspec>
+  '''
+
+    schema_locs = ["http://www.geni.net/resources/rspec/3",
+                   "http://www.geni.net/resources/rspec/3/ad.xsd",
+                   "http://www.geni.net/resources/rspec/ext/opstate/1",
+                   "http://www.geni.net/resources/rspec/ext/opstate/1/ad.xsd"]
+    advert_header = '''<?xml version="1.0" encoding="UTF-8"?> 
+         <rspec xmlns="http://www.geni.net/resources/rspec/3"                 
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+       xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
+    result = advert_header + \
+        (tmpl % (component_manager_id, client_id, component_name, \
+                     component_id, exclusive, node_types, \
+                     sliver_type, available)) 
+    return result

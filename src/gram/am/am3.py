@@ -49,6 +49,7 @@ from geni.am.am3 import *
 
 from gram import config
 from gram.gram_manager import GramManager
+from gram.rspec_handler import generateAdvertisement
 import gram.open_stack_interface
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
@@ -87,42 +88,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             ret = self.Describe(slice_urns, credentials, options)
             return ret
 
-        component_manager_id = self._my_urn
-        component_name = str(uuid.uuid4())
-        component_id = 'urn:public:geni:gpo:vm+' + component_name
-        exclusive = False
-        client_id="VM"
-
-        flavors = self._gram_manager.list_flavors()
-        sliver_type = config.default_VM_flavor
-        node_types = ""
-        for flavor_name in flavors.values():
-            node_type = '<node_type type_name="%s"/>' % flavor_name
-            node_types = node_types + node_type + "\n"
-
-        available = True
-        tmpl = '''  <node component_manager_id="%s"
-        client_id="%s"
-        component_name="%s"
-        component_id="%s"
-        exclusive="%s">
-        %s
-    <sliver_type name="%s"/>
-    <available now="%s"/>
-  </node></rspec>
-  '''
-
-        schema_locs = ["http://www.geni.net/resources/rspec/3",
-                       "http://www.geni.net/resources/rspec/3/ad.xsd",
-                       "http://www.geni.net/resources/rspec/ext/opstate/1",
-                       "http://www.geni.net/resources/rspec/ext/opstate/1/ad.xsd"]
-        advert_header = '''<?xml version="1.0" encoding="UTF-8"?> 
-         <rspec xmlns="http://www.geni.net/resources/rspec/3"                     
-                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-       xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
-        result = advert_header + \
-            (tmpl % (component_manager_id, client_id, component_name, \
-                         component_id, exclusive, node_types, sliver_type, available)) 
+        result = generateAdvertisement(self._my_urn)
         
         if 'geni_compressed' in options and options['geni_compressed']:
             try:
