@@ -843,6 +843,22 @@ def _listFlavors():
         flavors[id]=name
     return flavors
 
+# Get dictionary of all supported images (id => name)
+def _listImages():
+    images ={}
+    command_string = "nova image-list"
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        image_id = parts[1].strip()
+        image_name = parts[2].strip()
+        images[image_id] = image_name
+
+    return images
+
+
 # Find VLAN's associated with MAC addresses and hostnames
 # Return dictionary {mac => {'vlan':vlan, 'host':host}}
 def _lookup_vlans_for_tenant(tenant_id):

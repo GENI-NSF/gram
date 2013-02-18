@@ -41,8 +41,8 @@ default_OS_image = 'cirros-2nic-x86_64'
 #default_OS_image = 'ubuntu-12.04'
 #default_OS_image = 'ubuntu-12.04-2nic'
 #default_OS_image = 'ubuntu-2nic-wkey'
-#default_OS_type = 'Linux'
-#default_OS_version = '12'
+default_OS_type = 'Linux'
+default_OS_version = '12'
 
 external_router_name = 'externalRouter'
 
@@ -123,3 +123,68 @@ vmoc_slice_autoregister = True # Set to False to disable GRAM/VMOC interface
 vmoc_set_vlan_on_untagged_packet_out = False
 vmoc_set_vlan_on_untagged_flow_mod = True
 vmoc_accept_clear_all_flows_on_startup = True
+
+# Maps disk_image by name to dic with {os, version, description}
+disk_image_metadata = {}
+
+import json
+import sys
+# Read in configuration file
+# For each key in JSON dictionary read
+# Try to set the associated value in config module
+# if it can be coerced into the object of current type
+def initialize(config_file):
+    print "config.initialize: " + config_file
+
+    data = None
+    try:
+        f = open(config_file, 'r')
+        data = f.read()
+        f.close()
+    except Exception, e:
+        print "Failed to read GRAM config file: " + config_file + str(e)
+        logger.info("Failed to read GRAM config file: " + config_file)
+        return
+
+    config_module = sys.modules[__name__]
+    data_json = json.loads(data)
+
+    for var in data_json.keys():
+        if var[:2] == "__": continue # Comment in the JSON file
+        if not hasattr(config_module, var):
+            logger.info("No variable named " + var + " in module config")
+        else:
+            current_type = type(getattr(config_module, var)).__name__
+            new_value = data_json[var]
+            new_type = type(new_value).__name__
+            can_coerce = True
+
+            try :
+                if current_type == new_type:
+                    pass
+                elif current_type == 'int':
+                    new_value = int(new_value)
+                elif current_type == 'long':
+                    new_value = long(new_value)
+                elif current_type == 'str':
+                    new_value = str(new_value)
+                elif current_type == 'float':
+                    new_value = float(new_value)
+                elif current_type == 'bool':
+                    new_value = bool(new_value)
+                else:
+                    logger.info("Can't coerce type " + current_type + " to " + 
+                                new_type)
+                    can_coerce = False
+            except Exception, e:
+                logger.info("Error coercing value : " + new_value + \
+                                "to " + current_type)
+                can_coerce = False
+
+            if can_coerce:
+                setattr(config_module, var, new_value)
+
+            
+                    
+    
+

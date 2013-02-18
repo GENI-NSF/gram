@@ -417,14 +417,28 @@ def generateAdvertisement(am_urn):
         node_type = '<node_type type_name="%s"/>' % flavor_name
         node_types = node_types + node_type + "\n"
 
+    images = open_stack_interface._listImages()
+#    print "IMAGES = " + str(images)
+    image_types = ""
+    for image_id in images.keys():
+        image_name = images[image_id]
+        version = config.default_OS_version
+        os = config.default_OS_type
+        description = ""
+        if config.disk_image_metadata.has_key(image_name):
+            metadata = config.disk_image_metadata[image_name]
+            if metadata.has_key('os'): os = metadata['os']
+            if metadata.has_key('version'): version = metadata['version']
+            if metadata.has_key('description'): description = metadata['description']
+        disk_image = '<disk_image name="%s" os="%s" version="%s" description="%s" />' % (image_name, os, version, description)
+        image_types = image_types + disk_image + "\n"
+
     available = True
     tmpl = '''  <node component_manager_id="%s"
         client_id="%s"
         component_name="%s"
         component_id="%s"
-        exclusive="%s">
-        %s
-    <sliver_type name="%s"/>
+        exclusive="%s">%s%s<sliver_type name="%s"/>
     <available now="%s"/>
   </node></rspec>
   '''
@@ -440,5 +454,6 @@ def generateAdvertisement(am_urn):
     result = advert_header + \
         (tmpl % (component_manager_id, client_id, component_name, \
                      component_id, exclusive, node_types, \
+                     image_types, \
                      sliver_type, available)) 
     return result
