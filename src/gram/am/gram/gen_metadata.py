@@ -30,31 +30,24 @@ import config
 import tempfile
 
 nicInterfaceTempFilePath = '/tmp/tmp_net_inf'
+targetVMlocalTempPath = '/tmp/tmpfile'
 
-def _generateScriptInstalls(installItem) :
-    """ Generate text for a script that handles an _InstallItem object:
+def _generateScriptInstalls(installItem, scriptFile) :
+    """
+        Generate text for a script that handles an _InstallItem object:
         1) Get the file from the source URL
         2) Uncompress and/or untar the file, if applicable
         3) Copy the resulting file/tarball to the destination location
     """
     
-    # Open the script file for writing
-    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
-    scriptFilename = '%s' % tempscriptfile.name
-    try:
-        scriptFile = open(scriptFilename, 'w')
-    except IOError:
-        config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
-        return ""
-
-    scriptFile.write('#!/bin/sh \n')
     theSourceURL = installItem.source_url
     theDestinationDirectory = installItem.destination
 
     # Perform the wget on the source URL
-    scriptFile.write('wget -P /tmp %s \n' % theSourceURL)
-    scriptFile.write('if [ $? -eq 0 ]; \n')
-    scriptFile.write('then \n')
+    scriptFile.write(' - [ sh, -c, "echo \'#!/bin/sh \' > %s " ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "echo \'wget -P /tmp %s \' >> %s " ]\n' % (theSourceURL, targetVMlocalTempPath))
+    scriptFile.write(' - [ sh, -c, "echo \'if [ $? -eq 0 ]; \' >> %s " ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "echo \'then \' >> %s " ]\n' % targetVMlocalTempPath)
 
     # For HTTP gets, remove anything after the first "?" character
     strendindex = theSourceURL.find("?")
@@ -73,42 +66,62 @@ def _generateScriptInstalls(installItem) :
     # Create destination directory (and any necessary parent/ancestor
     #    directories in path) if it does not exist
     if not os.path.isdir(dest) :
-        scriptFile.write('    mkdir -p %s \n' % dest)
+        scriptFile.write(' - [ sh, -c, "echo \'    mkdir -p %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
 
     # Handle compressed and tar'ed files as necessary
     # ISSUE: Do we use the file extension or the installItem.file_type?
     if (downloadedFile.endswith("tgz") or downloadedFile.endswith("tar.gz")) :
         # Uncompress and untar file, and copy to destination location
-        scriptFile.write('    tar -C %s -zxf %s \n' % (dest, downloadedFile))
+        scriptFile.write(' - [ sh, -c, "echo \'    tar -C %s -zxf %s \' >> %s "]\n' % (dest, downloadedFile, targetVMlocalTempPath))
 
     elif (downloadedFile.endswith("tar")) :
         # Untar file and copy to destination location
-        scriptFile.write('    tar -C %s -xf %s \n' % (dest, downloadedFile))
+        scriptFile.write(' - [ sh, -c, "echo \'    tar -C %s -xf %s \' >> %s "]\n' % (dest, downloadedFile, targetVMlocalTempPath))
 
     elif (downloadedFile.endswith("gz")) :
         # Copy file to destimation and unzip
-        scriptFile.write('    cp %s %s \n' % (downloadedFile, dest))
+        scriptFile.write(' - [ sh, -c, "echo \'    cp %s %s \' >> %s "]\n' % (downloadedFile, dest, targetVMlocalTempPath))
         zipFile = dest + '/' + os.path.basename(downloadedFile)
-        scriptFile.write('    gunzip %s \n' % zipFile)
+        scriptFile.write(' - [ sh, -c "echo \'    gunzip %s \' >> %s "]\n' % (zipFile, targetVMlocalTempPath))
 
     else :
         # Some other file type- simply copy file to destination
-        scriptFile.write('    cp %s %s \n' % (downloadedFile, dest))
+        scriptFile.write('- [ sh, -c, "echo \'    cp %s %s \' >> %s" ]\n' % (downloadedFile, dest, targetVMlocalTempPath))
 
     # Make file accessible to experimenter
-    scriptFile.write('    chmod -R 777 %s \n' % dest)
+    scriptFile.write(' - [ sh, -c, "echo \'    chmod -R 777 %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
             
     # Delete the downloaded file
-    scriptFile.write('    rm %s \n' % downloadedFile)            
-    scriptFile.write('fi \n\n')
-    scriptFile.close()
+    scriptFile.write(' - [ sh, -c, "echo \'    rm -f %s \' >> %s "]\n' % (downloadedFile, targetVMlocalTempPath))
+    scriptFile.write(' - [ sh, -c, "echo \'fi \' >> %s " ]\n\n' % targetVMlocalTempPath)
 
-    return scriptFilename
+    scriptFile.write(' - [ sh, -c, "chmod 777 %s" ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "%s" ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "rm -f %s" ]\n' % targetVMlocalTempPath)
+
+    return True
 
 
-def _generateScriptExecutes(executeItem) :
+def _generateScriptExecutes(executeItem, scriptFile) :
     """ Generate text for a script that handles an _ExecuteItem object by
-        invoking its execution in the generated script
+        invoking its execution in the generated cloud-config script
+    """
+
+    if executeItem.shell == 'sh' or 'bash' :
+        scriptFile.write(' - [ %s, -c, "%s" ]\n' % (executeItem.shell, executeItem.command))
+    else :
+        config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
+        return False
+
+    return True
+
+
+def _generateScriptExeAndInstalls(install_list, execute_list) :
+    """ Generate a cloud-config script that installs the user defined installs and then
+        invokes the user-defined executes; The installs and executes must be bundled into
+        a single script in order to preserve the order of the calls defined in the rspec;
+        If implemented as separate scripts, cloud-init will invoke the installs and executables
+        in a non-deterministic order, which is not desireable.
     """
     tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
     scriptFilename = '%s' % tempscriptfile.name
@@ -118,14 +131,24 @@ def _generateScriptExecutes(executeItem) :
         config.logger.error("Failed to open file that creates user executable script: %s" % scriptFilename)
         return ""
 
-    if executeItem.shell == 'sh' or 'bash' :
-        scriptFile.write('#!/bin/%s \n' % executeItem.shell)
-        scriptFile.write('%s \n\n' % executeItem.command)
-    else :
-        config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
-        scriptFilename = ""
+    scriptFile.write('#cloud-config\n')
+    scriptFile.write('runcmd:\n')
+
+    cmd_count = True
+    for item in install_list :
+        if _generateScriptInstalls(item, scriptFile) :
+            cmd_count = False
+
+    # Generate support for execute invocations
+    for item in execute_list :
+        if _generateScriptExecutes(item, scriptFile) :
+            cmd_count = False
 
     scriptFile.close()
+
+    if cmd_count :
+        return ""
+
     return scriptFilename
 
 
@@ -326,18 +349,10 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
         cmd_count = cmd_count + 1
 
     # Generate support for file installs
-    for item in install_list :
-        scriptName = _generateScriptInstalls(item)
+    if len(install_list) > 0 or len(execute_list) > 0 :
+        scriptName = _generateScriptExeAndInstalls(install_list, execute_list)
         if scriptName != "" :
-            cmd += scriptName + ':text/x-shellscript '
-            rmcmd += ' %s' % scriptName 
-            cmd_count = cmd_count + 1
-
-    # Generate support for execute invocations
-    for item in execute_list :
-        scriptName = _generateScriptExecutes(item)
-        if scriptName != "" :
-            cmd += scriptName + ':text/x-shellscript '
+            cmd += scriptName + ':text/cloud-config '
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
 
