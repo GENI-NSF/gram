@@ -38,6 +38,13 @@ def _generateScriptInstalls(installItem, scriptFile) :
         1) Get the file from the source URL
         2) Uncompress and/or untar the file, if applicable
         3) Copy the resulting file/tarball to the destination location
+
+        NOTE: In order to preserve the proper user-defined sequence of the install
+        and execute requests, we must embed all install items within the same
+        cloud-config script. As such, the implementation of this script to perserve
+        the sequence is a little unconventional- This function creates the content
+        for a cloud-config script that in turn generates a shell script on the target VM,
+        which in turn handles the install... three degrees of indirection.
     """
     
     theSourceURL = installItem.source_url
@@ -105,6 +112,12 @@ def _generateScriptInstalls(installItem, scriptFile) :
 def _generateScriptExecutes(executeItem, scriptFile) :
     """ Generate text for a script that handles an _ExecuteItem object by
         invoking its execution in the generated cloud-config script
+
+        NOTE: In order to preserve the proper user-defined sequence of the install
+        and execute requests, we must embed all execute items within the same
+        cloud-config script. As such, this function creates the content
+        for a cloud-config script that in turn invokes a shell script on the target VM
+        to makes the execute call.
     """
 
     if executeItem.shell == 'sh' or 'bash' :
@@ -123,6 +136,8 @@ def _generateScriptExeAndInstalls(install_list, execute_list) :
         If implemented as separate scripts, cloud-init will invoke the installs and executables
         in a non-deterministic order, which is not desireable.
     """
+
+    # Open a temporary file to hold the cloud-config script
     tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
     scriptFilename = '%s' % tempscriptfile.name
     try:
@@ -134,6 +149,7 @@ def _generateScriptExeAndInstalls(install_list, execute_list) :
     scriptFile.write('#cloud-config\n')
     scriptFile.write('runcmd:\n')
 
+    # Generate support for installs
     cmd_count = True
     for item in install_list :
         if _generateScriptInstalls(item, scriptFile) :
@@ -144,16 +160,19 @@ def _generateScriptExeAndInstalls(install_list, execute_list) :
         if _generateScriptExecutes(item, scriptFile) :
             cmd_count = False
 
+    # Close the generated file
     scriptFile.close()
 
+    # Exit early if no commands are successful
     if cmd_count :
         return ""
 
+    # Return the script filename
     return scriptFilename
 
 
 def _generateAccount(user) :
-    """ Generate a script that creates a new user account and adds SSH authentiation
+    """ Generate a script that creates a new user account with SSH authentiation
     """
 
     userName = ""
@@ -232,9 +251,7 @@ def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
     """ Generate the network interface configuration content specific to a Fedora image
     """
 
-    # Generate contents of new /etc/network/interfaces file and put it in a temporary file
-    scriptFile.write('%s/sbin/service network stop \n' % indent)
-
+    # Generate contents of new /etc/sysconfig/network-scripts files
     # Create the requisite number of interfaces based on the total number of NICs accross all VMs
     nic_count = 0
     while nic_count < num_nics :
@@ -247,9 +264,8 @@ def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
         scriptFile.write('%schmod 644 /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, eth_name))
         nic_count = nic_count + 1
 
-    # Complete the script with commands to bring down the current interfaces, install the new config file,
-    # and bring the interfaces back up
-    scriptFile.write('%s/sbin/service network start \n' % indent)
+    # Complete the script with commands to restart the network
+    scriptFile.write('%s/etc/init.d/network restart \n' % indent)
 
 
 def _generateNicInterfaceScriptDefault(num_nics, indent, scriptFile) :
@@ -348,7 +364,7 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
         rmcmd += ' %s' % scriptName 
         cmd_count = cmd_count + 1
 
-    # Generate support for file installs
+    # Generate support for file installs and executes
     if len(install_list) > 0 or len(execute_list) > 0 :
         scriptName = _generateScriptExeAndInstalls(install_list, execute_list)
         if scriptName != "" :
@@ -381,3 +397,4 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
         command = rmcmd.split()
         subprocess.check_output(command)
 
+    return cmd_count

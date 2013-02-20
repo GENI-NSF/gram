@@ -589,10 +589,12 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
+    zipped_userdata_filename = userdata_filename + ".gz"
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
-    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
-    cmd_string += (' --user_data %s.gz' % userdata_filename)
+    metadata_cmd_count = gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
+    if metadata_cmd_count > 0 :
+        cmd_string += (' --user_data %s' % zipped_userdata_filename)
 
     # Add security group support
     cmd_string += ' --security_groups %s' % slice_object.getSecurityGroup()
@@ -622,7 +624,6 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     vm_uuid = _getValueByPropertyName(output, 'id')
 
     # Delete the temp file
-    zipped_userdata_filename = userdata_filename + ".gz"
     os.unlink(zipped_userdata_filename)
 
     # Wait for the vm status to turn to 'active' and then reboot
