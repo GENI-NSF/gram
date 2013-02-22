@@ -232,6 +232,68 @@ def _generateAccount(user) :
     return scriptFilename
 
 
+def _generateEtcHostsSupport(slice_object, scriptFile) :
+    """ Generate script content that configures the local /etc/hosts file
+    """
+
+    # State variables for tracking references of the VM via subnets
+    used_vm_names = []
+    used_vm_refs = []
+    tab_char = '\t'
+    first_line = True
+
+    # First iterate over the links in the slice
+    link_objects = slice_object.getNetworkLinks()
+    for link in link_objects :
+        # The first alias uses the link name
+        link_name = link.getName()
+
+        # Next iterate through the end points of the link
+        end_points = link.getEndpoints()
+        for end_point in end_points :
+            # Verify that the VM is valid
+            vm_object = end_point.getVM()
+            if vm_object != None :
+                # The first alias is <VM name>-<link name>
+                vm_name = vm_object.getName()
+                first_alias = '%s-%s' % (vm_name, link_name)
+
+                # Need the IP address of course
+                ip_addr = end_point.getIPAddress()
+
+                # Check if the VM has been referenced yet
+                if vm_name in used_vm_names :
+                    # If the VM has been referenced then add only a second reference of the format
+                    # <VM name>-<refernce count>
+                    vm_index = used_vm_names.index(vm_name)
+                    vm_count = used_vm_refs[vm_index] + 1
+
+                    second_alias = '%s-' % vm_name
+                    second_alias += '%d' % vm_count
+
+                    # Update the refreence count
+                    used_vm_refs[vm_index] = vm_count
+
+                    # Write the results to the script
+                    scriptFile.write('echo \'%s%s%s%s%s\' >> /etc/hosts\n' % (ip_addr, tab_char, first_alias, tab_char, second_alias))
+                else :
+                    # Insert blank line and comments if necessary
+                    if first_line :
+                        scriptFile.write('echo \'\' >> /etc/hosts\n')
+                        scriptFile.write('echo \'# GRAM specific hosts\' >> /etc/hosts\n')
+                        first_line = False
+
+                    # If the VM has not been referenced yet, then add a second and third alias
+                    # The second alias is of the form <VM name>-<reference count>
+                    # The third alias is the VM name
+                    second_alias = '%s-0' % vm_name
+                    scriptFile.write('echo \'%s%s%s%s%s%s%s\' >> /etc/hosts\n' % (ip_addr, tab_char, first_alias, tab_char, second_alias, tab_char, vm_name))
+
+                    # Update the reference count lists
+                    used_vm_names.append(vm_name)
+                    used_vm_refs.append(0)
+
+
 def _generateDefaultGatewaySupport(control_nic_prefix, scriptFile) :
     """ Generate script content that configures the local default gateway
     """
@@ -298,7 +360,7 @@ def _generateNicInterfaceScriptDefault(num_nics, indent, scriptFile) :
     scriptFile.write('%sifup --all \n' % indent)
 
 
-def _generateNicInterfaceScript(num_nics, control_nic_prefix) :
+def _generateNicInterfaceScript(slice_object, num_nics, control_nic_prefix) :
     """ Generate a script that configure the local network interfaces
     """
 
@@ -311,8 +373,13 @@ def _generateNicInterfaceScript(num_nics, control_nic_prefix) :
         config.logger.error("Failed to open file that creates the network interface script: %s" % scriptFilename)
         return ""
 
-    # First generate portion of script that determines the version of Linux
+    # Use SH shell
     scriptFile.write('#!/bin/sh \n')
+
+    # Generate support to set /etc/hosts
+    _generateEtcHostsSupport(slice_object, scriptFile)
+
+    # Next generate portion of script that determines the version of Linux
     scriptFile.write('if [ -f /etc/issue ]; then\n')
     scriptFile.write('    grep -iq fedora /etc/issue\n')
     scriptFile.write('    if [ $? -eq 0 ]; then \n')
@@ -328,9 +395,9 @@ def _generateNicInterfaceScript(num_nics, control_nic_prefix) :
     scriptFile.write('    fi\n')
     scriptFile.write('else\n')
     _generateNicInterfaceScriptDefault(num_nics, "    ", scriptFile)
+    scriptFile.write('fi\n')
 
     # Generate support to set default gateway
-    scriptFile.write('fi\n')
     _generateDefaultGatewaySupport(control_nic_prefix, scriptFile)
 
     # Close out the file
@@ -339,7 +406,7 @@ def _generateNicInterfaceScript(num_nics, control_nic_prefix) :
     return scriptFilename
 
 
-def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_prefix, scriptFilename = 'userdata.txt') :
+def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics, control_nic_prefix, scriptFilename = 'userdata.txt') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
             users: dictionary of json specs describing new accounts to create at boot
@@ -358,7 +425,7 @@ def configMetadataSvcs(users, install_list, execute_list, num_nics, control_nic_
     rmcmd = 'rm -f'
 
     # Generate boothook script to reset network interfaces and default gateway
-    scriptName = _generateNicInterfaceScript(num_nics, control_nic_prefix)
+    scriptName = _generateNicInterfaceScript(slice_object, num_nics, control_nic_prefix)
     if scriptName != "" :
         cmd += scriptName + ':text/cloud-boothook '
         rmcmd += ' %s' % scriptName 

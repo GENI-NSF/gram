@@ -1,3 +1,25 @@
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
 
 import subprocess
 import pdb
@@ -134,10 +156,8 @@ def provisionResources(geni_slice, users) :
 
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
-    total_nic_count = 0
     for vm in geni_slice.getVMs() :
         for nic in vm.getNetworkInterfaces() :
-            total_nic_count = total_nic_count + 1
             if nic.getIPAddress() == None :
                 # NIC needs an IP, if it is connected to a link
                 link = nic.getLink()
@@ -193,9 +213,9 @@ def provisionResources(geni_slice, users) :
                 # We are in Step 1 or Step 3 of the VM placement algorithm
                 # described above.  We don't give openstack any hints on
                 # where this VM should go
-                vm_uuid = _createVM(vm, users, total_nic_count, None)
+                vm_uuid = _createVM(vm, users, None)
             else :
-                vm_uuid = _createVM(vm, users, total_nic_count, vm_uuids)
+                vm_uuid = _createVM(vm, users, vm_uuids)
             if vm_uuid == None :
                 config.logger.error('Failed to create vm for node %s' %
                                     vm.getName())
@@ -536,7 +556,7 @@ def _getPortsForTenant(tenant_uuid):
 
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
-def _createVM(vm_object, users, total_nic_count, placement_hint) :
+def _createVM(vm_object, users, placement_hint) :
     slice_object = vm_object.getSlice()
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()
@@ -559,7 +579,8 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     control_port_uuid = _getValueByPropertyName(output, 'id')
 
     # Now create ports for the experiment data networks
-    for nic in vm_object.getNetworkInterfaces() :
+    vm_net_infs = vm_object.getNetworkInterfaces()
+    for nic in vm_net_infs :
         link_object = nic.getLink()
         if not link_object: continue
         net_uuid = link_object.getNetworkUUID()
@@ -572,7 +593,7 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
 
     # Now grab and set the mac addresses from the port list
     ports_info = _getPortsForTenant(tenant_uuid)
-    for nic in vm_object.getNetworkInterfaces() :
+    for nic in vm_net_infs :
         nic_uuid = nic._uuid
 #        print "NIC_UUID " + str(nic_uuid) +" LISTED " + str(ports_info.has_key(nic_uuid))
         if ports_info.has_key(nic_uuid):
@@ -592,7 +613,8 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     zipped_userdata_filename = userdata_filename + ".gz"
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
-    metadata_cmd_count = gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
+    total_nic_count = len(vm_net_infs) + 1
+    metadata_cmd_count = gen_metadata.configMetadataSvcs(slice_object, users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
     if metadata_cmd_count > 0 :
         cmd_string += (' --user_data %s' % zipped_userdata_filename)
 
@@ -604,7 +626,7 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     cmd_string += ' --nic port-id=%s' % control_port_uuid
     
     # Now add the NICs for the experiment data network
-    for nic in vm_object.getNetworkInterfaces() :
+    for nic in vm_net_infs :
         port_uuid = nic.getUUID()
         if port_uuid != None :
             cmd_string += (' --nic port-id=%s' % port_uuid)
