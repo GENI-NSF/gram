@@ -281,14 +281,15 @@ def generateManifest(geni_slice, req_rspec) :
             # interface, etc.
             sliver_type_set=False
             login_info_set = False
-            login_elements_list = list() 
+            login_elements_list = list()
+            login_elements_list_unset = True 
             for child_of_node in child.childNodes :
                 # First create a new element that has login information
                 # for users (if user accounts have been set up)
                 user_names = vm_object.getAuthorizedUsers()
 
                 # Create a list that holds login info for each user
-                if user_names != None :
+                if user_names != None and login_elements_list_unset :
                     login_port = str(vm_object.getSSHProxyLoginPort())
                     my_host_name = \
                         socket.gethostbyaddr(socket.gethostname())[0]
@@ -299,7 +300,8 @@ def generateManifest(geni_slice, req_rspec) :
                         login_element.setAttribute('port', login_port)
                         login_element.setAttribute('username', user_names[i])
                         login_elements_list.append(login_element)
-                        
+
+                login_elements_list_unset = False
                 if child_of_node.nodeName == 'sliver_type' :
                     # sliver_type = child_of_node.attributes['name'].value
                     child_of_node.setAttribute('name', 'virtual-machine')
@@ -342,8 +344,9 @@ def generateManifest(geni_slice, req_rspec) :
                 elif child_of_node.nodeName == 'services' :
                     # Add a sub-element for the login port for the VM
                     login_info_set = True
-                    for i in range(0, len(login_elements_list)) :
-                        child_of_node.appendChild(login_elements_list[i])
+                    if len(login_elements_list) > 0 :
+                        for i in range(0, len(login_elements_list)) :
+                            child_of_node.appendChild(login_elements_list[i])
                         
             if not sliver_type_set :
                 # There was no sliver_type set on the manifest because there
