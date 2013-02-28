@@ -281,13 +281,13 @@ def generateManifest(geni_slice, req_rspec) :
             # interface, etc.
             sliver_type_set=False
             login_info_set = False
+            login_elements_list = list() 
             for child_of_node in child.childNodes :
                 # First create a new element that has login information
                 # for users (if user accounts have been set up)
                 user_names = vm_object.getAuthorizedUsers()
 
                 # Create a list that holds login info for each user
-                login_elements_list = list() 
                 if user_names != None :
                     login_port = str(vm_object.getSSHProxyLoginPort())
                     my_host_name = \

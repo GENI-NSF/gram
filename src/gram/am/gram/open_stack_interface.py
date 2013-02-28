@@ -226,6 +226,31 @@ def provisionResources(geni_slice, users) :
                 vm_uuids.append(vm_uuid)
                 vm.setAuthorizedUsers(user_names)
 
+# Delete all ports associated with given slice/tenant
+# Allow some failures: there will be some that can't be deleted
+# Or are automatically deleted by deleting others
+def _deleteNetworkPorts(geni_slice):
+    tenant_uuid = geni_slice.getTenantUUID();
+
+    ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    print ports_cmd
+    ports_output = _execCommand(ports_cmd)
+    port_lines = ports_output.split('\n')
+    for i in range(3, len(port_lines)-2):
+        port_columns = port_lines[i].split('|')
+        port_id = port_columns[1].strip()
+        try:
+            delete_port_cmd = 'quantum port-delete %s' % port_id
+            print delete_port_cmd
+            _execCommand(delete_port_cmd)
+        except Exception:
+            # Sometimes deleting one port automatically deletes another
+            # so it is no longer there
+            # Also some ports belong to the network:router_interface
+            # and can't be deleted by port API
+            print "Failed to delete port %s" % port_id
+            pass
+
 def deleteAllResourcesForSlice(geni_slice) :
     """
         Deallocate all network and VM resources held by this slice.
@@ -237,6 +262,9 @@ def deleteAllResourcesForSlice(geni_slice) :
         _deleteVM(vm)
         vm.setAllocationState(config.unallocated)
         sliver_stat_list.addSliver(vm)
+
+    # Delete ports associated with sliceb
+    _deleteNetworkPorts(geni_slice)
 
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
