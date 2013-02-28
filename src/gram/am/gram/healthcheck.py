@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     while True:
         perform_gram_healthcheck()
-         time.sleep(GRAM_HEALTHCHECK_INTERVAL)
+        time.sleep(GRAM_HEALTHCHECK_INTERVAL)
 
 
         
