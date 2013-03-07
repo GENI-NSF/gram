@@ -25,11 +25,12 @@
 import logging
 
 # OpenStack related configuration
-#default_VM_flavor = 'm1.smaller'  
-default_VM_flavor = 'm1.tiny'  
+#default_VM_flavor = 'm1.small'  
+default_VM_flavor = 'm1.smaller'  
+#default_VM_flavor = 'm1.tiny'  
 
-#default_OS_image = 'cirros-0.3-x86_64'
-default_OS_image = 'cirros-2nic-x86_64'
+#default_OS_image = 'cirros-0.3.1'
+#default_OS_image = 'cirros-2nic-x86_64'
 #default_OS_image = 'cirros-4nic'
 #default_OS_type = 'Linux'
 #default_OS_version = '0.3'
@@ -38,7 +39,7 @@ default_OS_image = 'cirros-2nic-x86_64'
 #default_OS_type = 'Linux'
 #default_OS_version = '17'
 
-#default_OS_image = 'ubuntu-12.04'
+default_OS_image = 'ubuntu-12.04'
 #default_OS_image = 'ubuntu-12.04-2nic'
 #default_OS_image = 'ubuntu-2nic-wkey'
 default_OS_type = 'Linux'

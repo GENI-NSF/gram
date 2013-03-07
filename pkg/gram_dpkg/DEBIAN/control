@@ -1,5 +1,5 @@
 Package: gram
-Version: 1
+Version: 0.1
 Priority: optional
 Architecture: all
 Depends: git, cloud-utils, kvm, xmlsec1

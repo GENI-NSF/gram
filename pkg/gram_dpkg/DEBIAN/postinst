@@ -18,7 +18,7 @@ source /etc/novarc
 # Invoke glance to install the VM images
 glance image-create --name=ubuntu-12.04 --file --disk_format=raw --container-format=bare /etc/gram/images/precise-server-cloudimg-amd64-disk1.img
 glance image-create --name=f18_x86_64-openstack-sda --file -disk_format qcow2 --container-format=bare /etc/gram/images/f18_x86_64-openstack-sda.qcow2
-glance image-create --name=cirros-0.3-x86_64 --file -disk_format qcow2 --container-format=bare /etc/gram/images/cirros-0.3.0-x86_64-disk.qcow2
+glance image-create --name=cirros-0.3-x86_64 --file -disk_format qcow2 --container-format=bare /etc/gram/images/cirros-0.3.1-x86_64-disk.qcow2
 
 # Create link in gcf installation directory
 cd /opt
@@ -34,7 +34,12 @@ cat '' > /home/gram/.bashrc
 cat 'export PATH=/home/gram/gram/src:/opt/gcf/src:$PATH' > /home/gram/.bashrc
 cat 'export PYTHONPATH=/opt/gcf/src:/home/gram/gram/src' > /home/gram/.bashrc
 
-# Final touches on gram source installation
+# Make sure /etc/gram is right permissions
+chmod 777 /etc/gram
+
+# Install GRAM source
+cd /home/gram
+mv -f /tmp/gram gram-0.1
 ln -s gram-0.1 gram
 mkdir .gcf
 cp gram/gcf_config .gcf
@@ -92,6 +97,3 @@ cp /etc/gram/ch-key.pem .
 su - omniuser
 ssh-keygen
 exit
-
-
-
