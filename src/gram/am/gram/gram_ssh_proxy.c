@@ -31,8 +31,8 @@
 #include <fcntl.h>
 
 #define IPTABLES_LOCATION_STR "/sbin/iptables"
-#define PORT_TABLE_LOCATION "/tmp/gram-ssh-port-table.txt"
-#define PORT_TABLE_LOCKFILE "/tmp/gram-ssh-port-table.lock"
+#define PORT_TABLE_LOCATION "/etc/gram/gram-ssh-port-table.txt"
+#define PORT_TABLE_LOCKFILE "/etc/gram/gram-ssh-port-table.lock"
 #define PORT_NUMBER_START 3000
 
 #define MAX_PORT_TABLE_ENTRIES 1000
@@ -44,9 +44,12 @@
 #define MODE_NONE 0
 #define MODE_CREATE 1
 #define MODE_DELETE 2
+#define MODE_CLEAR  3
 
 #define TRUE 1
 #define FALSE 0
+
+#define USAGE_STRING "Usage %s -m [{c|d} -a address | x]\n"
 
 typedef char *entryType;
 
@@ -113,6 +116,22 @@ void delete_proxy_cmd(char *addr, int portNumber)
 }
 
 
+void delete_table_cmd()
+{
+  int cmdlen;
+  char *cmd;
+
+  cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
+
+  memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+  sprintf(cmd, "rm -f %s ", PORT_TABLE_LOCATION);  
+  fprintf(stdout, "%s\n", cmd);
+  system(cmd);
+
+  free(cmd);
+}
+
+
 int acquire_read_lock()
 {
   struct flock filelock;
@@ -124,7 +143,7 @@ int acquire_read_lock()
   filelock.l_len = 0;
   filelock.l_pid = getpid();
 
-  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
+  lockfile = open(PORT_TABLE_LOCKFILE, O_RDONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (lockfile == -1)
   {
     fprintf(stderr, "Unable to open read file lock for %s\n", PORT_TABLE_LOCKFILE);
@@ -152,7 +171,7 @@ int acquire_write_lock()
   filelock.l_len = 0;
   filelock.l_pid = getpid();
 
-  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY | O_CREAT, S_IRUSR | S_IRGRP);
+  lockfile = open(PORT_TABLE_LOCKFILE, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (lockfile == -1)
   {
     fprintf(stderr, "Unable to open write file lock for %s\n", PORT_TABLE_LOCKFILE);
@@ -519,18 +538,70 @@ int delete_proxy(char *addr)
 }
 
 
+int clear_all_proxies()
+{
+  FILE *pRead;
+  int lockfile;
+  int strlength;
+  int addr0;
+  int addr1;
+  int addr2;
+  int addr3;
+  int portNumber;
+  char *addr;
+
+#ifdef ENABLE_FCNTL
+  /* Secure the read lock on the port address file */
+  lockfile = acquire_write_lock();
+#endif
+
+  /* Open the port table for reading */
+  pRead = fopen(PORT_TABLE_LOCATION, "r");
+  if (pRead == NULL)
+  {
+      fprintf(stderr, "Unable to open port address table %s for reading\n", PORT_TABLE_LOCATION);
+      exit(EXIT_FAILURE);
+  }
+
+  /* Iterate over the port table
+     Read each line entry and store contents
+     Invoke delete commands for each valid entry
+  */
+  while (!feof(pRead))
+  {
+    /* Read the line */
+    strlength = fscanf(pRead, "%d.%d.%d.%d\t%d",  &addr0, &addr1, &addr2, &addr3, &portNumber);
+    if (strlength == 5)
+    {
+      addr = (char *)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
+      memset(addr, (int)'\0', MAX_ADDR_STRING_LENGTH);
+      sprintf(addr, "%d.%d.%d.%d", addr0, addr1, addr2, addr3);
+      delete_proxy_cmd(addr, portNumber);
+      free(addr);
+    } /* if strlength == 5 */
+  } /* eof */
+
+  /* close the read file */
+  fclose(pRead);
+
+  delete_table_cmd();
+
+#ifdef ENABLE_FCNTL
+  /* Release the read file lock */
+  release_lock(lockfile);
+#endif
+
+  return FALSE;
+}
+
+
 int main(int argc, char *argv[])
 {
   int opt;
   char *addr;
   int mode;
   int portNumber;
-
-  if (argc != 5)
-  {
-    fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
+  int addr_not_found = TRUE;
 
   mode = MODE_NONE;
   addr = (char *)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
@@ -547,25 +618,28 @@ int main(int argc, char *argv[])
       } else if (*optarg == 'd' || *optarg == 'D') {
         /*fprintf(stdout, "Mode Delete\n");*/
         mode = MODE_DELETE;
+      } else if (*optarg == 'x' || *optarg == 'X') {
+        mode = MODE_CLEAR;
       } else {
-        fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
+        fprintf(stderr, USAGE_STRING, argv[0]);
         exit(EXIT_FAILURE);
       }
       break;
     case 'a':
       /*fprintf(stdout, "Address %s\n", (char*)optarg);*/
       strncpy(addr, optarg, MAX_ADDR_STRING_LENGTH);
+      addr_not_found = FALSE;
       break;
     default:
-      fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
+      fprintf(stderr, USAGE_STRING, argv[0]);
       exit(EXIT_FAILURE);
     }
   }
 
-  if (mode == MODE_NONE)
+  if (mode == MODE_NONE || (mode != MODE_CLEAR && addr_not_found))
   {
     free(addr);
-    fprintf(stderr, "Usage %s -m {c|d} -a address\n", argv[0]);
+    fprintf(stderr, USAGE_STRING, argv[0]);
     exit(EXIT_FAILURE);      
   }
 
@@ -576,11 +650,14 @@ int main(int argc, char *argv[])
     portNumber = add_proxy(addr);
     fprintf(stdout, "Assigned port number %d\n", portNumber);
     add_proxy_cmd(addr, portNumber);
-  } else {
+  } else if (mode == MODE_DELETE) {
     fprintf(stdout, "Deleting SSH Proxy for address %s\n", addr);
     portNumber = delete_proxy(addr);
     fprintf(stdout, "Assigned port number %d\n", portNumber);
     delete_proxy_cmd(addr, portNumber);
+  } else {
+    fprintf(stdout, "Clearing all SSH Proxy addresses %s\n", addr);
+    clear_all_proxies();
   }
 
   free(addr);

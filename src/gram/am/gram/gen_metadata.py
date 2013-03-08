@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------
-# Copyright (c) 2012 Raytheon BBN Technologies
+# Copyright (c) 2013 Raytheon BBN Technologies
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and/or hardware specification (the "Work") to
@@ -29,32 +29,40 @@ import subprocess
 import config
 import tempfile
 
-def _generateScriptInstalls(installItem) :
-    """ Generate text for a script that handles an _InstallItem object:
+nicInterfaceTempFilePath = '/tmp/tmp_net_inf'
+targetVMlocalTempPath = '/tmp/tmpfile'
+
+def _generateScriptInstalls(installItem, scriptFile) :
+    """
+        Generate text for a script that handles an _InstallItem object:
         1) Get the file from the source URL
         2) Uncompress and/or untar the file, if applicable
         3) Copy the resulting file/tarball to the destination location
+
+        NOTE: In order to preserve the proper user-defined sequence of the install
+        and execute requests, we must embed all install items within the same
+        cloud-config script. As such, the implementation of this script to perserve
+        the sequence is a little unconventional- This function creates the content
+        for a cloud-config script that in turn generates a shell script on the target VM,
+        which in turn handles the install... three degrees of indirection.
     """
     
-    # Open the script file for writing
-    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
-    scriptFilename = '%s' % tempscriptfile.name
-    try:
-        scriptFile = open(scriptFilename, 'w')
-    except IOError:
-        config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
-        return ""
-
-    scriptFile.write('#!/bin/sh \n')
     theSourceURL = installItem.source_url
     theDestinationDirectory = installItem.destination
 
     # Perform the wget on the source URL
-    scriptFile.write('wget -P /tmp %s \n' % theSourceURL)
-    scriptFile.write('if [ $? -eq 0 ] \n')
-    scriptFile.write('then \n')
+    scriptFile.write(' - [ sh, -c, "echo \'#!/bin/sh \' > %s " ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "echo \'wget -P /tmp %s \' >> %s " ]\n' % (theSourceURL, targetVMlocalTempPath))
+    scriptFile.write(' - [ sh, -c, "echo \'if [ $? -eq 0 ]; \' >> %s " ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "echo \'then \' >> %s " ]\n' % targetVMlocalTempPath)
 
-    downloadedFile = '/tmp/%s' % os.path.basname(theSourceURL)
+    # For HTTP gets, remove anything after the first "?" character
+    strendindex = theSourceURL.find("?")
+    theSourceURLsubstr = theSourceURL
+    if strendindex != -1 :
+        theSourceURLsubstr = theSourceURL[:strendindex]
+        
+    downloadedFile = '/tmp/%s' % os.path.basename(theSourceURLsubstr)
 
     # Now make sure destination path does not end with a / (unless it
     #    is the directory /)
@@ -65,43 +73,71 @@ def _generateScriptInstalls(installItem) :
     # Create destination directory (and any necessary parent/ancestor
     #    directories in path) if it does not exist
     if not os.path.isdir(dest) :
-        scriptFile.write('    mkdir -p %s \n' % dest)
+        scriptFile.write(' - [ sh, -c, "echo \'    mkdir -p %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
 
     # Handle compressed and tar'ed files as necessary
     # ISSUE: Do we use the file extension or the installItem.file_type?
     if (downloadedFile.endswith("tgz") or downloadedFile.endswith("tar.gz")) :
         # Uncompress and untar file, and copy to destination location
-        scriptFile.write('    tar -C %s -zxvf %s \n' % (dest, downloadedFile))
+        scriptFile.write(' - [ sh, -c, "echo \'    tar -C %s -zxf %s \' >> %s "]\n' % (dest, downloadedFile, targetVMlocalTempPath))
 
     elif (downloadedFile.endswith("tar")) :
         # Untar file and copy to destination location
-        scriptFile.write('    tar -C %s -xvf %s \n' % (dest, downloadedFile))
+        scriptFile.write(' - [ sh, -c, "echo \'    tar -C %s -xf %s \' >> %s "]\n' % (dest, downloadedFile, targetVMlocalTempPath))
 
     elif (downloadedFile.endswith("gz")) :
         # Copy file to destimation and unzip
-        scriptFile.write('    cp %s %s \n' % (downloadedFile, dest))
+        scriptFile.write(' - [ sh, -c, "echo \'    cp %s %s \' >> %s "]\n' % (downloadedFile, dest, targetVMlocalTempPath))
         zipFile = dest + '/' + os.path.basename(downloadedFile)
-        scriptFile.write('    gunzip %s \n' % zipFile)
+        scriptFile.write(' - [ sh, -c "echo \'    gunzip %s \' >> %s "]\n' % (zipFile, targetVMlocalTempPath))
 
     else :
         # Some other file type- simply copy file to destination
-        scriptFile.write('    cp %s %s \n' % (downloadedFile, dest))
+        scriptFile.write('- [ sh, -c, "echo \'    cp %s %s \' >> %s" ]\n' % (downloadedFile, dest, targetVMlocalTempPath))
 
     # Make file accessible to experimenter
-    scriptFile.write('    chmod -R 777 %s \n' % dest)
+    scriptFile.write(' - [ sh, -c, "echo \'    chmod -R 777 %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
             
     # Delete the downloaded file
-    scriptFile.write('    rm %s \n' % downloadedFile)            
-    scriptFile.write('fi \n\n')
-    scriptFile.close()
+    scriptFile.write(' - [ sh, -c, "echo \'    rm -f %s \' >> %s "]\n' % (downloadedFile, targetVMlocalTempPath))
+    scriptFile.write(' - [ sh, -c, "echo \'fi \' >> %s " ]\n\n' % targetVMlocalTempPath)
 
-    return scriptFilename
+    scriptFile.write(' - [ sh, -c, "chmod 777 %s" ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "%s" ]\n' % targetVMlocalTempPath)
+    scriptFile.write(' - [ sh, -c, "rm -f %s" ]\n' % targetVMlocalTempPath)
+
+    return True
 
 
-def _generateScriptExecutes(executeItem) :
+def _generateScriptExecutes(executeItem, scriptFile) :
     """ Generate text for a script that handles an _ExecuteItem object by
-        invoking its execution in the generated script
+        invoking its execution in the generated cloud-config script
+
+        NOTE: In order to preserve the proper user-defined sequence of the install
+        and execute requests, we must embed all execute items within the same
+        cloud-config script. As such, this function creates the content
+        for a cloud-config script that in turn invokes a shell script on the target VM
+        to makes the execute call.
     """
+
+    if executeItem.shell == 'sh' or 'bash' :
+        scriptFile.write(' - [ %s, -c, "%s" ]\n' % (executeItem.shell, executeItem.command))
+    else :
+        config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
+        return False
+
+    return True
+
+
+def _generateScriptExeAndInstalls(install_list, execute_list) :
+    """ Generate a cloud-config script that installs the user defined installs and then
+        invokes the user-defined executes; The installs and executes must be bundled into
+        a single script in order to preserve the order of the calls defined in the rspec;
+        If implemented as separate scripts, cloud-init will invoke the installs and executables
+        in a non-deterministic order, which is not desireable.
+    """
+
+    # Open a temporary file to hold the cloud-config script
     tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
     scriptFilename = '%s' % tempscriptfile.name
     try:
@@ -110,45 +146,33 @@ def _generateScriptExecutes(executeItem) :
         config.logger.error("Failed to open file that creates user executable script: %s" % scriptFilename)
         return ""
 
-    if executeItem.shell == 'sh' or 'bash' :
-        scriptFile.write('#!/bin/%s \n' % executeItem.shell)
-        scriptFile.write('%s \n\n' % executeItem.command)
-    else :
-        config.logger.error("Execute script %s is of an unsupported shell type" % item.command)
-        scriptFilename = ""
+    scriptFile.write('#cloud-config\n')
+    scriptFile.write('runcmd:\n')
 
+    # Generate support for installs
+    cmd_count = True
+    for item in install_list :
+        if _generateScriptInstalls(item, scriptFile) :
+            cmd_count = False
+
+    # Generate support for execute invocations
+    for item in execute_list :
+        if _generateScriptExecutes(item, scriptFile) :
+            cmd_count = False
+
+    # Close the generated file
     scriptFile.close()
-    return scriptFilename
 
-
-def _generateNetworkSupportScript() :
-    """ Generate a script that configure the local network support
-    """
-
-    # Open the script file for writing
-    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
-    scriptFilename = '%s' % tempscriptfile.name
-    try:
-        scriptFile = open(scriptFilename, 'w')
-    except IOError:
-        config.logger.error("Failed to open file that creates network support script: %s" % scriptFilename)
+    # Exit early if no commands are successful
+    if cmd_count :
         return ""
 
-    scriptFile.write('#!/bin/sh \n')
-    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
-    scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
-
-    scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
-    scriptFile.write('    route add default gw $desiredgw\n')
-    scriptFile.write('    route delete default gw $currentgw\n')
-    scriptFile.write('fi\n')
-    scriptFile.close()
-
+    # Return the script filename
     return scriptFilename
 
 
 def _generateAccount(user) :
-    """ Generate a script that creates a new user account and adds SSH authentiation
+    """ Generate a script that creates a new user account with SSH authentiation
     """
 
     userName = ""
@@ -208,12 +232,188 @@ def _generateAccount(user) :
     return scriptFilename
 
 
-def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'userdata.txt') :
+def _generateEtcHostsSupport(slice_object, scriptFile) :
+    """ Generate script content that configures the local /etc/hosts file
+    """
+
+    # State variables for tracking references of the VM via subnets
+    used_vm_names = []
+    used_vm_refs = []
+    tab_char = '\t'
+    first_line = True
+
+    # First iterate over the links in the slice
+    link_objects = slice_object.getNetworkLinks()
+    for link in link_objects :
+        # The first alias uses the link name
+        link_name = link.getName()
+
+        # Next iterate through the end points of the link
+        end_points = link.getEndpoints()
+        for end_point in end_points :
+            # Verify that the VM is valid
+            vm_object = end_point.getVM()
+            if vm_object != None :
+                # The first alias is <VM name>-<link name>
+                vm_name = vm_object.getName()
+                first_alias = '%s-%s' % (vm_name, link_name)
+
+                # Need the IP address of course
+                ip_addr = end_point.getIPAddress()
+
+                # Check if the VM has been referenced yet
+                if vm_name in used_vm_names :
+                    # If the VM has been referenced then add only a second reference of the format
+                    # <VM name>-<refernce count>
+                    vm_index = used_vm_names.index(vm_name)
+                    vm_count = used_vm_refs[vm_index] + 1
+
+                    second_alias = '%s-' % vm_name
+                    second_alias += '%d' % vm_count
+
+                    # Update the refreence count
+                    used_vm_refs[vm_index] = vm_count
+
+                    # Write the results to the script
+                    scriptFile.write('echo \'%s%s%s%s%s\' >> /etc/hosts\n' % (ip_addr, tab_char, first_alias, tab_char, second_alias))
+                else :
+                    # Insert blank line and comments if necessary
+                    if first_line :
+                        scriptFile.write('echo \'\' >> /etc/hosts\n')
+                        scriptFile.write('echo \'# GRAM specific hosts\' >> /etc/hosts\n')
+                        first_line = False
+
+                    # If the VM has not been referenced yet, then add a second and third alias
+                    # The second alias is of the form <VM name>-<reference count>
+                    # The third alias is the VM name
+                    second_alias = '%s-0' % vm_name
+                    scriptFile.write('echo \'%s%s%s%s%s%s%s\' >> /etc/hosts\n' % (ip_addr, tab_char, first_alias, tab_char, second_alias, tab_char, vm_name))
+
+                    # Update the reference count lists
+                    used_vm_names.append(vm_name)
+                    used_vm_refs.append(0)
+
+
+def _generateDefaultGatewaySupport(control_nic_prefix, scriptFile) :
+    """ Generate script content that configures the local default gateway
+    """
+
+    # Generate the script content to assign the default gateway
+#    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+    scriptFile.write('desiredgw="%s1"\n' % control_nic_prefix)
+    scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
+
+    scriptFile.write('if [ \"$desiredgw\" != \"$currentgw\" ]; then\n')
+    scriptFile.write('    route add default gw $desiredgw\n')
+    scriptFile.write('    route delete default gw $currentgw\n')
+    scriptFile.write('fi\n')
+
+
+def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
+    """ Generate the network interface configuration content specific to a Fedora image
+    """
+
+    # Generate contents of new /etc/sysconfig/network-scripts files
+    # Create the requisite number of interfaces based on the total number of NICs accross all VMs
+    nic_count = 0
+    while nic_count < num_nics :
+        eth_name = 'eth%d' % nic_count
+        scriptFile.write('%secho \'DEVICE=%s\' > %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'BOOTPROTO=dhcp\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'ONBOOT=yes\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+
+        scriptFile.write('%smv -f %s /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, nicInterfaceTempFilePath, eth_name))
+        scriptFile.write('%schmod 644 /etc/sysconfig/network-scripts/ifcfg-%s\n' % (indent, eth_name))
+        nic_count = nic_count + 1
+
+    # Complete the script with commands to restart the network
+    scriptFile.write('%s/etc/init.d/network restart \n' % indent)
+
+
+def _generateNicInterfaceScriptDefault(num_nics, indent, scriptFile) :
+    """ Generate the default network interface configuration content
+    """
+
+    # Generate contents of new /etc/network/interfaces file and put it in a temporary file
+    scriptFile.write('%secho \'# This file describes the network interfaces available on your system\' > %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'# and how to activate them. For more information, see interfaces(5).\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'# The loopback network interface\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'auto lo\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%secho \'iface lo inet loopback\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+
+    # Create the requisite number of interfaces based on the total number of NICs accross all VMs
+    nic_count = 0
+    while nic_count < num_nics :
+        scriptFile.write('%secho \'\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'# The primary network interface\' >> %s \n' % (indent, nicInterfaceTempFilePath))
+        eth_name = 'eth%d' % nic_count
+        scriptFile.write('%secho \'auto %s\' >> %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        scriptFile.write('%secho \'iface %s inet dhcp\' >> %s \n' % (indent, eth_name, nicInterfaceTempFilePath))
+        nic_count = nic_count + 1
+
+    # Complete the script with commands to bring down the current interfaces, install the new config file,
+    # and bring the interfaces back up
+    scriptFile.write('%sifdown --all \n' % indent)
+    scriptFile.write('%smv -f %s /etc/network/interfaces\n' % (indent, nicInterfaceTempFilePath))
+    scriptFile.write('%schmod 666 /etc/network/interfaces\n' % indent)
+    scriptFile.write('%sifup --all \n' % indent)
+
+
+def _generateNicInterfaceScript(slice_object, num_nics, control_nic_prefix) :
+    """ Generate a script that configure the local network interfaces
+    """
+
+    # Open the script file for writing
+    tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
+    scriptFilename = '%s' % tempscriptfile.name
+    try:
+        scriptFile = open(scriptFilename, 'w')
+    except IOError:
+        config.logger.error("Failed to open file that creates the network interface script: %s" % scriptFilename)
+        return ""
+
+    # Use SH shell
+    scriptFile.write('#!/bin/sh \n')
+
+    # Generate support to set /etc/hosts
+    _generateEtcHostsSupport(slice_object, scriptFile)
+
+    # Next generate portion of script that determines the version of Linux
+    scriptFile.write('if [ -f /etc/issue ]; then\n')
+    scriptFile.write('    grep -iq fedora /etc/issue\n')
+    scriptFile.write('    if [ $? -eq 0 ]; then \n')
+
+    # If image is Fedora, then use the default config
+    _generateNicInterfaceScriptFedora(num_nics, "        ", scriptFile)
+
+    # If image is not Fedora, then use the Fedora specific content
+    scriptFile.write('    else\n')
+    _generateNicInterfaceScriptDefault(num_nics, "        ", scriptFile)
+
+    # If the /etc/issue file is not present, then use the default content    
+    scriptFile.write('    fi\n')
+    scriptFile.write('else\n')
+    _generateNicInterfaceScriptDefault(num_nics, "    ", scriptFile)
+    scriptFile.write('fi\n')
+
+    # Generate support to set default gateway
+    _generateDefaultGatewaySupport(control_nic_prefix, scriptFile)
+
+    # Close out the file
+    scriptFile.close()
+
+    return scriptFilename
+
+
+def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics, control_nic_prefix, scriptFilename = 'userdata.txt') :
     """ Generate a script file to be used within the user_data option of a nova boot call
         Parameters-
             users: dictionary of json specs describing new accounts to create at boot
             install_list: list of _InstallItem class objects to incorporate into the script
             execute_list: list of _ExecuteItem class objects to incorporate into the script
+            num_nics: total number of NICs defined for the overall slice
+            control_nic_prefix: the first three octets of the control NIC IP address
             scriptFilename: the pathname for the combined generated script
     """
 
@@ -224,19 +424,18 @@ def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'user
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
     rmcmd = 'rm -f'
 
-    # Generate support for file installs
-    for item in install_list :
-        scriptName = _generateScriptInstalls(item)
-        if scriptName != "" :
-            cmd += scriptName + ':text/x-shellscript '
-            rmcmd += ' %s' % scriptName 
-            cmd_count = cmd_count + 1
+    # Generate boothook script to reset network interfaces and default gateway
+    scriptName = _generateNicInterfaceScript(slice_object, num_nics, control_nic_prefix)
+    if scriptName != "" :
+        cmd += scriptName + ':text/cloud-boothook '
+        rmcmd += ' %s' % scriptName 
+        cmd_count = cmd_count + 1
 
-    # Generate support for execute invocations
-    for item in execute_list :
-        scriptName = _generateScriptExecutes(item)
+    # Generate support for file installs and executes
+    if len(install_list) > 0 or len(execute_list) > 0 :
+        scriptName = _generateScriptExeAndInstalls(install_list, execute_list)
         if scriptName != "" :
-            cmd += scriptName + ':text/x-shellscript '
+            cmd += scriptName + ':text/cloud-config '
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
 
@@ -249,13 +448,6 @@ def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'user
             rmcmd += ' %s' % scriptName 
             cmd_count = cmd_count + 1
   
-    # Generate support for a network configuraiton script
-    scriptName = _generateNetworkSupportScript()
-    if scriptName != "" :
-        cmd += scriptName + ':text/x-shellscript '
-        rmcmd += ' %s' % scriptName 
-        cmd_count = cmd_count + 1
-
     # Combine all scripts into a single mime'd and gzip'ed file, if necessary
     if cmd_count > 0 : 
         config.logger.info('Issuing command %s' % cmd)
@@ -272,3 +464,4 @@ def configMetadataSvcs(users, install_list, execute_list, scriptFilename = 'user
         command = rmcmd.split()
         subprocess.check_output(command)
 
+    return cmd_count

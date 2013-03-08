@@ -1,3 +1,28 @@
+#!/usr/bin/python
+
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
+
 import pdb
 import socket
 import threading
@@ -79,7 +104,8 @@ class VMOCSwitchControllerMap(object):
     # Remove all controller connections for a given slice
     def remove_controller_connections_for_slice(self, slice_id):
         slice_config = slice_registry_lookup_slice_config_by_slice_id(slice_id)
-        for vlan in slice_config.getVLANs():
+        for vc in slice_config.getVLANConfigurations():
+            vlan = vc.getVLANTag()
             if self._controller_connections_by_vlan.has_key(vlan):
                 controller_connections = \
                     self._controller_connections_by_vlan[vlan]
@@ -98,10 +124,12 @@ class VMOCSwitchControllerMap(object):
         self._switch_connections.append(switch_conn)
         self._controller_connections_by_switch[switch_conn] = list()
         
-        # For each slice configuration, create a new client connection
+        # For each vlan configuration in each
+        # slice configuration, create a new client connection
         for slice_config in slice_registry_get_slice_configs():
-            controller_url = slice_config.getControllerURL()
-            for vlan in slice_config.getVLANs():
+            for vc in slice_config.getVLANConfigurations():
+                vlan = vc.getVLANTag()
+                controller_url = vc.getControllerURL()
                 controller_conn = VMOCControllerConnection(controller_url, \
                                                                switch_conn, \
                                                                vlan, \
@@ -223,7 +251,7 @@ class ControllerURLCreationThread(threading.Thread):
                 # Otherwise, don't create connection
                 slice_config = \
                     slice_registry_lookup_slice_config_by_vlan(self._vlan)
-                if not slice_config or slice_config.getControllerURL() != self._controller_url:
+                if not slice_config or not slice_config.contains(self._controller_url, self._vlan):
                     log.info("VLAN/Controller mapping changed : " + \
                                  " not startng connection" + \
                                  str(self._controller_url) + " " + str(self._vlan))

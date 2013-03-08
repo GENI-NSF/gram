@@ -4,7 +4,10 @@
 from geni.am.am2 import ReferenceAggregateManager
 from geni.am.am2 import AggregateManager, AggregateManagerServer
 from am3 import GramReferenceAggregateManager as GramReferenceAggregateManager_V3
+from GramSecureXMLRPCServer import GramSecureXMLRPCServer
+from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
 import base64
+import os
 import zlib
 import uuid
 
@@ -39,37 +42,42 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             result = ret_v3['value']['geni_rspec']
 
         else:
-            result = self.advert_header()
-            component_manager_id = self._v3_am._my_urn
-            component_name = str(uuid.uuid4())
-            component_id = 'urn:publicid:geni:gpo:vm+' + component_name
-            exclusive = False
-            sliver_type = 'virtual-machine'
-            available = True
-            tmpl = '''  <node component_manager_id="%s"
-        component_name="%s"
-        component_id="%s"
-        exclusive="%s">
-    <sliver_type name="%s"/>
-    <available now="%s"/>
-  </node></rspec>
-  '''
-            result = self.advert_header() + \
-            (tmpl % (component_manager_id, component_name, \
-                         component_id, exclusive, sliver_type, available)) 
+            ret_v3 = self._v3_am.ListResources(credentials, options)
+            if ret_v3['code']['geni_code'] != 0: return ret_v3
+            print "LR.ListResources = " + str(ret_v3)
+            result = ret_v3['value']
 
-#            result = self._v3_am.ListResources(credentials, options)
-#            if result['code'] != 0: return result
-#            result = result['value']
+#             result = self.advert_header()
+#             component_manager_id = self._v3_am._my_urn
+#             component_name = str(uuid.uuid4())
+#             component_id = 'urn:publicid:geni:gpo:vm+' + component_name
+#             exclusive = False
+#             sliver_type = 'virtual-machine'
+#             available = True
+#             tmpl = '''  <node component_manager_id="%s"
+#         component_name="%s"
+#         component_id="%s"
+#         exclusive="%s">
+#     <sliver_type name="%s"/>
+#     <available now="%s"/>
+#   </node></rspec>
+#   '''
+#             result = self.advert_header() + \
+#             (tmpl % (component_manager_id, component_name, \
+#                          component_id, exclusive, sliver_type, available)) 
 
-        # Optionally compress the result
-        if 'geni_compressed' in options and options['geni_compressed']:
-            try:
-                result = base64.b64encode(zlib.compress(result))
-            except Exception, exc:
-                import traceback
-                self.logger.error("Error compressing and encoding resource list: %s", traceback.format_exc())
-                raise Exception("Server error compressing resource list", exc)
+# #            result = self._v3_am.ListResources(credentials, options)
+# #            if result['code'] != 0: return result
+# #            result = result['value']
+
+#         # Optionally compress the result
+#         if 'geni_compressed' in options and options['geni_compressed']:
+#             try:
+#                 result = base64.b64encode(zlib.compress(result))
+#             except Exception, exc:
+#                 import traceback
+#                 self.logger.error("Error compressing and encoding resource list: %s", traceback.format_exc())
+#                 raise Exception("Server error compressing resource list", exc)
 
 
 #        print "RET_V3 = " + str(type(ret_v3)) + " " + str(ret_v3)
@@ -161,21 +169,37 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         code_dict = dict(geni_code = 0, am_type = self._am_type, am_code=0)
         return dict(code=code_dict, value=value, output="")
 
-class GramAggregateManagerServer(AggregateManagerServer):
-        def __init__(self, addr, keyfile=None, certfile=None,
+class GramAggregateManagerServer(object):
+    def __init__(self, addr, keyfile=None, certfile=None,
                  trust_roots_dir=None,
                  ca_certs=None, base_name=None):
-            
-            AggregateManagerServer.__init__(self, addr, \
-                                                keyfile = keyfile, \
-                                                certfile = certfile, \
-                                                trust_roots_dir = trust_roots_dir, \
-                                                ca_certs = ca_certs, \
-                                                base_name = base_name)
-            server_url = "https://%s:%d/" % addr
-            delegate=GramReferenceAggregateManager(trust_roots_dir, \
-                                                       base_name, server_url, \
-                                                       certfile, 
-                                                       self._server)
-            self._server.register_instance(AggregateManager(delegate))
+        # ca_certs arg here must be a file of concatenated certs
+        if ca_certs is None:
+            raise Exception('Missing CA Certs')
+        elif not os.path.isfile(os.path.expanduser(ca_certs)):
+            raise Exception('CA Certs must be an existing file of accepted root certs: %s' % ca_certs)
 
+        # Decode the addr into a URL. Is there a pythonic way to do this?
+        server_url = "https://%s:%d/" % addr
+        # FIXME: set logRequests=true if --debug
+        self._server = GramSecureXMLRPCServer(addr, keyfile=keyfile,
+                                          certfile=certfile, ca_certs=ca_certs)
+        delegate = GramReferenceAggregateManager(trust_roots_dir, base_name,
+                                             server_url, certfile, 
+                                             self._server)
+        self._server.register_instance(AggregateManager(delegate))
+        # Set the server on the delegate so it can access the
+        # client certificate.
+        delegate._server = self._server
+
+        if not base_name is None:
+            global RESOURCE_NAMESPACE
+            RESOURCE_NAMESPACE = base_name
+
+    def serve_forever(self):
+        self._server.serve_forever()
+
+    def register_instance(self, instance):
+        # Pass the AM instance to the generic XMLRPC server,
+        # which lets it know what XMLRPC methods to expose
+        self._server.register_instance(instance)

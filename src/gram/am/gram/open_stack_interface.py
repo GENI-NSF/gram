@@ -1,3 +1,25 @@
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
 
 import subprocess
 import pdb
@@ -126,7 +148,7 @@ def provisionResources(geni_slice, users) :
             control_net_info['control_net_vlan'] = vlan
         else:
             for link in geni_slice.getNetworkLinks():
-                print "NET_UUID = " + net_uuid + " LINK_NET_UUID = " + link.getNetworkUUID()
+#                print "NET_UUID = " + net_uuid + " LINK_NET_UUID = " + link.getNetworkUUID()
                 if link.getNetworkUUID() == net_uuid:
                     name = net_info['name']
                     config.logger.info("Setting data net " + name + " VLAN to " + vlan)
@@ -204,6 +226,31 @@ def provisionResources(geni_slice, users) :
                 vm_uuids.append(vm_uuid)
                 vm.setAuthorizedUsers(user_names)
 
+# Delete all ports associated with given slice/tenant
+# Allow some failures: there will be some that can't be deleted
+# Or are automatically deleted by deleting others
+def _deleteNetworkPorts(geni_slice):
+    tenant_uuid = geni_slice.getTenantUUID();
+
+    ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    print ports_cmd
+    ports_output = _execCommand(ports_cmd)
+    port_lines = ports_output.split('\n')
+    for i in range(3, len(port_lines)-2):
+        port_columns = port_lines[i].split('|')
+        port_id = port_columns[1].strip()
+        try:
+            delete_port_cmd = 'quantum port-delete %s' % port_id
+            print delete_port_cmd
+            _execCommand(delete_port_cmd)
+        except Exception:
+            # Sometimes deleting one port automatically deletes another
+            # so it is no longer there
+            # Also some ports belong to the network:router_interface
+            # and can't be deleted by port API
+            print "Failed to delete port %s" % port_id
+            pass
+
 def deleteAllResourcesForSlice(geni_slice) :
     """
         Deallocate all network and VM resources held by this slice.
@@ -215,6 +262,9 @@ def deleteAllResourcesForSlice(geni_slice) :
         _deleteVM(vm)
         vm.setAllocationState(config.unallocated)
         sliver_stat_list.addSliver(vm)
+
+    # Delete ports associated with sliceb
+    _deleteNetworkPorts(geni_slice)
 
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
@@ -232,16 +282,19 @@ def deleteAllResourcesForSlice(geni_slice) :
     admin_name, admin_pwd, admin_uuid = geni_slice.getTenantAdminInfo()
 
     # Delete the security group for this tenant
-    time.sleep(10)
-    _deleteTenantSecurityGroup(admin_name, admin_pwd,
-                               geni_slice.getTenantName(),
-                               geni_slice.getSecurityGroup())
+    if admin_name and admin_pwd and admin_uuid:
+        time.sleep(10)
+        _deleteTenantSecurityGroup(admin_name, admin_pwd,
+                                   geni_slice.getTenantName(),
+                                   geni_slice.getSecurityGroup())
 
-    # Delete the slice (tenant) admin user account
-    _deleteUserByUUID(admin_uuid)
+        # Delete the slice (tenant) admin user account
+        _deleteUserByUUID(admin_uuid)
 
     # Delete the tenant
-    _deleteTenantByUUID(geni_slice.getTenantUUID())
+    tenant_uuid = geni_slice.getTenantUUID()
+    if tenant_uuid:
+        _deleteTenantByUUID(geni_slice.getTenantUUID())
 
     return sliver_stat_list.getSliverStatusList()
     
@@ -410,10 +463,12 @@ def _deleteControlNetwork(slice_object) :
     """
         Delete the control network for this slice.
     """
-    control_net_uuid = slice_object.getControlNetInfo()['control_net_uuid']
-    if control_net_uuid != None :
-        cmd_string = 'quantum net-delete %s' % control_net_uuid
-        _execCommand(cmd_string)
+    control_net_info = slice_object.getControlNetInfo()
+    if control_net_info:
+        control_net_uuid = control_net_info['control_net_uuid']
+        if control_net_uuid:
+            cmd_string = 'quantum net-delete %s' % control_net_uuid
+            _execCommand(cmd_string)
         
 
 def _createNetworkForLink(link_object) :
@@ -466,8 +521,9 @@ def _deleteNetworkLink(link_object) :
        Delete network and subnet associated with this link_object
     """
     net_uuid = link_object.getNetworkUUID()
-    cmd_string = 'quantum net-delete %s' % net_uuid
-    _execCommand(cmd_string)
+    if net_uuid:
+        cmd_string = 'quantum net-delete %s' % net_uuid
+        _execCommand(cmd_string)
 
 def _getNetsForTenant(tenant_uuid):
     cmd_string = 'quantum net-list -- --tenant_id=%s' % tenant_uuid
@@ -522,8 +578,8 @@ def _getPortsForTenant(tenant_uuid):
         port_fixed_ips = port_info_columns[4].strip()
         port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
         ports_info[port_id] = port_info
-    print 'ports for tenant ' + str(tenant_uuid)
-    print str(ports_info)
+#    print 'ports for tenant ' + str(tenant_uuid)
+#    print str(ports_info)
     return ports_info
 
 
@@ -551,7 +607,8 @@ def _createVM(vm_object, users, placement_hint) :
     control_port_uuid = _getValueByPropertyName(output, 'id')
 
     # Now create ports for the experiment data networks
-    for nic in vm_object.getNetworkInterfaces() :
+    vm_net_infs = vm_object.getNetworkInterfaces()
+    for nic in vm_net_infs :
         link_object = nic.getLink()
         if not link_object: continue
         net_uuid = link_object.getNetworkUUID()
@@ -564,14 +621,13 @@ def _createVM(vm_object, users, placement_hint) :
 
     # Now grab and set the mac addresses from the port list
     ports_info = _getPortsForTenant(tenant_uuid)
-    for nic in vm_object.getNetworkInterfaces() :
+    for nic in vm_net_infs :
         nic_uuid = nic._uuid
 #        print "NIC_UUID " + str(nic_uuid) +" LISTED " + str(ports_info.has_key(nic_uuid))
         if ports_info.has_key(nic_uuid):
             mac_address = ports_info[nic_uuid]['mac_address']
             nic.setMACAddress(mac_address)
 
-            
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
@@ -582,10 +638,13 @@ def _createVM(vm_object, users, placement_hint) :
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
+    zipped_userdata_filename = userdata_filename + ".gz"
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
-    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, userdata_filename)
-    cmd_string += (' --user_data %s.gz' % userdata_filename)
+    total_nic_count = len(vm_net_infs) + 1
+    metadata_cmd_count = gen_metadata.configMetadataSvcs(slice_object, users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
+    if metadata_cmd_count > 0 :
+        cmd_string += (' --user_data %s' % zipped_userdata_filename)
 
     # Add security group support
     cmd_string += ' --security_groups %s' % slice_object.getSecurityGroup()
@@ -595,7 +654,7 @@ def _createVM(vm_object, users, placement_hint) :
     cmd_string += ' --nic port-id=%s' % control_port_uuid
     
     # Now add the NICs for the experiment data network
-    for nic in vm_object.getNetworkInterfaces() :
+    for nic in vm_net_infs :
         port_uuid = nic.getUUID()
         if port_uuid != None :
             cmd_string += (' --nic port-id=%s' % port_uuid)
@@ -615,7 +674,6 @@ def _createVM(vm_object, users, placement_hint) :
     vm_uuid = _getValueByPropertyName(output, 'id')
 
     # Delete the temp file
-    zipped_userdata_filename = userdata_filename + ".gz"
     os.unlink(zipped_userdata_filename)
 
     # Wait for the vm status to turn to 'active' and then reboot
@@ -654,8 +712,9 @@ def _deleteVM(vm_object) :
     # Delete ports associatd with the VM
     for nic in vm_object.getNetworkInterfaces() :
         port_uuid = nic.getUUID()
-        cmd_string = 'quantum port-delete %s' % port_uuid
-        _execCommand(cmd_string)
+        if port_uuid:
+            cmd_string = 'quantum port-delete %s' % port_uuid
+            _execCommand(cmd_string)
 
     # Delete the VM
     vm_uuid = vm_object.getUUID()
@@ -834,6 +893,22 @@ def _listFlavors():
 #        print "ID = " + str(id) + " NAME = " + str(name)
         flavors[id]=name
     return flavors
+
+# Get dictionary of all supported images (id => name)
+def _listImages():
+    images ={}
+    command_string = "nova image-list"
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        image_id = parts[1].strip()
+        image_name = parts[2].strip()
+        images[image_id] = image_name
+
+    return images
+
 
 # Find VLAN's associated with MAC addresses and hostnames
 # Return dictionary {mac => {'vlan':vlan, 'host':host}}

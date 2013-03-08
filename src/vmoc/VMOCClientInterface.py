@@ -1,3 +1,28 @@
+#!/usr/bin/python
+
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
+
 # Thread from a VMOC client (e.g. GRAM) to queue up requests
 # For the VMOC managnement interface and send them
 # When VMOC is available
@@ -10,8 +35,7 @@ import socket
 import threading
 import time
 import gram.am.gram.config as config
-from VMOCConfig import VMOCSliceConfiguration
-
+from VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
 
 class VMOCClientInterface(threading.Thread):
 
@@ -28,6 +52,9 @@ class VMOCClientInterface(threading.Thread):
     # Singleton instance of interface
     _instance = None
 
+    # How often to try to reconnect to VMOC?
+    _ping_interval = 5
+
     def __init__(self):
 
         threading.Thread.__init__(self)
@@ -43,61 +70,62 @@ class VMOCClientInterface(threading.Thread):
     # If connection is open, send all pending messages
     def run(self):
 
-        self._running = True
+      self._running = True
 
-        while self._running:
+      while self._running:
 
-            # Is VMOC down? If so, flush queue and fill with all configs
-            try:
-                sock = self.connectionToVMOC()
-                if sock:
-                    sock.send('ping')
-                    sock.close()
-                    self._vmoc_is_up =  True
-                else:
-                    if self._vmoc_is_up:
-                        config.logger.info("VMOC went down ")
-                    self._vmoc_is_up = False
-            except Exception as e:
-                if self._vmoc_is_up:
-                    config.logger.info("VMOC went down " + str(e))
-                self._vmoc_is_up  = False
+          # Is VMOC down? If so, flush queue and fill with all configs
+          try:
+              sock = self.connectionToVMOC()
+              if sock:
+                  sock.send('ping')
+                  sock.close()
+                  self._vmoc_is_up =  True
+              else:
+                  if self._vmoc_is_up:
+                      config.logger.info("VMOC went down ")
+                      self._vmoc_is_up = False
+          except Exception as e:
+              if self._vmoc_is_up:
+                  config.logger.info("VMOC went down " + str(e))
+                  self._vmoc_is_up  = False
 
-            # Connection is down. Put all configs into queue
-            if not self._vmoc_is_up:
-                with VMOCClientInterface._lock:
-                    slice_configs = \
-                        VMOCClientInterface._configs_by_slice.values()
-                    VMOCClientInterface._pending_queue = []
-                    config.logger.info("Disconnected from VMOC: " + 
-                                       "restoring slice configs")
-                    for slice_config in slice_configs:
-                        VMOCClientInterface.register(slice_config)
+                  
+          # Connection is down. Put all configs into queue
+          if not self._vmoc_is_up:
+              with VMOCClientInterface._lock:
+                  slice_configs = \
+                      VMOCClientInterface._configs_by_slice.values()
+                  VMOCClientInterface._pending_queue = []
+#                  config.logger.info("Disconnected from VMOC: " + 
+#                                     "restoring slice configs")
+                  for slice_config in slice_configs:
+                      VMOCClientInterface.register(slice_config)
 
-            # If connected, try to send all messages
-            # If we fail sending any message, connection is closed
-            with VMOCClientInterface._lock:
-                while len(VMOCClientInterface._pending_queue) > 0 and self._vmoc_is_up:
-                    entry = VMOCClientInterface._pending_queue[0]
-                    msg = entry['msg']
-                    try:
-                        print " Trying to send " + str(entry)
-                        sock = self.connectionToVMOC()
-                        if sock:
-                            sock.send(msg)
-                            sock.close()
-                            VMOCClientInterface._pending_queue = \
-                                VMOCClientInterface._pending_queue[1:]
-                            config.logger.info("Sent to VMOC: " + msg)
-                        else:
-                            self._vmoc_is_up = False
-                    except Exception as e:
-                        print "Exception "  + str(e)
-                        sock.close()
-                        self._vmoc_is_up = False
+  # If connected, try to send all messages
+  # If we fail sending any message, connection is closed
+          with VMOCClientInterface._lock:
+              while len(VMOCClientInterface._pending_queue) > 0 and self._vmoc_is_up:
+                  entry = VMOCClientInterface._pending_queue[0]
+                  msg = entry['msg']
+                  try:
+#                      print " Trying to send " + str(entry)
+                      sock = self.connectionToVMOC()
+                      if sock:
+                          sock.send(msg)
+                          sock.close()
+                          VMOCClientInterface._pending_queue = \
+                              VMOCClientInterface._pending_queue[1:]
+                          config.logger.info("Sent to VMOC: " + msg)
+                      else:
+                          self._vmoc_is_up = False
+                  except Exception as e:
+                      print "Exception "  + str(e)
+                      sock.close()
+                      self._vmoc_is_up = False
 
-            # Wake up every 1 second
-            time.sleep(1)
+          # Wake up every N seconds
+          time.sleep(VMOCClientInterface._ping_interval)
 
     # Return a conenction to VMOC Management interface
     def connectionToVMOC(self):
@@ -171,9 +199,13 @@ if __name__ == "__main__":
     logger.addHandler(handler)
 
     VMOCClientInterface.startup()
-    slice_config1 = VMOCSliceConfiguration('S1', None, [1001])
+    vlan_config1 = VMOCVLANConfiguration(vlan_tag=1001, controller_url=None)
+    slice_config1 = \
+        VMOCSliceConfiguration(slice_id='S1', vlan_configs=[vlan_config1])
     VMOCClientInterface.register(slice_config1)
-    slice_config2 = VMOCSliceConfiguration('S2', None, [1002])
+    vlan_config2 = VMOCVLANConfiguration(vlan_tag=1002, controller_url=None)
+    slice_config2 = \
+        VMOCSliceConfiguration(slice_id='S2', vlan_configs=[vlan_config2])
     VMOCClientInterface.register(slice_config2)
     VMOCClientInterface.unregister('S2')
 

@@ -1,0 +1,113 @@
+The following is a set of sequential instructions to test and verify certain features of the GRAM installation. The test is deemed successful if each of the steps completes according to the instructions without error.
+
+
+1) Update the following initialization parameters in /opt/gram/test/001_two_node_one_link_default/.gcf/omni_config file:
+
+[ aggregate_nicknames ]
+
+replace gram attribute:
+
+gram=,https://<control node name>:8301
+
+[ my_gcf ]
+
+replace ch, cert, and key
+
+ch=<url for ch server>:8000
+cert=<path to ch cert pem file>
+key=<path to ch key pem file>
+
+
+2) Copy the private keys of the default test keypairs in this test directory to a remote client machine with access to the control node
+
+% scp /opt/gram/test/001_two_node_one_link_default/alice <your login account name>@<remote client>:<path to client testing directory>
+% scp /opt/gram/test/001_two_node_one_link_default/bob <your login account name>@<remote client>:<path to client testing directory>
+% scp /opt/gram/test/001_two_node_one_link_default/jack <your login account name>@<remote client>:<path to client testing directory>
+
+
+3) In a shell on control node, invoke the AM
+
+% /opt/gram/src/gram-am.py
+
+
+4) In a different shell on the control node, allocate the two-node-one-link test rspec
+
+% cd /opt/gram/test/001_two_node_one_link_default
+% /opt/gcf/src/omni.py -c ./.gcf/omni_config -a gram -V3 allocate test001 two_node.rspec
+
+
+5) Next, provision the test from the same shell:
+
+% /opt/gcf/src/omni.py -c ./.gcf/omni_config -a gram -V3 provision test001
+
+GRAM will establish the specified slice and nodes according to the test RSpec
+
+
+6) After the two VM nodes have booted, bring up a separate shell on the remote client with access to the control node; Using the port numbers assigned to the VM's for the SSH proxy, login remotely to each VM one at a time using the SSH proxy and the default account "jack":
+
+% ssh -i jack.pem jack@<control node name> -p <port number assigned to VM>
+
+NOTE: It may take a minute or so longer after the provision command for the VM's to finish the boot process- Even though the openstack interface may indicate that the VM's are ready, the boot process may not be completed.
+
+
+7) Once logged onto VM, test ping operation
+
+jack@left:~$ ping left
+PING left-left-right-lan (10.0.208.100) 56(84) bytes of data.
+64 bytes from left-left-right-lan (10.0.208.100): icmp_req=1 ttl=64 time=0.070 ms
+...
+^C
+--- left-left-right-lan ping statistics ---
+7 packets transmitted, 7 received, 0% packet loss, time 5998ms
+
+jack@left:~$ ping right
+PING right-left-right-lan (10.0.208.101) 56(84) bytes of data.
+64 bytes from right-left-right-lan (10.0.208.101): icmp_req=1 ttl=64 time=2.16 ms
+...
+^C
+--- right-left-right-lan ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3004ms
+
+
+
+8) Verify that all accounts have been created
+
+jack@left:~$ cd /home
+jack@left:/home$ ls
+alice  bob  jack  ubuntu
+
+
+9) Verify that metatdata services executed the embedded command from the RSpec:
+
+jack@left:~$ cat /tmp/output.txt
+HELLO WORLD!
+
+
+10) Verify that network interfaces have been properly configured
+
+jack@left:~$ ifconfig
+
+Should reveal interfaces for lo, eth0, and eth1
+
+
+11) Verify default gateway has been established:
+
+jack@left:~$ netstat -rn
+Kernel IP routing table
+Destination     Gateway          Genmask        Flags   MSS  Window  irtt  Iface
+0.0.0.0         10.10.207.1      0.0.0.0        UG      0    0       0     eth0
+10.0.208.0      0.0.0.0          255.255.255.0  U       0    0       0     eth1
+10.10.207.0     0.0.0.0          255.255.255.0  U       0    0       0     eth0
+
+The default gateway (i.e., entry with destination 0.0.0.0) should be the first entry listed
+
+
+12) Exit the VM and repeat steps 6 through 11 for the second VM node
+
+
+13) On the control node delete the slice associated with the test
+
+% /opt/gcf/src/omni.py -c ./.gcf/omni_config -a gram -V3 delete test001
+
+
+

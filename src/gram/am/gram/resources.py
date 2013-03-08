@@ -1,3 +1,26 @@
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
+
 # Set of classes of resources (and supporting structures)
 # the aggregate can allocate and about which it maintains state
 
@@ -6,6 +29,7 @@ import dateutil.parser
 import inspect
 import uuid
 import threading
+import os
 
 import config
 
@@ -199,10 +223,21 @@ class Slice:
       with self._slice_lock :
          self._last_subnet_assigned += 1
          #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
+         if not os.path.isfile(config.subnet_numfile) :
+            # The file with the subnet numbers does not exist; create it
+            subnet_num_file = open(config.subnet_numfile, 'w')
+            subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
+                                           # arbitrary.  19 seems to be safe
+            subnet_num_file.close()
+            
+         # Read from file the number of the last subnet assigned
+         subnet_num_file = open(config.subnet_numfile, 'r')
          last_subnet_assigned = int(subnet_num_file.readline().rstrip())
          subnet_num_file.close()
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
+
+         # Increment the number in the file by 1.  Roll back to 19 if count
+         # is at 256
+         subnet_num_file = open(config.subnet_numfile, 'w')
          last_subnet_assigned += 1
          if last_subnet_assigned == 256 :
             last_subnet_assigned = 19
@@ -216,10 +251,21 @@ class Slice:
       with self._slice_lock :
          self._last_subnet_assigned += 1
          #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'r+')
+         if not os.path.isfile(config.subnet_numfile) :
+            # The file with the subnet numbers does not exist; create it
+            subnet_num_file = open(config.subnet_numfile, 'w')
+            subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
+                                           # arbitrary.  19 seems to be safe
+            subnet_num_file.close()
+         
+         # Read from file the number of the last subnet assigned
+         subnet_num_file = open(config.subnet_numfile, 'r')
          last_subnet_assigned = int(subnet_num_file.readline().rstrip())
          subnet_num_file.close()
-         subnet_num_file = open('/home/vthomas/GRAM-next-subnet.txt', 'w')
+
+         # Increment the number in the file by 1.  Roll back to 19 if count
+         # is at 256
+         subnet_num_file = open(config.subnet_numfile, 'w')
          last_subnet_assigned += 1
          if last_subnet_assigned == 256 :
             last_subnet_assigned = 19
@@ -451,9 +497,17 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          return self._os_image
 
+   def setOSImageName(self, os_image) :
+      with self._slice.getLock() :
+         self._os_image = os_image
+
    def getVMFlavor(self) :
       with self._slice.getLock() :
          return self._flavor
+
+   def setVMFlavor(self, flavour) : # Set VirtualMachine flavor
+      with self._slice.getLock() :
+         self._flavor = flavour
 
    def addInstallItem(self, source, destination, file_type) :
       with self._slice.getLock() :
