@@ -21,17 +21,11 @@
 # IN THE WORK.
 #----------------------------------------------------------------------
 
-import subprocess
+import open_stack_interface
 import config
 import string
 import struct
 import fcntl
-
-
-def _execCommand(cmd_string) :
-    config.logger.info('Issuing command %s' % cmd_string)
-    command = cmd_string.split()
-    return subprocess.check_output(command) 
 
 
 def _acquireReadLock() :
@@ -111,7 +105,7 @@ def _addNewProxy(addr) :
     cmd_string = cmd_string + '-m C -a %s ' % addr
 
     try :
-        _execCommand(cmd_string)
+        open_stack_interface._execCommand(cmd_string)
     except :
         config.logger.error("Unable to create SSH proxy for address  %s" % addr)
         return 0
@@ -128,6 +122,6 @@ def _removeProxy(addr) :
     cmd_string = cmd_string + '-m D -a %s ' % addr
 
     try:
-        _execCommand(cmd_string)
+        open_stack_interface._execCommand(cmd_string)
     except :
         config.logger.error("Address %s not present in SSH proxy" % addr)

@@ -25,7 +25,7 @@ import sys
 import stat
 import os.path
 import uuid
-import subprocess
+import open_stack_interface
 import config
 import tempfile
 
@@ -422,13 +422,13 @@ def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics
     # When all files are generated, then combine them into a single gzipped mime file
     cmd_count = 0
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
-    rmcmd = 'rm -f'
+    rmcmd = []
 
     # Generate boothook script to reset network interfaces and default gateway
     scriptName = _generateNicInterfaceScript(slice_object, num_nics, control_nic_prefix)
     if scriptName != "" :
         cmd += scriptName + ':text/cloud-boothook '
-        rmcmd += ' %s' % scriptName 
+        rmcmd.append(scriptName)
         cmd_count = cmd_count + 1
 
     # Generate support for file installs and executes
@@ -436,7 +436,7 @@ def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics
         scriptName = _generateScriptExeAndInstalls(install_list, execute_list)
         if scriptName != "" :
             cmd += scriptName + ':text/cloud-config '
-            rmcmd += ' %s' % scriptName 
+            rmcmd.append(scriptName)
             cmd_count = cmd_count + 1
 
     # Generate support for creating new user accounts
@@ -445,23 +445,18 @@ def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics
         scriptName = _generateAccount(user)
         if scriptName != "" :
             cmd += scriptName + ':text/x-shellscript '
-            rmcmd += ' %s' % scriptName 
+            rmcmd.append(scriptName)
             cmd_count = cmd_count + 1
   
     # Combine all scripts into a single mime'd and gzip'ed file, if necessary
     if cmd_count > 0 : 
-        config.logger.info('Issuing command %s' % cmd)
-        command = cmd.split()
-        subprocess.check_output(command)
+        open_stack_interface._execCommand(cmd)
 
         cmd = 'gzip -f %s ' % scriptFilename
-        config.logger.info('Issuing command %s' % cmd)
-        command = cmd.split()
-        subprocess.check_output(command)
+        open_stack_interface._execCommand(cmd)
 
         # Delete the temporary files
-        config.logger.info('Issuing command %s' % rmcmd)
-        command = rmcmd.split()
-        subprocess.check_output(command)
+        for item in rmcmd :
+            os.unlink(item)
 
     return cmd_count
