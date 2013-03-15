@@ -108,6 +108,10 @@ port_table_lock_file = '/etc/gram/gram-ssh-port-table.lock'
 # to create and delete proxies for each user requested VM
 ssh_proxy_exe = '/usr/local/bin/gram_ssh_proxy'
 
+# Start and ending port range values used by the GRAM SSH Proxies
+ssh_proxy_start_port = 3000
+ssh_proxy_end_port = 3999
+
 # GRAM AM URN (Component ID of AM)
 gram_am_urn = ''
 
