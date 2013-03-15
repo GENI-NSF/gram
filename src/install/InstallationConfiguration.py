@@ -29,30 +29,27 @@ class InstallationConfiguration:
                   if not self._dictionary.has_key(key):
                         self._dictionary[key] = default_value
 
-      # Recognized keys
-      # MANAGEMENT_INTERFACE
-      # MANAGEMENT_ADDRESS
-      # MANAGEMENT_NETMASK
-      #
-      # CONTROL_ADDRESS
-      # CONTROL_INTERFACE
-      # CONTROL_NETMASK
-      #
-      # DATA_INTERFACE
-      #
-      # MYSQL_USER
-      # MYSQL_PASSWORD
-      #
-      # RABBIT_PASSWORD
-      # NOVA_PASSWORD
-      # GLANCE_PASSWORD
-      # KEYSTONE_PASSWORD
-      # QUANTUM_PASSWORD
-      #
-      # OS_TENANT_NAME
-      # OS_USERNAME
-      # OS_PASSWORD
-      # OS_AUTH_URL
+
+      # List of all defined environment variables
+      class ENV:
+            MANAGEMENT_INTERFACE_VARIABLE = "MANAGEMENT_INTERFACE"
+            MANAGEMENT_ADDRESS_VARIABLE = "MANAGEMENT_ADDRESS"
+            MANAGEMENT_NETMASK_VARIABLE = "MANAGEMENT_NETMASK"
+            CONTROL_ADDRESS_VARIABLE = "CONTROL_ADDRESS"
+            CONTROL_INTERFACE_VARIABLE = "CONTROL_INTERFACE"
+            CONTROL_NETMASK_VARIABLE = "CONTROL_NETMASK"
+            DATA_INTERFACE_VARIABLE = "DATA_INTERFACE"
+            MYSQL_USER_VARIABLE = "MYSQL_USER"
+            MYSQL_PASSWORD_VARIABLE = "MYSQL_PASSWORD"
+            RABBIT_PASSWORD_VARIABLE = "RABBIT_PASSWORD"
+            NOVA_PASSWORD_VARIABLE = "NOVA_PASSWORD"
+            GLANCE_PASSWORD_VARIABLE = "GLANCE_PASSWORD"
+            KEYSTONE_PASSWORD_VARIABLE = "KEYSTONE_PASSWORD"
+            QUANTUM_PASSWORD_VARIABLE = "QUANTUM_PASSWORD"
+            OS_TENANT_NAME_VARIABLE = "OS_TENANT_NAME"
+            OS_USERNAME_VARIABLE = "OS_USERNAME"
+            OS_PASSWORD_VARIABLE = "OS_PASSWORD"
+            OS_AUTH_URL_VARIABLE = "OS_AUTH_URL"
 
       # Recognized Shell Types
       BASH_SHELL_TYPE = 'bash'
@@ -89,6 +86,7 @@ if __name__ == "__main__":
       ic = InstallationConfiguration()
       preamble = ic.dump()
       print preamble
+
             
 
             
