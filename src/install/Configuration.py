@@ -71,7 +71,10 @@ class Configuration:
             OS_PASSWORD = "OS_PASSWORD"
             OS_AUTH_URL = "OS_AUTH_URL"
             OS_NO_CACHE = "OS_NO_CACHE"
-            OS_ADMIN_TOKEN = "OS_ADMIN_TOKEN"
+            OS_REGION_NAME = "OS_REGION_NAME"
+
+            SERVICE_TOKEN = "SERVICE_TOKEN"
+            SERVICE_ENDPOINT = "SERVICE_ENDPOINT"
 
             CONTROLLER_HOST = "CONTROLLER_HOST"
             COMPUTE_HOSTS = "COMPUTE_HOSTS"

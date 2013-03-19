@@ -1,7 +1,7 @@
 # Class to generate command files to install OpenStack Folsom
 # Per OpenStack Folsum Guide (revised for Ubuntu Precise)
 
-import Glance, Keystone, Nova, OpenVSwitch
+import Glance, Keystone, Nova, OpenVSwitch, RabbitMQ, MySQL
 import OperatingSystem, Quantum, Configuration
 
 class OpenStack:
@@ -16,10 +16,17 @@ class OpenStack:
                            config_filename = "openstack.conf"):
         
         self._config = Configuration.Configuration(config_filename)
+        declarations = self._config.dump()
+
         install_file = open(install_filename, 'w')
         uninstall_file = open(uninstall_filename, 'w')
 
+        install_file.write(declarations);
+        uninstall_file.write(declarations);
+
         operating_system = OperatingSystem.OperatingSystem()
+        mysql = MySQL.MySQL()
+        rabbitmq = RabbitMQ.RabbitMQ()
         keystone = Keystone.Keystone()
         glance = Glance.Glance()
         nova = Nova.Nova()
@@ -27,11 +34,13 @@ class OpenStack:
         quantum = Quantum.Quantum()
 
         self.installerCommands(operating_system, install_file, uninstall_file)
+        self.installerCommands(mysql, install_file, uninstall_file)
+        self.installerCommands(rabbitmq, install_file, uninstall_file)
         self.installerCommands(keystone, install_file, uninstall_file)
-        self.installerCommands(glance, install_file, uninstall_file)
-        self.installerCommands(nova, install_file, uninstall_file)
-        self.installerCommands(open_vswitch, install_file, uninstall_file)
-        self.installerCommands(quantum, install_file, uninstall_file)
+#        self.installerCommands(glance, install_file, uninstall_file)
+#        self.installerCommands(nova, install_file, uninstall_file)
+#        self.installerCommands(open_vswitch, install_file, uninstall_file)
+#        self.installerCommands(quantum, install_file, uninstall_file)
 
         install_file.close()
         uninstall_file.close()
