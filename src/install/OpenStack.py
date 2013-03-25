@@ -1,6 +1,7 @@
 # Class to generate command files to install OpenStack Folsom
 # Per OpenStack Folsum Guide (revised for Ubuntu Precise)
 
+import os, errno
 import Glance, Keystone, Nova, OpenVSwitch, RabbitMQ, MySQL
 import OperatingSystem, Quantum, Configuration, Hypervisor
 
@@ -79,6 +80,7 @@ class OpenStack:
 
     def createCommands(self, \
                            installers, 
+                           directory, 
                            install_filename,
                            uninstall_filename,
                            config_filename = "openstack.conf"):
@@ -87,28 +89,40 @@ class OpenStack:
         self._declarations = self._config.dump()
         self._dict = self._config.getParameters()
 
-        install_file = open(install_filename, 'w')
-        uninstall_file = open(uninstall_filename, 'w')
+
+        try:
+            os.makedirs(directory)
+        except OSError as exc: # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(directory):
+                pass
+            else: raise
+            
+        install_file = open(directory + "/" + install_filename, 'w')
+        uninstall_file = open(directory + "/" + uninstall_filename, 'w')
 
         for module in installers:
             module_name = module["name"]
             module_installer = module["installer"]
 
-            install_file.write("./install_%s.sh\n" % (module_name))
-            uninstall_file.write("./uninstall_%s.sh\n" % (module_name))
+            install_file.write("%s/install_%s.sh\n" % \
+                                   (directory, module_name))
+            uninstall_file.write("%s/uninstall_%s.sh\n" % \
+                                     (directory, module_name))
 
-            self.installerCommands(module_name, module_installer, True)
-            self.installerCommands(module_name, module_installer, False)
+            self.installerCommands(directory, module_name, \
+                                       module_installer, True)
+            self.installerCommands(directory, module_name, \
+                                       module_installer, False)
 
         install_file.close()
         uninstall_file.close()
 
-    def installerCommands(self, module_name, module_installer, install):
+    def installerCommands(self, dir, module_name, module_installer, install):
         prefix = "install"
         if not install: 
             prefix = "uninstall"
 
-        module_install_file = open("%s_%s.sh" % (prefix, module_name), "w")
+        module_install_file = open("%s/%s_%s.sh" % (dir, prefix, module_name), "w")
         module_installer.clear()
         if install:
             module_installer.installCommands(self._dict)
@@ -127,9 +141,11 @@ class OpenStack:
 if __name__ == "__main__":
     openstack = OpenStack()
     openstack.createCommands(OpenStack._CONTROLLER_INSTALLERS, \
+                                 "/tmp/install",
                                  "install_controller.sh", \
                                  "uninstall_controller.sh")
     openstack.createCommands(OpenStack._COMPUTE_INSTALLERS, \
+                                 "/tmp/install",
                                  "install_compute.sh", \
                                  "uninstall_compute.sh")
 
