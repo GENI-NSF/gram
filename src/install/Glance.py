@@ -25,11 +25,15 @@ class Glance(GenericInstaller):
         glance_user = params[Configuration.ENV.GLANCE_USER]
         glance_password = params[Configuration.ENV.GLANCE_PASSWORD]
         rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+
         glance_registry_conf_filename = '/etc/glance/glance-registry.conf'
         service_tenant_name = "service"
 
         connection = "sql_connection = mysql:\/\/" + glance_user + ":" +\
             glance_password + "@localhost:3306\/glance"
+
+        self.backup("/etc/glance", backup_directory, "glance-registry.conf")
         self.sed("s/^sql_connection.*/" + connection + "/", \
                      glance_registry_conf_filename)
         self.sed("s/^admin_user.*/admin_user = " + glance_user + "/", \
@@ -40,6 +44,7 @@ class Glance(GenericInstaller):
                      glance_registry_conf_filename)
 
         glance_api_filename = "/etc/glance/glance-api.conf"
+        self.backup("/etc/glance", backup_directory, "glance-api.conf")
         self.sed("s/^notifier_strategy.*/notifier_strategy = rabbit/", \
                      glance_api_filename)
         self.sed("s/^rabbit_password.*/rabbit_password = " + \
@@ -72,3 +77,6 @@ class Glance(GenericInstaller):
     def uninstallCommands(self, params):
         self.comment("*** Glance Uninstall ***")
         self.aptGet('glance glance-api python-glanceclient glance-common', True)
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        self.restore("/etc/glance", backup_directory, "glance-registry.conf")
+        self.restore("/etc/glance", backup_directory, "glance-api.conf")

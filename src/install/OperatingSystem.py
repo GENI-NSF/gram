@@ -1,4 +1,5 @@
 from GenericInstaller import GenericInstaller
+from Configuration import Configuration
 
 # We assume at this point that these have been completed:
 # steps #1 (install Ubuntu) and #3 (configure the network)
@@ -20,6 +21,8 @@ class OperatingSystem(GenericInstaller):
         self.aptGet('ubuntu-cloud-keyring')
 
         self.comment("Enable IP forwarding")
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        self.backup("/etc", backup_directory, "sysctl.conf")
         self.sed('s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/',
                  '/etc/sysctl.conf')
         self.add("sysctl net.ipv4.ip_forward=1")
@@ -27,6 +30,7 @@ class OperatingSystem(GenericInstaller):
 
         self.comment("Step 4: Configure NTP")
         self.aptGet("ntp")
+        self.backup("/etc", backup_directory, "ntp.conf")
         self.appendToFile('Use Ubuntu ntp server as fallback.',
                           '/etc/ntp.conf')
         self.appendToFile('server ntp.ubuntu.com iburst', 
@@ -41,4 +45,7 @@ class OperatingSystem(GenericInstaller):
     def uninstallCommands(self, params):
         self.comment("*** OperatingSystem Uninstall ***")
         self.aptGet("ntp", True)
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        self.restore("/etc", backup_directory, "sysctl.conf")
+        self.restore("/etc", backup_directory, "ntp.conf")
 

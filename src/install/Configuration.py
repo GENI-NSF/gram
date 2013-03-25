@@ -81,6 +81,8 @@ class Configuration:
 
             GLANCE_IMAGES = "GLANCE_IMAGES"
 
+            BACKUP_DIRECTORY = "BACKUP_DIRECTORY"
+
       # Recognized Shell Types
       BASH_SHELL_TYPE = 'bash'
 

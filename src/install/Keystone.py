@@ -18,9 +18,12 @@ class Keystone(GenericInstaller):
         os_password = params[Configuration.ENV.OS_PASSWORD]
         os_region_name = params[Configuration.ENV.OS_REGION_NAME]
         service_token = params[Configuration.ENV.SERVICE_TOKEN]
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+
         connection_command = "connection = mysql:\/\/" + \
             keystone_user + ":" + keystone_password + \
             "@localhost:3306\/keystone"
+        self.backup("/etc/keystone", backup_directory, "keystone.conf")
         self.sed("s/^connection =.*/"+connection_command+"/", 
                  keystone_conf_filename)
         self.sed("s/\# admin_token = ADMIN/admin_token = " + \
@@ -32,6 +35,7 @@ class Keystone(GenericInstaller):
         self.add("wget " + logfile_url)
         self.sed('s/error.log/\/var\/log\/keystone\/error.log/', 'logging.conf.sample')
         self.sed('s/access.log/\/var\/log\/keystone\/access.log/', 'logging.conf.sample')
+        self.backup("/etc/keystone", backup_directory, "logging.conf")
         self.add("mv logging.conf.sample /etc/keystone/logging.conf")
         self.add("service keystone restart")
         self.add("keystone-manage db_sync")
@@ -39,6 +43,7 @@ class Keystone(GenericInstaller):
         # Create the novarc file
         self.comment("Step 4. Create novarc file")
         novarc_file = "/etc/novarc"
+        self.backup("/etc", backup_directory, "novarc")
         self.writeToFile("export OS_TENANT_NAME=$OS_TENANT_NAME", novarc_file)
 
         self.appendToFile("export OS_USERNAME=$OS_USERNAME", novarc_file)
@@ -85,7 +90,10 @@ class Keystone(GenericInstaller):
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self, params):
         mysql_password = params[Configuration.ENV.MYSQL_PASSWORD]
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
 
         self.comment("*** Keystone Uninstall ***")
         self.aptGet("keystone python-keystone python-keystoneclient", True)
-
+        self.restore("/etc/keystone", backup_directory, "keystone.conf")
+        self.restore("/etc/keystone", backup_directory, "logging.conf")
+        self.restore("/etc", backup_directory, "novarc")
