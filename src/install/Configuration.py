@@ -79,6 +79,8 @@ class Configuration:
             CONTROLLER_HOST = "CONTROLLER_HOST"
             COMPUTE_HOSTS = "COMPUTE_HOSTS"
 
+            GLANCE_IMAGES = "GLANCE_IMAGES"
+
       # Recognized Shell Types
       BASH_SHELL_TYPE = 'bash'
 

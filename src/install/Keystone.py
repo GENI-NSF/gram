@@ -55,6 +55,7 @@ class Keystone(GenericInstaller):
         self.comment("Step 5. Download data script")
         data_script_url = "https://raw.github.com/EmilienM/openstack-folsom-guide/master/scripts/keystone-data.sh"
         data_script_filename = 'keystone-data.sh'
+        self.add("rm -f " + data_script_filename)
         self.add("wget " + data_script_url)
         self.sed('s/ADMIN_PASSWORD=.*/ADMIN_PASSWORD=' + os_password + '/', \
                      data_script_filename)
@@ -66,6 +67,7 @@ class Keystone(GenericInstaller):
         self.comment("Step 6. Download data script")
         endpoints_script_url = "https://raw.github.com/EmilienM/openstack-folsom-guide/master/scripts/keystone-endpoints.sh"
         endpoints_script_filename = "keystone-endpoints.sh"
+        self.add("rm -f " + endpoints_script_filename)
         self.add("wget " + endpoints_script_url)
         self.sed("s/^MYSQL_USER.*/MYSQL_USER=" + keystone_user + "/", \
                      endpoints_script_filename)

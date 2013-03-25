@@ -28,19 +28,19 @@ class MySQL(GenericInstaller):
         self.generatePrivileges('quantum',  Configuration.ENV.QUANTUM_USER, \
                                     Configuration.ENV.QUANTUM_PASSWORD, \
                                     params, True, sql_filename)
-        self.executeSQL(sql_filename, Configuration.ENV.MYSQL_PASSWORD)
+        self.executeSQL(sql_filename, "$" + Configuration.ENV.MYSQL_PASSWORD)
         
 
     # return a list of command strings for uninstalling this component
     def uninstallCommands(self, params):
         self.comment("*** MySQL Uninstall ***")
-        self.aptGet("mysql-server python-mysqldb", True)
         sql_filename = '/tmp/commands.sql'
         self.writeToFile('DROP DATABASE nova;', sql_filename)
         self.appendToFile('DROP DATABASE glance;', sql_filename)
         self.appendToFile('DROP DATABASE keystone;', sql_filename)
         self.appendToFile('DROP DATABASE quantum;', sql_filename)
         self.executeSQL(sql_filename, "$" + Configuration.ENV.MYSQL_PASSWORD)
+        self.aptGet("mysql-server python-mysqldb", True)
 
     def generatePrivileges(self, db, user_var, user_pwd_var, params, \
                            compute_nodes, filename):
