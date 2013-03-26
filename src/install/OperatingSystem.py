@@ -11,15 +11,19 @@ class OperatingSystem(GenericInstaller):
         self.comment("*** OperatingSystem Install ***")
         self.comment("Step 2. Add repository and upgrade Ubuntu")
         self.add("apt-get install -y python-software-properties")
-        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-trunk-testing')
-        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-deps-staging')
-        self.add('apt-get update && apt-get -y dist-upgrade')
 
-        self.comment("Set up ubuntu cloud keyring")
         self.writeToFile('deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/folsom main', 
                          '/etc/apt/sources.list.d/folsom.list')
+
+#        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-trunk-testing')
+#        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-deps-staging')
+        self.comment("Set up ubuntu cloud keyring")
+        
         self.aptGet('ubuntu-cloud-keyring')
 
+        self.add('apt-get update && apt-get -y dist-upgrade')
+
+ 
         self.comment("Enable IP forwarding")
         backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
         self.backup("/etc", backup_directory, "sysctl.conf")

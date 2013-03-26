@@ -3,56 +3,65 @@ from Configuration import Configuration
 
 class Glance(GenericInstaller):
 
+    glance_directory = "/etc/glance"
+    glance_registry_conf_filename = 'glance-registry.conf'
+    glance_api_conf_filename = 'glance-api.conf'
+    service_tenant_name = "service"
+
     # Return a list of command strings for installing this component
     def installCommands(self, params):
         self.comment("*** Glance Install ***")
         self.comment("Step 1. Install packages.")
         self.aptGet('glance glance-api python-glanceclient glance-common')
 
-# Note: there is an inconsistency with current versions
-# of keystonecllient and glance.
-# Need to change file:
-#    /usr/lib/python2.7/dist-packages/python_glanceclient-0.5.1.8.cdc06d9.egg-info/requires.txt
-#
-#CHANGE:
-#python-keystoneclient>=0.1.2,<0.2
-#TO:
-#python-keystoneclient>=0.1.2
-        self.sed('s/python-keystoneclient>=0.1.2,<0.2/python-keystoneclient>=0.1.2/', '/usr/lib/python2.7/dist-packages/python_glanceclient-0.5.1.8.cdc06d9.egg-info/requires.txt')
-
-
         self.comment("Step 2. Configure Glance")
         glance_user = params[Configuration.ENV.GLANCE_USER]
         glance_password = params[Configuration.ENV.GLANCE_PASSWORD]
+        os_password = params[Configuration.ENV.OS_PASSWORD]
         rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
         backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
 
-        glance_registry_conf_filename = '/etc/glance/glance-registry.conf'
-        service_tenant_name = "service"
 
         connection = "sql_connection = mysql:\/\/" + glance_user + ":" +\
             glance_password + "@localhost:3306\/glance"
 
-        self.backup("/etc/glance", backup_directory, "glance-registry.conf")
+        self.backup(self.glance_directory, backup_directory, \
+                        self.glance_registry_conf_filename)
         self.sed("s/^sql_connection.*/" + connection + "/", \
-                     glance_registry_conf_filename)
+                     self.glance_directory + "/" + \
+                     self.glance_registry_conf_filename)
         self.sed("s/^admin_user.*/admin_user = " + glance_user + "/", \
-                     glance_registry_conf_filename)
-        self.sed("s/^admin_password.*/admin_password = " + glance_password + "/", \
-                     glance_registry_conf_filename)
-        self.sed("s/^admin_tenant_name.*/admin_tenant_name = " + service_tenant_name + "/", \
-                     glance_registry_conf_filename)
+                     self.glance_directory + "/" + \
+                     self.glance_registry_conf_filename)
+        self.sed("s/^admin_password.*/admin_password = " + os_password + "/", \
+                     self.glance_directory + "/" + \
+                     self.glance_registry_conf_filename)
+        self.sed("s/^admin_tenant_name.*/admin_tenant_name = " + \
+                     self.service_tenant_name + "/", \
+                     self.glance_directory + "/" + \
+                     self.glance_registry_conf_filename)
 
-        glance_api_filename = "/etc/glance/glance-api.conf"
-        self.backup("/etc/glance", backup_directory, "glance-api.conf")
+        self.backup(self.glance_directory, backup_directory, \
+                        self.glance_api_conf_filename)
+        self.sed("s/^sql_connection.*/" + connection + "/", \
+                     self.glance_directory + "/" + \
+                     self.glance_api_conf_filename)
+        self.sed("s/^admin_user.*/admin_user = " + glance_user + "/", \
+                     self.glance_directory + "/" + \
+                     self.glance_api_conf_filename)
+        self.sed("s/^admin_password.*/admin_password = " + os_password + "/", \
+                     self.glance_directory + "/" + \
+                     self.glance_api_conf_filename)
+        self.sed("s/^admin_tenant_name.*/admin_tenant_name = " + \
+                     self.service_tenant_name + "/", \
+                     self.glance_directory + "/" + \
+                     self.glance_api_conf_filename)
+
         self.sed("s/^notifier_strategy.*/notifier_strategy = rabbit/", \
-                     glance_api_filename)
+                     self.glance_directory + "/" + self.glance_api_conf_filename)
         self.sed("s/^rabbit_password.*/rabbit_password = " + \
                      rabbit_password + "/", \
-                     glance_api_filename)
-        connection = "sql_connection = mysql://" + glance_user + ":" +\
-            glance_password + "@localhost:3306/glance"
-        self.appendToFile(connection, glance_api_filename)
+                     self.glance_directory + "/" + self.glance_api_conf_filename)
         
         self.add("service glance-api restart && service glance-registry restart")
 
@@ -78,5 +87,7 @@ class Glance(GenericInstaller):
         self.comment("*** Glance Uninstall ***")
         self.aptGet('glance glance-api python-glanceclient glance-common', True)
         backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        self.restore("/etc/glance", backup_directory, "glance-registry.conf")
-        self.restore("/etc/glance", backup_directory, "glance-api.conf")
+        self.restore(self.glance_directory, backup_directory, \
+                         self.glance_registry_conf_filename)
+        self.restore(self.glance_directory, backup_directory, \
+                         self.glance_api_conf_filename)
