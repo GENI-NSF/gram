@@ -56,7 +56,7 @@ class GenericInstaller:
 
     # Run an invasive (editing file inline) SED command on file
     def sed(self, regexp, file):
-        sed_command = "sed -i '" + regexp + "' " + file
+        sed_command = "sed -i " + "\""+ regexp + "\"" + " " + file
         self.add(sed_command)
 
 

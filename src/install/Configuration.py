@@ -83,6 +83,11 @@ class Configuration:
 
             BACKUP_DIRECTORY = "BACKUP_DIRECTORY"
 
+            PUBLIC_GATEWAY_IP = "PUBLIC_GATEWAY_IP"
+            PUBLIC_SUBNET_CIDR = "PUBLIC_SUBNET_CIDR"
+            PUBLIC_SUBNET_START_IP = "PUBLIC_SUBNET_START_IP"
+            PUBLIC_SUBNET_END_IP = "PUBLIC_SUBNET_END_IP"
+
       # Recognized Shell Types
       BASH_SHELL_TYPE = 'bash'
 
