@@ -39,7 +39,7 @@ class GenericInstaller:
 
     # Append line to given file
     def appendToFile(self, command, filename):
-        cmd = "echo " + '"' + command + '"' + " >> " + filename
+        cmd = "echo '" + command + "'" + " >> " + filename
         self.add(cmd)
 
     # Execute a set of SQL command from a file into MYSQL database (as root)
@@ -48,10 +48,13 @@ class GenericInstaller:
         self.add(cmd)
 
     # Perform apt-get command (install or uninstall)
-    def aptGet(self, modules, uninstall=False):
+    def aptGet(self, modules, uninstall=False, force=False):
         apt_command = "install"
         if(uninstall): apt_command = "remove"
-        cmd = "apt-get " + apt_command + " -y " + modules
+        options = " -y "
+        if force:
+            options = options + " --force-yes "
+        cmd = "apt-get " + apt_command +options + modules
         self.add(cmd)
 
     # Run an invasive (editing file inline) SED command on file

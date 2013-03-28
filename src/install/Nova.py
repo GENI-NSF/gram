@@ -8,6 +8,9 @@ class Nova(GenericInstaller):
     service_tenant_name = "service"
     config_filename = "nova.conf"
 
+    def __init__(self, controller_node):
+        self._controller_node = controller_node
+
     # Return a list of command strings for installing this component
     def installCommands(self, params):
         self.comment("*** Nova Install ***")

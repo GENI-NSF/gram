@@ -14,8 +14,8 @@ class OpenStack:
 
     _CONTROLLER_INSTALLERS = [
         {
-            "name": "operating_system", 
-            "installer" : OperatingSystem.OperatingSystem() 
+            "name": "operating_system_controller", 
+            "installer" : OperatingSystem.OperatingSystem(controller_node=True) 
         },
 
         {
@@ -39,13 +39,13 @@ class OpenStack:
         }, 
 
         {
-            "name": "nova",
-            "installer": Nova.Nova()
+            "name": "nova_controller",
+            "installer": Nova.Nova(controller_node=True)
         }, 
 
         {
-            "name": "openvswitch",
-            "installer": OpenVSwitch.OpenVSwitch()
+            "name": "openvswitch_controller",
+            "installer": OpenVSwitch.OpenVSwitch(controller_node=True)
         }, 
 
         {
@@ -56,8 +56,8 @@ class OpenStack:
 
     _COMPUTE_INSTALLERS = [
         {
-            "name": "operating_system", 
-            "installer" : OperatingSystem.OperatingSystem() 
+            "name": "operating_system_compute", 
+            "installer" : OperatingSystem.OperatingSystem(controller_node=False) 
         },
 
         {
@@ -66,13 +66,13 @@ class OpenStack:
         }, 
 
         {
-            "name": "nova", 
-            "installer": Nova.Nova()
+            "name": "nova_compute", 
+            "installer": Nova.Nova(controller_node=False)
         },
 
         {
-            "name": "openvswitch", 
-            "installer": OpenVSwitch.OpenVSwitch()
+            "name": "openvswitch_compute", 
+            "installer": OpenVSwitch.OpenVSwitch(controller_node=False)
         } 
         ]
 

@@ -6,6 +6,9 @@ from Configuration import Configuration
 # and reboot
 class OperatingSystem(GenericInstaller):
 
+    def __init__(self, controller_node):
+        self._controller_node = controller_node
+
     # Return a list of command strings for installing this component
     def installCommands(self, params):
         self.comment("*** OperatingSystem Install ***")
@@ -17,9 +20,11 @@ class OperatingSystem(GenericInstaller):
 
 #        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-trunk-testing')
 #        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-deps-staging')
-        self.comment("Set up ubuntu cloud keyring")
+
+        if self._controller_node:
+            self.comment("Set up ubuntu cloud keyring")
         
-        self.aptGet('ubuntu-cloud-keyring')
+            self.aptGet('ubuntu-cloud-keyring')
 
         self.add('apt-get update && apt-get -y dist-upgrade')
 

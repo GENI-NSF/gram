@@ -3,6 +3,9 @@ from Configuration import Configuration
 
 class OpenVSwitch(GenericInstaller):
 
+    def __init__(self, controller_node):
+        self._controller_node = controller_node
+
     # Return a list of command strings for installing this component
     def installCommands(self, params):
         self.comment("*** OpenVSwitch Install ***")
@@ -20,6 +23,12 @@ class OpenVSwitch(GenericInstaller):
         self.add("ovs-vsctl add-port br-ex eth2")
         self.add("ovs-vsctl add-br br-eth1")
         self.add("ovs-vsctl add-port br-eth1 eth1")
+
+
+        ## *** TO DO
+        ## Need to replace /etc/network/interfaces with a new
+        ## version that gives the public interface to br-ex and 
+        ## replaces the configuration of eth2
 
 
     # Return a list of command strings for uninstalling this component
