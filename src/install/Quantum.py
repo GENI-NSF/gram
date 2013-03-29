@@ -56,7 +56,16 @@ class Quantum(GenericInstaller):
         self.sed("s/reconnect_interval.*/reconnect_interval=2/", 
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("/^tunnel_id_ranges.*/ s/^/#/",
+
+        self.sed("/^tenant_network_type.*/ s/^/# /", 
+                     self.quantum_plugin_directory + "/" + \
+                     self.quantum_plugin_conf_filename)
+        self.sed("s/^\# tenant_network_type.*/tenant_network_type=vlan/", \
+                     self.quantum_plugin_directory + "/" + \
+                     self.quantum_plugin_conf_filename)
+
+
+        self.sed("/^tunnel_id_ranges.*/ s/^/# /",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
         self.sed("/^integration_bridge.*/ s/^/#/",
@@ -69,9 +78,6 @@ class Quantum(GenericInstaller):
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
         self.sed("/^enable_tunneling.*/ s/^/\#/", \
-                     self.quantum_plugin_directory + "/" + \
-                     self.quantum_plugin_conf_filename)
-        self.sed("s/^tenant_network_type.*/tenant_network_type=vlan/", \
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
         self.sed("s/^\# root_helper sudo \/usr.*/root_helper = sudo \/usr\/bin\/quantum-rootwrap \/etc\/quantum\/rootwrap.conf/", 

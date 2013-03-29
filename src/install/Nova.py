@@ -30,9 +30,10 @@ class Nova(GenericInstaller):
         self.rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
         self.os_password = params[Configuration.ENV.OS_PASSWORD]
         self.backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        self.connection = "sql_connection = mysql://" + self.nova_user + ":" +\
-            self.nova_password + "@localhost:3306/nova"
         self.controller_host = params[Configuration.ENV.CONTROL_ADDRESS]
+
+        self.connection = "sql_connection = mysql://" + self.nova_user + ":" +\
+            self.nova_password + "@" + self.controller_host + ":3306/nova"
 
         if self._controller_node:
             self.installCommandsController(params)
@@ -80,7 +81,7 @@ class Nova(GenericInstaller):
         self.appendToFile("quantum_auth_strategy=keystone", nova_conf)
         self.appendToFile("quantum_admin_tenant_name=service", nova_conf)
         self.appendToFile("quantum_admin_username=" + self.quantum_user, nova_conf)
-        self.appendToFile("quantum_admin_password=" + self.quantum_password, nova_conf)
+        self.appendToFile("quantum_admin_password=" + self.os_password, nova_conf)
         self.appendToFile("quantum_admin_auth_url=http://localhost:35357/v2.0", nova_conf)
         self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver", nova_conf)
         self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver", nova_conf)
@@ -157,7 +158,7 @@ class Nova(GenericInstaller):
         self.appendToFile("quantum_auth_strategy=keystone", nova_conf)
         self.appendToFile("quantum_admin_tenant_name=service", nova_conf)
         self.appendToFile("quantum_admin_username=" + self.quantum_user, nova_conf)
-        self.appendToFile("quantum_admin_password=" + self.quantum_password, nova_conf)
+        self.appendToFile("quantum_admin_password=" + self.os_password, nova_conf)
         self.appendToFile("quantum_admin_auth_url=http://" + self.controller_host + ":35357/v2.0", nova_conf)
         self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver", nova_conf)
         self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver", nova_conf)
