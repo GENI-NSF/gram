@@ -11,6 +11,8 @@ class OpenVSwitch(GenericInstaller):
     quantum_plugin_directory = "/etc/quantum/plugins/openvswitch"
     quantum_plugin_filename = "ovs_quantum_plugin.ini"
     quantum_plugin_conf = quantum_plugin_directory + "/" + quantum_plugin_filename
+    networking_directory = "/etc/network"
+    interfaces_filename = "interfaces"
 
     def __init__(self, controller_node):
         self._controller_node = controller_node
@@ -28,6 +30,10 @@ class OpenVSwitch(GenericInstaller):
 
         self.comment("*** OpenVSwitch Install (controller) ***")
 
+        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        management_interface = params[Configuration.ENV.MANAGEMENT_INTERFACE]
+        external_bridge = "br-ex"
+
         self.comment("Install OVS package")
         self.add("module-assistant auto-install openvswitch-datapath")
         self.aptGet("openvswitch-switch")
@@ -41,11 +47,20 @@ class OpenVSwitch(GenericInstaller):
         self.add("ovs-vsctl add-br br-eth1")
         self.add("ovs-vsctl add-port br-eth1 eth1")
 
-
-        ## *** TO DO
-        ## Need to replace /etc/network/interfaces with a new
-        ## version that gives the public interface to br-ex and 
-        ## replaces the configuration of eth2
+        self.comment("Modify /etc/network/interfaces to reflect the new configuration")
+        # Replace references to management interface with references to br-ex
+        self.backup(self.networking_directory, backup_directory, self.interfaces_filename)
+        interfaces = self.networking_directory + "/" + self.interfaces_filename
+        # Add new manual configuration for management interface
+        self.sed("s/" + management_interface + "/" + external_bridge + "/", interfaces)
+        self.appendToFile("", interfaces)
+        self.appendToFile("auto " + management_interface,  interfaces)
+        self.appendToFile("iface " + management_interface + " inet manual", interfaces)
+        self.appendToFile("up ifconfig $IFACE 0.0.0.0 up", interfaces)
+        self.appendToFile("up ip link set $IFACE promisc on", interfaces)
+        self.appendToFile("down ip link set $IFACE promisc off", interfaces)
+        self.appendToFile("down ifconfig $IFACE down",  interfaces)
+        self.add("service networking restart")
 
     def installCommandsCompute(self, params):
 
@@ -117,6 +132,9 @@ class OpenVSwitch(GenericInstaller):
 
         self.comment("Start the agent")
         self.add("service quantum-plugin-openvswitch-agent restart")
+
+
+        
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self, params):
