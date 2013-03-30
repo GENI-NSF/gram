@@ -114,6 +114,7 @@ class Nova(GenericInstaller):
         self.comment("*** Nova Install (compute) ***")
 
         self.aptGet("nova-api-metadata nova-compute-kvm", force=True)
+        self.aptGet("guestmount", force=True)
 
         self.comment("Configure NOVA")
         self.modify_api_paste_file()
