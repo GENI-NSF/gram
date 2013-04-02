@@ -65,6 +65,7 @@ class OpenVSwitch(GenericInstaller):
     def installCommandsCompute(self, params):
 
         self.comment("*** OpenVSwitch Install (compute) ***")
+        self.add("module-assistant auto-install openvswitch-datapath")
         self.aptGet("quantum-plugin-openvswitch-agent openvswitch-switch", force=True)
 
         backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]

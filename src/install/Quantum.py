@@ -101,6 +101,8 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/admin_user.*/admin_user=" + quantum_user + "/", 
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
+        self.sed("s/^\# use_namespaces.*/use_namespaces = False/", 
+                 self.quantum_directory + "/" + self.quantum_l3_agent_filename)
 
         self.backup(self.quantum_directory, backup_directory, \
                         self.quantum_dhcp_conf_filename)
