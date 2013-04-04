@@ -28,121 +28,99 @@ import os
 import subprocess
 import optparse
 import logging
-import tempfile
 
-def _execCommand(cmd_string) :
-    logging.info('Issuing command %s' % cmd_string)
-    command = cmd_string.split()
-    return subprocess.check_output(command) 
+class CreateDpkg:
+    def __init__(self):
+        self.opts = None
+        self._should_cleanup = True
+        self._should_generate = True
+        logging.basicConfig(level=logging.INFO)
 
+        # Parse arguments from sys.argv
+        self.parse_args()
 
-def parse_args(argv) :
-    parser = optparse.OptionParser()
-    parser.add_option("--controller", help="controller name", default=None)
-    return parser.parse_args()
-
-
-def update_file(filename, old_str, new_str) :
-    tempconfigfile = tempfile.NamedTemporaryFile(delete=False)
-    configFilename = '%s' % tempconfigfile.name
-    try:
-        configFile = open(configFilename, 'w')
-    except IOError:
-        logging.error("Failed to open temporary config file: %s" % configFilename)
-        return True
-
-    try:
-        origFile = open(filename, 'r')
-    except IOError:
-        logging.error("Failed to open file: %s" %  filename)
-        return True
-
-    lines = origFile.readlines()
-    origFile.close()
-
-    for line in lines :
-        newline = line.replace(old_str, new_str)
-        configFile.write(newline)
-
-    configFile.close()
-
-    try :
-        cmd = 'mv -f %s %s' % (configFilename, filename)
-        _execCommand(cmd)
-    except :
-        return True
-
-    return False
+    def _execCommand(self, cmd_string) :
+        logging.info('Issuing command %s' % cmd_string)
+        command = cmd_string.split()
+        return subprocess.check_output(command) 
 
 
-def cleanup_files() :
-    count = 0
+    def parse_args(self) :
+        parser = optparse.OptionParser()
+        parser.add_option("--controller", help="controller name", \
+                              default=None, dest="controller")
+        parser.add_option("--deb_location", help="DEB directory", \
+                              default="/tmp/gram_dpkg", dest="deb_location")
+        parser.add_option("--deb_filename", help="DEB filename", \
+                              default="/tmp/gram.deb", dest="deb_filename")
+        parser.add_option("--should_cleanup", \
+                              help="should cleanup before generating", 
+                              default="True", dest="should_cleanup")
+        parser.add_option("--should_generate", \
+                              help="should generate DEB file", 
+                              default="True", dest="should_generate")
+        parser.add_option("--gram_root", \
+                              help="source of GRAM tree", 
+                              default=os.environ['HOME'], dest="gram_root")
 
-    # Copy source files to their package locations
-    try: 
-        if path.exists("gram_dpkg/tmp/gram") :
-            _execCommand("rm -Rf gram_dpkg/tmp/gram")
-    except:
-        count = count + 1
+        [self.opts, args] = parser.parse_args()
 
-    try: 
-        if path.exists("gram_dpkg/opt/gcf") :
-            _execCommand("rm -Rf gram_dpkg/opt/gcf")
-    except:
-        count = count + 1
+        self._should_cleanup = (self.opts.should_cleanup == "True")
+        self._should_generate = (self.opts.should_generate == "True")
 
-    try: 
-        if path.exists("gram_dpkg/etc/gram/certs") :
-            _execCommand("rm -Rf gram_dpkg/etc/gram/certs")
-    except:
-        count = count + 1
-
-    try: 
-        if path.exists("gram_dpkg/opt/pox") :
-            _execCommand("rm -Rf gram_dpkg/opt/pox")
-    except:
-        count = count + 1
-
-    return count
+        if self.opts.controller is None:
+            logging.error("USAGE -$ createpkg --controller <your controller name>")
+            sys.exit(0)
 
 
-def main(argv=None) :
-    if argv is None :
-        argv = sys.argv
+    def update_file(self, filename, old_str, new_str):
+        sed_command  = "s/" + old_str + "/" + new_str + "/"
+        self._execCommand("sed -i " + sed_command + " " + filename)
 
-    opts = parse_args(argv)[0]
-    controller_name = opts.controller
+    def cleanup(self):
+        self._execCommand("rm -rf " + self.opts.deb_location)
+        self._execCommand("rm -rf " + self.opts.deb_filename)
 
-    if controller_name is None :
-        logging.error("USAGE -$ createpkg --controller <your controller name>")
-        return
+    def generate(self):
 
-    logging.basicConfig(level=logging.INFO)
+        # Create the directory sturcture
+        self._execCommand("mkdir -p " + self.opts.deb_location)
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/opt")
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/etc")
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram")
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/DEBIAN")
 
-    # First cleanup old stuff if necessary
-    cleanup_files()
+        # Copy source and data files into their package locations
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + self.opts.deb_location + "/home/gram")
+        self._execCommand("cp -Rf /opt/gcf-2.2 " + self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf /opt/pox " + self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf /etc/gram " + self.opts.deb_location + "/etc")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/pkg/gram_dpkg/DEBIAN " + self.opts.deb_location)
 
-    # Copy source files to their package locations
-    _execCommand("cp -Rf ../../gram /tmp")
-    _execCommand("rm -Rf /tmp/gram/pkg")
-    _execCommand("mv -f /tmp/gram gram_dpkg/tmp")
-    _execCommand("cp -Rf /opt/gcf gram_dpkg/opt")
-    _execCommand("cp -Rf /etc/gram/certs gram_dpkg/etc/gram")
-    _execCommand("cp -Rf /opt/pox gram_dpkg/opt")
+        # Update config files with user-defined controller node name
+        self.update_file(self.opts.deb_location + "/home/gram/gram/omni_config", \
+                             "mycontroller", self.opts.controller)
+        self.update_file(self.opts.deb_location + "/home/gram/gram/gcf_config", \
+                         "mycontroller", self.opts.controller) 
 
-    # Update config files with user-defined controller node name
-    if update_file("gram_dpkg/tmp/gram/omni_config", "mycontroller", controller_name) :
-        return
+        # Cleaup up some junk before creating archive
+        self._execCommand("rm -rf " + self.opts.deb_location + "/etc/gram/snapshots")
+        self._execCommand("rm -rf " + self.opts.deb_location + "/etc/gram/snapshots")
+        self._execCommand("rm -rf " + self.opts.deb_location + "/home/gram/gram/pkg/gram_dpkg/tmp")
+        self._execCommand("rm -rf " + self.opts.deb_location + "/opt/pox/.git")
+        self._execCommand("rm -rf " + self.opts.deb_location + "/home/gram//gram/.git")
 
-    if update_file("gram_dpkg/tmp/gram/gcf_config", "mycontroller", controller_name) :
-        return
 
-    # Create the package
-    _execCommand("dpkg-deb -b gram_dpkg .")
+        # Create the package
+        self._execCommand("dpkg-deb -b " + self.opts.deb_location + \
+                              " " + self.opts.deb_filename)
 
-    # Cleanup copied files
-    cleanup_files()
-
+    def run(self):
+        if self._should_cleanup:
+            self.cleanup()
+        if self._should_generate:
+            self.generate()
 
 if __name__ == "__main__":
-    sys.exit(main())
+    CreateDpkg().run()
+
