@@ -5,21 +5,30 @@ import sys
 import config
 import open_stack_interface
 import manage_ssh_proxy
+import optparse
 
-if len(sys.argv) < 2 :
-    print 'Usage: cleanup <slicename>...<slicename>'
-    sys.exit(2)
+parser = optparse.OptionParser()
+parser.add_option("--config", help="JSON config file",
+                  default="/etc/gram/config.json")
+
+[opts, slices] = parser.parse_args()
+
+if len(slices) < 1 :
+    print 'Usage: cleanup [--config configfile] <slicename>...<slicename>'
+    sys.exit(0)
+
+config.initialize(opts.config)
 
 tenant_pwd = config.tenant_admin_pwd
 
-for i in range(1, len(sys.argv)) :
+for slice in slices:
     
-    print 'Cleaning up slice %s' % sys.argv[i]
+    print 'Cleaning up slice %s' % slice
 
-    if ':' in sys.argv[i]:
-        tenant_name = sys.argv[i] # Assume it is a URN
+    if ':' in slice:
+        tenant_name = slice # Assume it is a URN
     else:
-        tenant_name = 'geni:gpo:gcf+slice+' + sys.argv[i]
+        tenant_name = 'geni:gpo:gcf+slice+' + slice
 
     tenant_admin = 'admin-' + tenant_name
 
