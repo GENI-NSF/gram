@@ -42,7 +42,15 @@ chown -R gram.root .gcf
 chown -R gram.root /etc/gram
 
 # Install GRAM services
-cp /home/gram/gram/src/services/*.conf /etc/init
+cd /home/gram/gram/src/services
+for svc in gram-am gram-amv2
+do
+    sed -i "s/env OS_USERNAME.*/env OS_USERNAME=$OS_USERNAME/" $svc.conf
+    sed -i "s/env OS_TENANT_NAME.*/env OS_TENANT_NAME=$OS_TENANT_NAME/" $svc.conf
+    sed -i "s/env OS_PASSWORD.*/env OS_PASSWORD=$OS_PASSWORD/" $svc.conf
+    sed -i "s/env SERVICE_TOKEN.*/env SERVICE_TOKEN=$SERVICE_TOKEN/" $svc.conf
+done
+cp *.conf /etc/init
 cd /etc/init.d
 for svc in gram-am gram-amv2 gram-cni gram-ch  gram-ctrl gram-vmoc 
 do
