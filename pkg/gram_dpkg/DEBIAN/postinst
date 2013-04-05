@@ -1,112 +1,78 @@
-#!/bin/sh
+#!/bin/bash
 
 # First set the environment variables
 source /etc/novarc
 
 # Kick-off the OpenStack services
-/etc/init.d/nova-api start
-/etc/init.d/nova-scheduler start
-/etc/init.d/keystone start
-/etc/init.d/quantum-l3-agent start
-/etc/init.d/quantum-dhcp-agent start
-/etc/init.d/quantum-openvswitch-plugin-agent start
-/etc/init.d/rabbitmq-server start
-/etc/init.d/mysql start
-/etc/init.d/openvswitch-switch start
-/etc/init.d/libvirt-bin start
+service nova-api start
+service nova-scheduler start
+service keystone start
+service quantum-l3-agent start
+service quantum-dhcp-agent start
+service quantum-plugin-openvswitch-agent start
+service rabbitmq-server start
+service mysql start
+service openvswitch-switch start
 
 # Invoke glance to install the VM images
-cd /etc/gram/images
-MY_IMG_FILES = "ls -l | awk '/\.img/ { print $9 }' | sed s/\\.img//g"
-for i in $MY_IMG_FILES
+for f in `ls /etc/gram_images/*.img`
 do
-glance image-create --name=$i --file --disk_format=raw --container-format=bare $i.img
+    glance image-create --name=$f --disk-format=qcow2 --container-format=ovf --is-public=True < $f
 done
-
-MY_QCOW_FILES = "ls -l | awk '/\.qcow2/ { print $9 }' | sed s/\\.qcow2//g"
-for i in $MY_QCOW_FILES
-do
-glance image-create --name=$i --file -disk_format qcow2 --container-format=bare $i.qcow2
-done
-
-#glance image-create --name=ubuntu-12.04 --file --disk_format=raw --container-format=bare /etc/gram/images/precise-server-cloudimg-amd64-disk1.img
-#glance image-create --name=f18_x86_64-openstack-sda --file -disk_format qcow2 --container-format=bare /etc/gram/images/f18_x86_64-openstack-sda.qcow2
-#glance image-create --name=cirros-0.3-x86_64 --file -disk_format qcow2 --container-format=bare /etc/gram/images/cirros-0.3.1-x86_64-disk.qcow2
 
 # Create link in gcf installation directory
 cd /opt
 ln -s gcf-2.2 gcf
 
-# Create gram user
-useradd -m -s /bin/bash gram
-adduser gram sudo
-passwd gram
-
 # Update .barshrc file in new gram user account
-cat '' > /home/gram/.bashrc
-cat 'export PATH=/home/gram/gram/src:/opt/gcf/src:$PATH' > /home/gram/.bashrc
-cat 'export PYTHONPATH=/opt/gcf/src:/home/gram/gram/src' > /home/gram/.bashrc
+echo "source /etc/novarc" >> /home/gram/.bashrc
+echo 'export PATH=/home/gram/gram/src:/opt/gcf/src:$PATH' >> /home/gram/.bashrc
+echo 'export PYTHONPATH=/opt/gcf/src:/home/gram/gram/src' >> /home/gram/.bashrc
 
-# Make sure /etc/gram is right permissions
+# Make sure /etc/gram is corect permissions
 chmod 777 /etc/gram
 
 # Install GRAM source
 cd /home/gram
-cp -Rf /tmp/gram gram-0.1
-ln -s gram-0.1 gram
-mkdir .gcf
+mkdir -p .gcf
 cp gram/gcf_config .gcf
-chown -R gram gram-0.1
-chown gram gram
-chown -R gram .gcf
+cp -r /etc/gram/certs/* .gcf
+chown gram.root gram
+chown -R gram.root .gcf
+chown -R gram.root /etc/gram
 
-# Install and start GRAM VMOC services
+# Install GRAM services
+cp /home/gram/gram/src/services/*.conf /etc/init
 cd /etc/init.d
-cp /home/gram/gram/src/services/gram-vmoc.conf /etc/init
-cp /home/gram/gram/src/services/gram-ctrl.conf /etc/init
-ln -s /lib/init/upstart-job gram-vmoc
-ln -s /lib/init/upstart-job gram-ctrl
-service gram-vmoc start
-service gram-ctrl start
-
-# Configure and start the Clearinghouse
-cp /home/gram/gram/src/services/gram-ch.conf /etc/init
-ln -s /lib/init/upstart-job gram-ch
-service gram-ch start
-
-# Install and start the Aggregate Manager
-cp /home/gram/gram/src/services/gram-am.conf /etc/init
-ln -s /lib/init/upstart-job gram-am
-service gram-am start
+for svc in gram-am gram-amv2 gram-cni gram-ch  gram-ctrl gram-vmoc 
+do
+    ln -s /lib/init/upstart-job $svc
+    service $svc start
+done
 
 # Install the gram ssh proxy
 cd /home/gram/gram/src/gram/am/gram
-make gram-ssh-proxy
+make 
 
 # Create omniuser account
 useradd -m -s /bin/bash omniuser
 adduser omniuser sudo
 passwd omniuser
-mkdir /home/omniuser/.ssh
+mkdir -p /home/omniuser/.ssh
 chown omniuser.omniuser /home/omniuser/.ssh
 
 # Add GCF paths to omniuser .basrc file
-cat '' > /home/omniuser/.bashrc
-cat 'export PATH=/opt/gcf/src:$PATH' > /home/omniuser/.bashrc
-cat 'export PYTHONPATH=/opt/gcf/src' > /home/omniuser/.bashrc
+echo '' > /home/omniuser/.bashrc
+echo 'export PATH=/opt/gcf/src:$PATH' >> /home/omniuser/.bashrc
+echo 'export PYTHONPATH=/opt/gcf/src' >> /home/omniuser/.bashrc
+echo 'source /etc/novarc' >> /home/omniuser/.bashrc
 
 # Start with default omni_config file
-mkdir /home/omniuser/.gcf
-cp /home/gram/gram/omni_config /home/omniuser/.gcf
-
 # Install clearinghouse and AM certs in omniuser .gcf directory
+mkdir -p /home/omniuser/.gcf
 cd /home/omniuser/.gcf
-cp /etc/gram/am-certs.pem .
-cp /etc/gram/am-key.pem .
-cp /etc/gram/ch-certs.pem .
-cp /etc/gram/ch-key.pem .
+cp /home/gram/gram/omni_config .
+cp /etc/gram/certs/*.pem .
+chown omniuser *
 
-# Create an ssh keypair to be installed on the VMs
-su - omniuser
-ssh-keygen
-exit
+
