@@ -114,6 +114,8 @@ class Quantum(GenericInstaller):
                         self.quantum_dhcp_conf_filename)
         self.appendToFile("use_namespaces = False", 
                           self.quantum_directory  + "/" + self.quantum_dhcp_conf_filename)
+        self.appendToFile("dnsmasq_dns_server=8.8.8.8", 
+                          self.quantum_directory  + "/" + self.quantum_dhcp_conf_filename)
 
         self.backup(self.quantum_directory, backup_directory, \
                         self.quantum_api_conf_filename)
