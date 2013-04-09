@@ -42,7 +42,7 @@ class VMOCVLANConfiguration:
         if attribs != None:
             vlan_tag = attribs['vlan']
             controller_url = attribs['controller_url']
-        self._vlan_tag = vlan_tag
+        self._vlan_tag = int(vlan_tag)
         self._controller_url = controller_url
 
     def getControllerURL(self): return self._controller_url
