@@ -2,8 +2,8 @@
 import logging
 
 # OpenStack related configuration
-#default_VM_flavor = 'm1.smaller'  
-default_VM_flavor = 'm1.tiny'  
+default_VM_flavor = 'm1.smaller'  
+# default_VM_flavor = 'm1.tiny'  
 
 #default_OS_image = 'cirros-0.3-x86_64'
 #default_OS_type = 'Linux'
@@ -62,6 +62,7 @@ UNSUPPORTED = 13
 SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
 
 # GRAM specific codes
+OPENSTACK_ERROR = 100
 
 # Aggregate Manager software related configuration
 logger = logging.getLogger('gcf.am3.gram')
@@ -79,9 +80,6 @@ subnet_numfile = '/etc/gram/GRAM-next-subnet.txt'
 
 # GRAM AM URN (Component ID of AM)
 gram_am_urn = ''
-
-# PORT on which to communicate with compute_node_interace
-compute_node_interface_port = 9501
 
 # PORT on which to communicate to VMOC interface manager
 vmoc_interface_port = 7001

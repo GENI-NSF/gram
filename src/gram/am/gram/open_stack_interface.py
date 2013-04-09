@@ -34,7 +34,10 @@ def cleanup(signal, frame) :
     # Delete the control network
     if _control_net_uuid != None :
         cmd_string = 'quantum net_delete %s' % _control_net_uuid
-        _execCommand(cmd_string)
+        try :
+            _execCommand(cmd_string)
+        except :
+            pass
         
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
@@ -58,7 +61,13 @@ def provisionResources(geni_slice, users) :
 
         # Create a new tenant and set the tenant UUID in the Slice object
         tenant_uuid = _createTenant(tenant_name)
-        geni_slice.setTenantUUID(tenant_uuid)
+        if tenant_uuid == None :
+            # Failed to create a tenant.  Cleanup actions before
+            # we return:
+            #    - nothing to cleanup
+            return 'GRAM internal error: OpenStack failed to create a tenant for slice %s' % geni_slice.getSliceURN()
+        else :
+            geni_slice.setTenantUUID(tenant_uuid)
 
         # Create a admin user account for this tenant
         admin_user_info = _createTenantAdmin(tenant_name, tenant_uuid)
@@ -68,6 +77,13 @@ def provisionResources(geni_slice, users) :
             geni_slice.setTenantAdminInfo(admin_user_info['admin_name'], 
                                           admin_user_info['admin_pwd'],
                                           admin_user_info['admin_uuid'])
+        else :
+            # Failed to create tenant admin.  Cleanup actions before 
+            # we return:
+            #    - delete the tenant
+            _deleteTenantByUUID(tenant_uuid)
+            return 'GRAM internal error: OpenStack failed to create a tenant admin for slice %s' % geni_slice.getSliceURN()
+
         
         # Create a security group for this tenant
         # NOTE: This tenant specific security group support is necessary 
@@ -76,7 +92,18 @@ def provisionResources(geni_slice, users) :
             _createTenantSecurityGroup(tenant_name,
                                        admin_user_info['admin_name'],
                                        admin_user_info['admin_pwd'])
-        geni_slice.setSecurityGroup(secgroup_name)
+            
+        if (secgroup_name != None) :
+            geni_slice.setSecurityGroup(secgroup_name)
+        else :
+            # Failed to create security group.  Cleanup actions before 
+            # we return:
+            #    - delete tenant admin
+            #    - delete tenant
+            _deleteUserByUUID(admin_user_info['admin_uuid'])
+            _deleteTenantByUUID(tenant_uuid)
+            return 'GRAM internal error: OpenStack failed to create a security group for slice %s' % geni_slice.getSliceURN()
+        
 
         ### This section of code is being commented out until we
         ### have namespaces working and can do per slice/tenant routers
@@ -84,9 +111,14 @@ def provisionResources(geni_slice, users) :
         # R-tenant_name.
         # router_name = 'R-%s' % tenant_name
         # geni_slice.setTenantRouterName(router_name)
-        # geni_slice.setTenantRouterUUD(_createRouter(tenant_uuid, router_name))
-        # config.logger.info('Created tenant router name = %s, uuid = %s' %
+        # router_uuid = _createRouter(tenant_uuid, router_name)
+        # if router_uuid != None :
+        #     geni_slice.setTenantRouterUUID(router_uuid)
+        #      config.logger.info('Created tenant router %s with uuid = %s' %
         #                    (router_name, geni_slice.getRouterUUID()))
+        # else :
+        #     INSERT ERROR HANDLING CODE
+
 
         ### This section of code should be commented out when we have
         ### namespaces working.
@@ -99,24 +131,61 @@ def provisionResources(geni_slice, users) :
         if geni_slice.getControlNetInfo() == None :
             # Don't have a control network.  Create one.
             control_net_info = _createControlNetwork(geni_slice)
-            if ('control_net_name' in control_net_info) and \
-                    ('control_net_uuid' in control_net_info) and \
-                    ('control_subnet_uuid' in control_net_info) and \
-                    ('control_net_addr' in control_net_info) :
+            if control_net_info != None :
                 geni_slice.setControlNetInfo(control_net_info)
+            else :
+                # Failed to create control net.  Cleanup actions before
+                # we return:
+                #    - delete tenant admin
+                #    - delete tenant
+                _deleteUserByUUID(admin_user_info['admin_uuid'])
+                _deleteTenantByUUID(tenant_uuid)
+                return 'GRAM internal error: Failed to create a control network for slice %s' % geni_slice.getSliceURN()
 
     # For each link in the experimenter topology that does not have an
     # associated quantum network/subnet, set up a network and subnet
+    links_created_this_call = list() 
     for link in geni_slice.getNetworkLinks() :
         if link.getUUID() == None :
             # This network link has not been set up
             uuids = _createNetworkForLink(link)
+            if uuids == None :
+                # Failed to create this network link.  Cleanup actions before
+                # we return:
+                #    - delete the network links created so far in this
+                #      call to provisionResources
+                #    - delete the control network for this slice
+                #    - delete tenant admin
+                #    - delete tenant
+                for i in range(0, len(links_created_this_call)) :
+                    _deleteNetworkLink(links_created_this_call)
+                _deleteControlNetwork(geni_slice)
+                _deleteUserByUUID(admin_user_info['admin_uuid'])
+                _deleteTenantByUUID(tenant_uuid)
+                return 'GRAM internal error: Failed to create a quantum network for link %s' % link.getName()
+
             link.setNetworkUUID(uuids['network_uuid'])
             link.setSubnetUUID(uuids['subnet_uuid'])
             link.setAllocationState(config.provisioned)
+            links_created_this_call.append(uuids['network_uuid'])
 
-    # Associate the VLAN's for the control and data networks
+    # Associate the VLANs for the control and data networks
     nets_info = _getNetsForTenant(tenant_uuid)
+    if nets_info == None :
+        # Failed to get information on networks  Cleanup actions before 
+        # we return:
+        #    - delete the network links created so far in this
+        #      call to provisionResources
+        #    - delete the control network for this slice
+        #    - delete tenant admin
+        #    - delete tenant
+        for i in range(0, len(links_created_this_call)) :
+            _deleteNetworkLink(links_created_this_call)
+        _deleteControlNetwork(geni_slice)
+        _deleteUserByUUID(admin_user_info['admin_uuid'])
+        _deleteTenantByUUID(tenant_uuid)
+        return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
+
     control_net_info = geni_slice.getControlNetInfo()
     for net_uuid in nets_info.keys():
         net_info = nets_info[net_uuid]
@@ -126,7 +195,6 @@ def provisionResources(geni_slice, users) :
             control_net_info['control_net_vlan'] = vlan
         else:
             for link in geni_slice.getNetworkLinks():
-#                print "NET_UUID = " + net_uuid + " LINK_NET_UUID = " + link.getNetworkUUID()
                 if link.getNetworkUUID() == net_uuid:
                     name = net_info['name']
                     config.logger.info("Setting data net " + name + " VLAN to " + vlan)
@@ -185,6 +253,8 @@ def provisionResources(geni_slice, users) :
     # Now create the VMs.
     num_vms_created = 0    # number of VMs created in this provision call
     vm_uuids = []  # List of uuids of VMs created in this provision call
+    vms_created_this_call = [] # List of VM objects corresponding to VMs 
+                               # created during this call to provision
     for vm in geni_slice.getVMs() :
         if vm.getUUID() == None :
             # This VM object does not have an openstack VM associated with it.
@@ -197,13 +267,30 @@ def provisionResources(geni_slice, users) :
             else :
                 vm_uuid = _createVM(vm, users, total_nic_count, vm_uuids)
             if vm_uuid == None :
-                config.logger.error('Failed to create vm for node %s' %
-                                    vm.getName())
+                # Failed to create this vm.  Cleanup actions before
+                # we return:
+                #    - delete all the VMs created in this call to provision
+                #    - delete the network links created so far in this
+                #      call to provisionResources
+                #    - delete the control network for this slice
+                #    - delete tenant admin
+                #    - delete tenant
+                for i in range (0, len(vms_created_this_call)) :
+                    _deleteVM(vms_created_this_call[i])
+                    for i in range(0, len(links_created_this_call)) :
+                        _deleteNetworkLink(links_created_this_call)
+                    _deleteControlNetwork(geni_slice)
+                    _deleteUserByUUID(admin_user_info['admin_uuid'])
+                    _deleteTenantByUUID(tenant_uuid)
+                config.logger.error('Failed to create vm for node %s' % \
+                                        vm.getName())
+                return 'GRAM internal error: Failed to create a VM for node %s' % vm.getName()
             else :
                 vm.setUUID(vm_uuid)
                 vm.setAllocationState(config.provisioned)
                 num_vms_created += 1
                 vm_uuids.append(vm_uuid)
+                vms_created_this_call.append(vm)
                 vm.setAuthorizedUsers(user_names)
 
 def deleteAllResourcesForSlice(geni_slice) :
@@ -220,7 +307,7 @@ def deleteAllResourcesForSlice(geni_slice) :
 
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
-        _deleteNetworkLink(link)
+        _deleteNetworkLink(link.getNetworkUUID())
         link.setAllocationState(config.unallocated)
         sliver_stat_list.addSliver(link)
 
@@ -246,7 +333,11 @@ def deleteAllResourcesForSlice(geni_slice) :
     # Delete the tenant
     tenant_uuid = geni_slice.getTenantUUID()
     if tenant_uuid:
-        _deleteTenantByUUID(geni_slice.getTenantUUID())
+        if _deleteTenantByUUID(geni_slice.getTenantUUID()) == None :
+            # Failed to delete this tenant.  We just log the failure.
+            config.logger.error('Failed to delete tenant name = %s, uuid = %s'\
+                                    % (geni_slice.getTenantName, 
+                                       geni_slice.getTenantUUID()))
 
     return sliver_stat_list.getSliverStatusList()
     
@@ -261,10 +352,13 @@ def _createTenant(tenant_name) :
     """
     # Create a tenant
     cmd_string = 'keystone tenant-create --name %s' % tenant_name
-    output = _execCommand(cmd_string) 
-
-    # Extract the uuid of the tenant from the output and return uuid
-    return _getValueByPropertyName(output, 'id')
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        return None
+    else :
+        # Extract the uuid of the tenant from the output and return uuid
+        return _getValueByPropertyName(output, 'id')
 
 
 def _deleteTenantByUUID(tenant_uuid) :
@@ -272,8 +366,13 @@ def _deleteTenantByUUID(tenant_uuid) :
         Delete the tenant with the given uuid.
     """
     cmd_string = 'keystone tenant-delete %s' % tenant_uuid
-    _execCommand(cmd_string)
-
+    try :
+        _execCommand(cmd_string)
+    except :
+        return None          # failure
+    else :
+        return tenant_uuid   # success
+        
 
 def _createTenantAdmin(tenant_name, tenant_uuid) :
     """
@@ -281,39 +380,48 @@ def _createTenantAdmin(tenant_name, tenant_uuid) :
     """
     admin_name = 'admin-' + tenant_name
     cmd_string = 'keystone user-create --name %s --pass %s --enabled true --tenant-id %s' % (admin_name, config.tenant_admin_pwd, tenant_uuid)
-    output = _execCommand(cmd_string) 
-
-    # Extract the admin's uuid from the output
-    admin_uuid = _getValueByPropertyName(output, 'id')
-    if admin_uuid == None :
+                                
+    try :
+        output = _execCommand(cmd_string) 
+    except :
         # Failed to create admin account
-        config.logger.error('keystone user-create failed')
+        config.logger.error('Exception during keystone user-create')
         return {}
+    else :
+        # Extract the admin's uuid from the output
+        admin_uuid = _getValueByPropertyName(output, 'id')
+        if admin_uuid == None :
+            # Failed to create admin account
+            config.logger.error('_createTenantAdmin: Cannot find uuid for admin')
+            return {}
 
     # We now give this new user the role of adminstrator for this tenant
     # First, get a list of roles configured for this installation
     cmd_string = 'keystone role-list'
-    output = _execCommand(cmd_string) 
-    
-    # From the output, extract the UUID for the role 'admin'
-    admin_role_uuid = _getUUIDByName(output, 'admin')
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        # Failed to get a list of roles.  Undo what we've done until now:
+        #      - delete the admin user
+        config.logger.error('Failed to get a list of user roles')
+        _deleteUserByUUID(admin_uuid)      
+        return {}
+    else :
+        # From the output, extract the UUID for the role 'admin'
+        admin_role_uuid = _getUUIDByName(output, 'admin')
 
     # Now assign this new user the 'admin' role for this tenant
     cmd_string= 'keystone user-role-add --user-id=%s --role-id=%s --tenant-id=%s' % \
         (admin_uuid, admin_role_uuid, tenant_uuid)
-    output = _execCommand(cmd_string) 
-
-    # We verify the above command succeded by getting information about
-    # this new user and checking it is associated with this tenant
-    cmd_string = 'keystone user-get %s' % admin_uuid
-    output = _execCommand(cmd_string) 
-
-    # Get the tenantId property from the output
-    if _getValueByPropertyName(output, 'tenantId') != tenant_uuid :
-        # Failed to associate this user with the tenant
-        config.logger.error('keystone user-role-add failed')
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        # Failed to make this user an admin.  Undo what we've done until now:
+        #      - delete the admin user
+        config.logger.error('Failed to give user an admin role')
+        _deleteUserByUUID(admin_uuid)      
         return {}
-    
+
     # Success!  Return the admin username,  password and uuid.
     return {'admin_name':admin_name, 'admin_pwd':config.tenant_admin_pwd, \
                 'admin_uuid':admin_uuid }
@@ -328,21 +436,39 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-create %s tenant-security-group' % secgroup_name
-    _execCommand(cmd_string) 
+    try :
+        _execCommand(cmd_string) 
+    except :
+        # Failed to create security group. Cleanup actions before we return:
+        #    - No cleanup needed
+        return None
     
     # Add a rule to the tenant sec group enabling SSH traffic
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-add-rule %s tcp 22 22 0.0.0.0/0 ' % secgroup_name
-    _execCommand(cmd_string)
+    try :
+        _execCommand(cmd_string)
+    except :
+        # Failed to add rule.  Cleanup actions before we return
+        #    - Delete the security group
+        _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
+                                   secgroup_name)
+        return None
             
     # Add a rule to the tenant sec group enabling ICMP traffic (ping, etc)
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-add-rule %s icmp -1 -1 0.0.0.0/0 ' % secgroup_name
-    _execCommand(cmd_string)
+    try :
+        _execCommand(cmd_string)
+    except :
+        # Failed to add rule.  Cleanup actions before we return
+        #    - Delete the security group
+        _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
+                                   secgroup_name)
 
-    return secgroup_name
+    return secgroup_name    # Success!
 
 
 def _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name, 
@@ -353,7 +479,12 @@ def _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-delete %s' % secgrp_name
-    _execCommand(cmd_string) 
+    try :
+        _execCommand(cmd_string) 
+    except :
+        # Not much we can do other than log the failure
+        config.logger.error('Failed to delete security group for tenant %s' % \
+                                tenant_name)
 
 
 def _deleteUserByUUID(user_uuid) :
@@ -361,19 +492,30 @@ def _deleteUserByUUID(user_uuid) :
         Delete the user account for the user with the specified uuid.
     """
     cmd_string = 'keystone user-delete %s' % user_uuid
-    _execCommand(cmd_string)
+    try :
+        _execCommand(cmd_string)
+    except :
+        # Not much we can do other than log the failure
+        config.logger.error('Failed to delete user account for uuid %s' % \
+                                user_uuid)
 
 
 def _createRouter(tenant_name, router_name) :
     """
         Create an OpenStack router and return the uuid of this new router.
     """
-    cmd_string = 'quantum router-create --tenant-id %s %s' % (tenant_uuid, 
-                                                              router_name)
-    output = _execCommand(cmd_string) 
+    cmd_string = 'quantum router-create --tenant-id %s %s' % \
+        (tenant_uuid, router_name)
 
-    # Extract the uuid of the router from the output and return uuid
-    return _getValueByPropertyName(output, 'id')
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        # Failed to create router.
+        config.logger.error('Failed to create router %s' % router_name)
+        return None
+    else :
+        # Extract the uuid of the router from the output and return uuid
+        return _getValueByPropertyName(output, 'id')
 
 
 def _createControlNetwork(slice_object) :
@@ -387,8 +529,14 @@ def _createControlNetwork(slice_object) :
     control_net_name = 'cntrlNet-' + slice_object.getTenantName()
     cmd_string = 'quantum net-create --tenant-id %s %s' % (tenant_uuid,
                                                            control_net_name)
-    output = _execCommand(cmd_string)
-    control_net_uuid = _getValueByPropertyName(output, 'id')
+    try :
+        output = _execCommand(cmd_string)
+    except :
+        # Failed to create control network.  Cleanup actions:
+        #    - None
+        return None
+    else :
+        control_net_uuid = _getValueByPropertyName(output, 'id')
     
     # Create a subnet (L3 network) for the control network
     control_subnet_addr = slice_object.generateControlNetAddress()
@@ -396,15 +544,30 @@ def _createControlNetwork(slice_object) :
         control_subnet_addr[0 : control_subnet_addr.rfind('0/24')] + '1'
     cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
         (tenant_uuid, gateway_addr, control_net_uuid, control_subnet_addr)
-    output = _execCommand(cmd_string) 
-    control_subnet_uuid = _getValueByPropertyName(output, 'id')
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        # Failed to create subnet for control network.  Cleanup actions:
+        #    - Delete the network that was created
+        _deleteControlNetwork(slice_object)
+        return None
+    else :
+        control_subnet_uuid = _getValueByPropertyName(output, 'id')
 
     # Add an interface for this network to the external router
     external_router_uuid = _getRouterUUID(config.external_router_name)
     cmd_string = 'quantum router-interface-add %s %s' %  \
         (config.external_router_name, control_subnet_uuid)
-    _execCommand(cmd_string) 
+    try :
+        _execCommand(cmd_string) 
+    except :
+        # Failed to add interface on the external router.  Cleanup actions:
+        #    - Delete the network.  Subnets of the network will be 
+        #      deleted automatically
+        _deleteControlNetwork(slice_object)
+        return None
 
+    # Success!
     return {'control_net_name' : control_net_name, \
                 'control_net_uuid' : control_net_uuid, \
                 'control_subnet_uuid' : control_subnet_uuid, \
@@ -416,13 +579,18 @@ def _deleteControlNetwork(slice_object) :
         Delete the control network for this slice.
     """
     control_net_info = slice_object.getControlNetInfo()
-    if control_net_info:
+    if control_net_info :
         control_net_uuid = control_net_info['control_net_uuid']
         if control_net_uuid:
             cmd_string = 'quantum net-delete %s' % control_net_uuid
-            _execCommand(cmd_string)
+            try :
+                _execCommand(cmd_string)
+            except :
+                # Failed to delete network.  Not much we can do about it.
+                config.logger.error('Failed to delete control network %s' % \
+                                        control_net_info['control_net_name'])
+                
         
-
 def _createNetworkForLink(link_object) :
     """
         Creates a network (L2) and subnet (L3) for the link.
@@ -439,8 +607,15 @@ def _createNetworkForLink(link_object) :
     network_name = link_object.getName()
     cmd_string = 'quantum net-create --tenant-id %s %s' % (tenant_uuid,
                                                            network_name)
-    output = _execCommand(cmd_string) 
-    network_uuid = _getValueByPropertyName(output, 'id')
+                                                           
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        # Failed to create a network for this link.  Cleanup actions:
+        #    - None
+        return None
+    else :
+        network_uuid = _getValueByPropertyName(output, 'id')
 
     # Now create a subnet for this network.
     # First, get a subnet address of the form 10.0.x.0/24
@@ -453,34 +628,59 @@ def _createNetworkForLink(link_object) :
 
     cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
         (tenant_uuid, gateway_addr, network_uuid, subnet_addr)
-    output = _execCommand(cmd_string) 
-    subnet_uuid = _getValueByPropertyName(output, 'id')
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        # Failed to create a subnet.  Cleanup actions:
+        #    - Delete the network that was created
+        _deleteNetworkLink(network_uuid)
+        return None
+    else :
+        subnet_uuid = _getValueByPropertyName(output, 'id')
 
     # Add an interface for this link to the tenant router 
     router_name = slice_object.getTenantRouterName()
     cmd_string = 'quantum router-interface-add %s %s' % (router_name,
                                                          subnet_uuid)
-    output = _execCommand(cmd_string) 
-    
+    try :
+        _execCommand(cmd_string) 
+    except :
+        # Failed to create interface.  Cleanup actions:
+        #    - Delete the network created.  The subnet will be 
+        #      deleted automatically
+        _deleteNetworkLink(network_uuid)
+        return None
+        
     # Set operational status
     link_object.setOperationalState(config.ready)
 
     return {'network_uuid':network_uuid, 'subnet_uuid': subnet_uuid}
 
 
-def _deleteNetworkLink(link_object) :
+def _deleteNetworkLink(net_uuid) :
     """
-       Delete network and subnet associated with this link_object
+       Delete network and subnet associated with specified network
     """
-    net_uuid = link_object.getNetworkUUID()
-    if net_uuid:
+    if net_uuid :
         cmd_string = 'quantum net-delete %s' % net_uuid
-        _execCommand(cmd_string)
+        try :
+            _execCommand(cmd_string)
+        except :
+            # Failed to delete network.  Not much we can do.
+            config.logger.error('Failed to delete network with uuid %s' % \
+                                    net_uuid)
+
 
 def _getNetsForTenant(tenant_uuid):
     cmd_string = 'quantum net-list -- --tenant_id=%s' % tenant_uuid
-#    print 'Executing : ' + cmd_string
-    output = _execCommand(cmd_string)
+    try :
+        output = _execCommand(cmd_string)
+    except :
+        # Command failed.  Return None.
+        config.logger.error('Failed to get list of networks for tenant %s' % \
+                                tenant_uuid)
+        return None
+
     output_lines = output.split('\n')
     nets_info = dict()
     for i in range(3, len(output_lines)-2):
@@ -490,11 +690,13 @@ def _getNetsForTenant(tenant_uuid):
         name = line_parts[2].strip()
         subnets = line_parts[3].strip()
 
-#        print "NET_ID = " + net_id + " NAME = " + name
-
         cmd_string = 'quantum net-show %s' % net_id
-#        print 'Executing : ' + cmd_string
-        net_output = _execCommand(cmd_string)
+        try :
+            net_output = _execCommand(cmd_string)
+        except :
+            config.logger.error('Failed to get info on network %s' %  net_id)
+            return None
+            
         net_output_lines = net_output.split('\n')
         belongs = True
         attributes = {'name' : name}
@@ -503,12 +705,9 @@ def _getNetsForTenant(tenant_uuid):
             net_line_parts = net_line.split('|')
             field = net_line_parts[1].strip()
             value = net_line_parts[2].strip()
-#            print "FIELD = " + field + " VALUE = " + value
             if field == 'name' and value != name:
-#                print "NAME MISMATCH: " + field + " " + value + " " + name
                 belongs = False
             elif field == 'tenant_id' and value != tenant_uuid:
-#                print "TID MISMATCH: " + field + " " + value + " " + tenant_uuid
                 belongs = False
             elif field == 'provider:segmentation_id':
                 attributes['vlan'] = value
@@ -520,7 +719,13 @@ def _getNetsForTenant(tenant_uuid):
 #  for each port associated ith a given tenant
 def _getPortsForTenant(tenant_uuid):
     cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
-    output = _execCommand(cmd_string)
+    try :
+        output = _execCommand(cmd_string)
+    except :
+        config.logger.error('Failed to get port list for tenant %s' % \
+                                tenant_uuid)
+        return None
+
     output_lines = output.split('\n')
     ports_info = dict()
     for i in range(3, len(output_lines)-2):
@@ -530,13 +735,15 @@ def _getPortsForTenant(tenant_uuid):
         port_fixed_ips = port_info_columns[4].strip()
         port_info = {'mac_address' : port_mac_address, 'fixed_ips' : port_fixed_ips}
         ports_info[port_id] = port_info
-#    print 'ports for tenant ' + str(tenant_uuid)
-#    print str(ports_info)
+
     return ports_info
 
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
 def _createVM(vm_object, users, total_nic_count, placement_hint) :
+    """
+        Create a OpenStack VM 
+    """
     slice_object = vm_object.getSlice()
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()
@@ -572,12 +779,16 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
 
     # Now grab and set the mac addresses from the port list
     ports_info = _getPortsForTenant(tenant_uuid)
-    for nic in vm_object.getNetworkInterfaces() :
-        nic_uuid = nic._uuid
-#        print "NIC_UUID " + str(nic_uuid) +" LISTED " + str(ports_info.has_key(nic_uuid))
-        if ports_info.has_key(nic_uuid):
-            mac_address = ports_info[nic_uuid]['mac_address']
-            nic.setMACAddress(mac_address)
+    if ports_info == None :
+        config.logger.error('Failed to get MAC addresses for network interfaces for tenant %s' % tenant_uuid)
+        # Not doing any rollback.  Do we really want to fail the entire 
+        # provision if we can't get mac addresses?
+    else :
+        for nic in vm_object.getNetworkInterfaces() :
+            nic_uuid = nic._uuid
+            if ports_info.has_key(nic_uuid):
+                mac_address = ports_info[nic_uuid]['mac_address']
+                nic.setMACAddress(mac_address)
 
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
@@ -709,10 +920,13 @@ def  _getImageUUID(image_name) :
         UUID of the image.  Returns None if the image cannot be found.
     """
     cmd_string = 'nova image-list'
-    output = _execCommand(cmd_string) 
-
-    # Extract and return the uuid of the image
-    return _getUUIDByName(output, image_name)
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        return None
+    else :
+        # Extract and return the uuid of the image
+        return _getUUIDByName(output, image_name)
 
 
 def _getFlavorID(flavor_name) :
@@ -839,27 +1053,9 @@ def _listFlavors():
         parts = line.split('|')
         id = int(parts[1].strip())
         name = parts[2].strip()
-#        print "ID = " + str(id) + " NAME = " + str(name)
         flavors[id]=name
     return flavors
 
-# Find VLAN's associated with MAC addresses and hostnames
-# Return dictionary {mac => {'vlan':vlan, 'host':host}}
-def _lookup_vlans_for_tenant(tenant_id):
-    map = {}
-    hosts = _listHosts('compute')
-#    print str(hosts)
-    ports = _getPortsForTenant(tenant_id)
-#    print str(ports)
-    for host in hosts.keys():
-        port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
-        port_map = _read_vlan_port_map(port_data)
-        for port in ports.keys():
-            mac = ports[port]['mac_address']
-            vlan_id = _lookup_vlan_for_port(port, port_map)
-            if vlan_id: 
-                map[mac] = {'vlan': vlan_id, 'host':host}
-    return map
 
 # Find the VLAN tag associated with given port interface
 # The ovs-vsctl show command returns interfaces with a qvo prefix
@@ -878,54 +1074,19 @@ def _lookup_vlan_for_port(port, port_map):
                 break
     return vlan_id
 
-# Produce a iist of port / tag / interface from "ovs_vsctl show" command
-def _read_vlan_port_map(port_data):
-    ports = []
-    lines = port_data.split('\n')
-    processing_ports = False
-    current_port = None
-    current_tag = None
-    current_interface = None
-    for line in lines:
-        line = line.strip()
-        if line.find('Bridge') >= 0:
-            processing_ports = line.find('br-int') >= 0
-        if not processing_ports: continue
-        if line.find("Port") >= 0:
-            if current_port and current_tag and current_interface:
-                port_info = {'port':current_port, 'tag':current_tag, \
-                                 'interface':current_interface}
-                ports.append(port_info)
-                current_interface = None
-                current_tag = None
-                current_port = None
-            parts = line.split(' ')
-#            print("PORT PARTS = " + str(parts))
-            current_port = parts[1]
-            parts = current_port.split('"')
-#            print("PORT PARTS = " + str(parts))
-            if len(parts) > 1:
-                current_port = parts[1]
-        if line.find("Interface") >= 0:
-            parts = line.split(' ')
-#            print("INTERFACE PARTS = " + str(parts))
-            current_interface = parts[1]
-            parts = current_interface.split('"')
-#            print("INTERFACE PARTS = " + str(parts))
-            if len(parts) > 1:
-                current_interface = parts[1]
-        if line.find("tag:") >= 0:
-            parts = line.split(' ');
-            current_tag = int(parts[1])
-#            print("TAG PARTS = " + str(parts))
-                
-#    print str(ports)
-    return ports
 
 def _execCommand(cmd_string) :
+    """
+       Execute the specified command.  Return the output of the command or
+       raise and exception if the command execution fails.
+    """
     config.logger.info('Issuing command %s' % cmd_string)
     command = cmd_string.split()
-    return subprocess.check_output(command) 
+    try :
+        return subprocess.check_output(command) 
+    except :
+        config.logger.error('Error executing command %s' % cmd_string)
+        raise
 
 
 def updateOperationalStatus(geni_slice) :
@@ -938,12 +1099,19 @@ def updateOperationalStatus(geni_slice) :
         vm_uuid = vm_object.getUUID()
         if vm_uuid != None :
             cmd_string = 'nova show %s' % vm_uuid
-            output = _execCommand(cmd_string) 
-            vm_state = _getValueByPropertyName(output, 'status')
-            if vm_state == 'ACTIVE' :
-                vm_object.setOperationalState(config.ready)
-            elif vm_state == 'ERROR' :
+            try :
+                output = _execCommand(cmd_string) 
+            except :
+                # Failed to update operational status of this VM.   Set the
+                # state to failed
+                config.logger.error('Failed to find the status of VM for node %s' % vm_object.getName())
                 vm_object.setOperationalState(config.failed)
+            else :
+                vm_state = _getValueByPropertyName(output, 'status')
+                if vm_state == 'ACTIVE' :
+                    vm_object.setOperationalState(config.ready)
+                elif vm_state == 'ERROR' :
+                    vm_object.setOperationalState(config.failed)
 
     links = geni_slice.getNetworkLinks()
     for i in range(0, len(links)) :
