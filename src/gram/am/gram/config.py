@@ -27,7 +27,11 @@ import logging
 # OpenStack related configuration
 #default_VM_flavor = 'm1.small'  
 default_VM_flavor = 'm1.smaller'  
-#default_VM_flavor = 'm1.tiny'  
+# default_VM_flavor = 'm1.tiny'  
+
+#default_OS_image = 'cirros-0.3-x86_64'
+#default_OS_type = 'Linux'
+#default_OS_version = '0.3'
 
 #default_OS_image = 'cirros-0.3.1'
 #default_OS_image = 'cirros-2nic-x86_64'
@@ -84,6 +88,7 @@ SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
 OUT_OF_RANGE = 19               # typically for time mismatches
 
 # GRAM specific codes
+OPENSTACK_ERROR = 100
 
 # Aggregate Manager software related configuration
 logger = logging.getLogger('gcf.am3.gram')
@@ -114,9 +119,6 @@ ssh_proxy_end_port = 3999
 
 # GRAM AM URN (Component ID of AM)
 gram_am_urn = ''
-
-# PORT on which to communicate with compute_node_interace
-compute_node_interface_port = 9501
 
 # PORT on which to communicate to VMOC interface manager
 vmoc_interface_port = 7001

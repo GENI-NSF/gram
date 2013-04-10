@@ -170,11 +170,13 @@ class GramManager :
         self.persist_state()
 
         # Create a sliver status list for the slivers in this slice
-        sliver_status_list = utils.SliverList().getStatusAllSlivers(slice_object)
+        sliver_status_list = \
+            utils.SliverList().getStatusAllSlivers(slice_object)
 
         # Generate the return struct
         code = {'geni_code': config.SUCCESS}
-        result_struct = {'geni_rspec':manifest, 'geni_slivers':sliver_status_list}
+        result_struct = {'geni_rspec':manifest,
+                         'geni_slivers':sliver_status_list}
         return {'code': code, 'value': result_struct, 'output': ''}
         
 
@@ -196,8 +198,14 @@ class GramManager :
             users = options['geni_users']
         else :
             users = list()
-        open_stack_interface.provisionResources(slice_object, users)
 
+        err_str = open_stack_interface.provisionResources(slice_object, users)
+        if err_str != None :
+            # We failed to provision this slice for some reason (described
+            # in err_str)
+            code = {'geni_code': config.OPENSTACK_ERROR}
+            return {'code': code, 'value': '', 'output': err_str}
+            
         # Set operational/allocation state
         for sliver in slice_object.getSlivers().values():
             sliver.setAllocationState(config.provisioned)
@@ -536,7 +544,7 @@ class GramManager :
         return files
 
     def __del__(self) :
-        print ('In destructor')
+        config.logger.info('In destructor')
         # open_stack_interface.cleanup(None, None)
 
     def errorResult(self, code, output, am_code=None):
