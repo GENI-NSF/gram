@@ -253,7 +253,7 @@ class ControllerURLCreationThread(threading.Thread):
                     slice_registry_lookup_slice_config_by_vlan(self._vlan)
                 if not slice_config or not slice_config.contains(self._controller_url, self._vlan):
                     log.info("VLAN/Controller mapping changed : " + \
-                                 " not startng connection" + \
+                                 " not starting connection" + \
                                  str(self._controller_url) + " " + str(self._vlan))
                     self._running = False
                 else:

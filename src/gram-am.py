@@ -84,6 +84,10 @@ def parse_args(argv):
     parser.add_option("--snapshot_maintain_limit", type=int,
                           help="Retain only this limit of recent snapshots",
                           default=10)
+    parser.add_option("--config_file", 
+                      help="Location of GRAM installation-specific " + 
+                      "configuration", 
+                      default="/etc/gram/config.json")
     return parser.parse_args()
 
 def getAbsPath(path):
@@ -103,6 +107,10 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
     opts = parse_args(argv)[0]
+
+
+    gram.am.gram.config.initialize(opts.config_file)
+
     level = logging.INFO
     if opts.debug:
         level = logging.DEBUG

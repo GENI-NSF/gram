@@ -1,3 +1,25 @@
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
 
 import subprocess
 import pdb
@@ -202,10 +224,8 @@ def provisionResources(geni_slice, users) :
 
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
-    total_nic_count = 0
     for vm in geni_slice.getVMs() :
         for nic in vm.getNetworkInterfaces() :
-            total_nic_count = total_nic_count + 1
             if nic.getIPAddress() == None :
                 # NIC needs an IP, if it is connected to a link
                 link = nic.getLink()
@@ -263,9 +283,9 @@ def provisionResources(geni_slice, users) :
                 # We are in Step 1 or Step 3 of the VM placement algorithm
                 # described above.  We don't give openstack any hints on
                 # where this VM should go
-                vm_uuid = _createVM(vm, users, total_nic_count, None)
+                vm_uuid = _createVM(vm, users, None)
             else :
-                vm_uuid = _createVM(vm, users, total_nic_count, vm_uuids)
+                vm_uuid = _createVM(vm, users, vm_uuids)
             if vm_uuid == None :
                 # Failed to create this vm.  Cleanup actions before
                 # we return:
@@ -293,6 +313,31 @@ def provisionResources(geni_slice, users) :
                 vms_created_this_call.append(vm)
                 vm.setAuthorizedUsers(user_names)
 
+# Delete all ports associated with given slice/tenant
+# Allow some failures: there will be some that can't be deleted
+# Or are automatically deleted by deleting others
+def _deleteNetworkPorts(geni_slice):
+    tenant_uuid = geni_slice.getTenantUUID();
+
+    ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    print ports_cmd
+    ports_output = _execCommand(ports_cmd)
+    port_lines = ports_output.split('\n')
+    for i in range(3, len(port_lines)-2):
+        port_columns = port_lines[i].split('|')
+        port_id = port_columns[1].strip()
+        try:
+            delete_port_cmd = 'quantum port-delete %s' % port_id
+            print delete_port_cmd
+            _execCommand(delete_port_cmd)
+        except Exception:
+            # Sometimes deleting one port automatically deletes another
+            # so it is no longer there
+            # Also some ports belong to the network:router_interface
+            # and can't be deleted by port API
+            print "Failed to delete port %s" % port_id
+            pass
+
 def deleteAllResourcesForSlice(geni_slice) :
     """
         Deallocate all network and VM resources held by this slice.
@@ -304,6 +349,9 @@ def deleteAllResourcesForSlice(geni_slice) :
         _deleteVM(vm)
         vm.setAllocationState(config.unallocated)
         sliver_stat_list.addSliver(vm)
+
+    # Delete ports associated with sliceb
+    _deleteNetworkPorts(geni_slice)
 
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
@@ -740,7 +788,7 @@ def _getPortsForTenant(tenant_uuid):
 
 
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
-def _createVM(vm_object, users, total_nic_count, placement_hint) :
+def _createVM(vm_object, users, placement_hint) :
     """
         Create a OpenStack VM 
     """
@@ -766,7 +814,8 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     control_port_uuid = _getValueByPropertyName(output, 'id')
 
     # Now create ports for the experiment data networks
-    for nic in vm_object.getNetworkInterfaces() :
+    vm_net_infs = vm_object.getNetworkInterfaces()
+    for nic in vm_net_infs :
         link_object = nic.getLink()
         if not link_object: continue
         net_uuid = link_object.getNetworkUUID()
@@ -784,7 +833,7 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
         # Not doing any rollback.  Do we really want to fail the entire 
         # provision if we can't get mac addresses?
     else :
-        for nic in vm_object.getNetworkInterfaces() :
+        for nic in vm_net_infs :
             nic_uuid = nic._uuid
             if ports_info.has_key(nic_uuid):
                 mac_address = ports_info[nic_uuid]['mac_address']
@@ -800,10 +849,13 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
+    zipped_userdata_filename = userdata_filename + ".gz"
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
-    gen_metadata.configMetadataSvcs(users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
-    cmd_string += (' --user_data %s.gz' % userdata_filename)
+    total_nic_count = len(vm_net_infs) + 1
+    metadata_cmd_count = gen_metadata.configMetadataSvcs(slice_object, users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
+    if metadata_cmd_count > 0 :
+        cmd_string += (' --user_data %s' % zipped_userdata_filename)
 
     # Add security group support
     cmd_string += ' --security_groups %s' % slice_object.getSecurityGroup()
@@ -813,7 +865,7 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     cmd_string += ' --nic port-id=%s' % control_port_uuid
     
     # Now add the NICs for the experiment data network
-    for nic in vm_object.getNetworkInterfaces() :
+    for nic in vm_net_infs :
         port_uuid = nic.getUUID()
         if port_uuid != None :
             cmd_string += (' --nic port-id=%s' % port_uuid)
@@ -833,7 +885,6 @@ def _createVM(vm_object, users, total_nic_count, placement_hint) :
     vm_uuid = _getValueByPropertyName(output, 'id')
 
     # Delete the temp file
-    zipped_userdata_filename = userdata_filename + ".gz"
     os.unlink(zipped_userdata_filename)
 
     # Wait for the vm status to turn to 'active' and then reboot
@@ -1055,6 +1106,40 @@ def _listFlavors():
         name = parts[2].strip()
         flavors[id]=name
     return flavors
+
+# Get dictionary of all supported images (id => name)
+def _listImages():
+    images ={}
+    command_string = "nova image-list"
+    output = _execCommand(command_string)
+    output_lines = output.split('\n')
+    for i in range(3, len(output_lines)-2):
+        line = output_lines[i]
+        parts = line.split('|')
+        image_id = parts[1].strip()
+        image_name = parts[2].strip()
+        images[image_id] = image_name
+
+    return images
+
+
+# Find VLAN's associated with MAC addresses and hostnames
+# Return dictionary {mac => {'vlan':vlan, 'host':host}}
+def _lookup_vlans_for_tenant(tenant_id):
+    map = {}
+    hosts = _listHosts('compute')
+#    print str(hosts)
+    ports = _getPortsForTenant(tenant_id)
+#    print str(ports)
+    for host in hosts.keys():
+        port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
+        port_map = _read_vlan_port_map(port_data)
+        for port in ports.keys():
+            mac = ports[port]['mac_address']
+            vlan_id = _lookup_vlan_for_port(port, port_map)
+            if vlan_id: 
+                map[mac] = {'vlan': vlan_id, 'host':host}
+    return map
 
 
 # Find the VLAN tag associated with given port interface

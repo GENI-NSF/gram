@@ -1,4 +1,6 @@
 
+import datetime
+import dateutil
 import os
 import getpass
 import signal
@@ -66,6 +68,9 @@ class GramManager :
         if config.gram_snapshot_directory:
             self._snapshot_directory = \
                 config.gram_snapshot_directory + "/" + getpass.getuser()
+
+        # Set max lease renewal to 7 days
+        self._max_lease = datetime.timedelta(minutes=7*24*60) 
 
         # Client interface to VMOC - update VMOC on current
         # State of all slices and their associated 
@@ -159,6 +164,7 @@ class GramManager :
         # Generate a manifest rpsec
         slice_object.setRequestRspec(rspec)
         manifest =  rspec_handler.generateManifest(slice_object, rspec)
+        slice_object.setManifestRspec(manifest)
 
         # Persist aggregate state
         self.persist_state()
@@ -252,6 +258,7 @@ class GramManager :
         """
             Describe the status of the resources allocated to this slice.
         """
+
         # Find the slice object
         slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
         if slice_object == None :
@@ -261,7 +268,7 @@ class GramManager :
             return {'code': code, 'value': '', 'output': err_output}
 
         open_stack_interface.updateOperationalStatus(slice_object)
-        
+
         sliver_stat_list = utils.SliverList()
         sliver_list = sliver_stat_list.getStatusAllSlivers(slice_object)
 
@@ -269,7 +276,10 @@ class GramManager :
         code = {'geni_code': config.SUCCESS}
         result_struct = {'geni_rspec': slice_object.getManifestRspec(), \
                              'geni_slivers': sliver_list}
-        return {'code': code, 'value': result_struct, 'output': ''}
+
+        ret_val = {'code': code, 'value': result_struct, 'output': ''}
+
+        return ret_val
 
 
     def delete(self, urns, options) :
@@ -406,16 +416,76 @@ class GramManager :
         return slice, slivers
 
     def expire_slivers(self):
-        # *** WRITE ME 
-        pass
+        expired = list()
+        now = datetime.datetime.utcnow()
+        for slice in SliceURNtoSliceObject.get_slice_objects():
+            slivers = slice.getSlivers()
+            for sliver in slivers.values():
+                config.logger.debug('Checking sliver %s (expiration = %r) at %r', 
+                                   sliver.getSliverURN(), \
+                                        sliver.getExpiration(), now)
+                if sliver.getExpiration() < now:
+                    config.logger.debug('Expiring sliver %s (expire=%r) at %r', 
+                                        sliver.getSliverURN(), \
+                                            sliver.getExpiration(), now)
+                    expired.append(sliver)
+            config.logger.info('Expiring %d slivers', len(expired))
+        for sliver in expired:
+            slice = sliver.getSlice()
+            slice_urn = slice.getSliceURN()
+            slice.removeSliver(sliver)
+            if not slice.getSlivers() or len(slice.getSlivers() == 0):
+                config.logger.info("Deleting empty slice %r", slice_urn)
+                SliceURNtoSliceObject.remove_slice_object(slice_urn)
 
-    def renew_slivers(self, slivers, expiration_time):
-        # *** WRITE ME 
-        pass
+    def renew_slivers(self, slivers, creds, expiration_time):
+        urns = [sliver.getSliverURN() for sliver in slivers]
+        config.logger.info('Renew(%r, %r)' % (urns, expiration_time))
+        
+        
+        now = datetime.datetime.utcnow()
+        expires = [self._naiveUTC(c.expiration) for c in creds]
+        expires.append(now + self._max_lease)
+        print str(expires)
+        expiration = min(expires)
+        requested = dateutil.parser.parse(str(expiration_time))
+        requested = self._naiveUTC(requested)
+        if requested > expiration:
+            # Fail the call: the requested expiration exceeds the slice expir.
+            msg = ("Out of range: Expiration %s is out of range" + 
+                   " (past last credential expiration of %s).") % \
+            (expiration_time, expiration)
+            config.logger.info(msg)
+            return self.errorResult(config.OUT_OF_RANGE, msg)
+
+        elif requested < now:
+            msg = (("Out of range: Expiration %s is out of range" + 
+                    " (prior to now %s)") % (expiration_time, now.isoformat()))
+            config.logger.error(msg)
+            return self.errorResult(config.OUT_OF_RANGE, msg)
+
+        else:
+            for sliver in slivers:
+                sliver.setExpiration(requested)
+
+        code = {'geni_code':config.SUCCESS}
+        sliver_status_list = utils.SliverList()
+        for sliver in slivers: sliver_status_list.addSliver(sliver)
+        return {'code':code, \
+                    'value':sliver_status_list.getSliverStatusList(), \
+                    'output':''}
 
     def shutdown_slice(self, slice_urn):
-        # *** WRITE ME 
-        pass
+        # *** Ideally, we want shutdown to disable the slice by cutting off
+        # network access or saving a snapshot of the images of running VM's
+        # In the meantime, shutdown is just deleting the slice
+        urns = [slice_urn]
+        options = {}
+        ret_val =  self.delete(urns, options);
+        code = ret_val['code']
+        output = ret_val['output']
+        value = code == config.SUCCESS
+        return {'code':code, 'value':value, 'output':output}
 
     def list_flavors(self):
         return open_stack_interface._listFlavors()
@@ -477,3 +547,25 @@ class GramManager :
         config.logger.info('In destructor')
         # open_stack_interface.cleanup(None, None)
 
+    def errorResult(self, code, output, am_code=None):
+        code_dict = dict(geni_code=code,
+                         am_type=self._am_type)
+        if am_code is not None:
+            code_dict['am_code'] = am_code
+        return dict(code=code_dict,
+                    value="",
+                    output=output)
+
+
+    def _naiveUTC(self, dt):
+        """Converts dt to a naive datetime in UTC.
+
+        if 'dt' has a timezone then
+        convert to UTC
+        strip off timezone (make it "naive" in Python parlance)
+        """
+        if dt.tzinfo:
+            tz_utc = dateutil.tz.tzutc()
+            dt = dt.astimezone(tz_utc)
+            dt = dt.replace(tzinfo=None)
+        return dt

@@ -36,7 +36,7 @@ from pox.lib.util import makePinger
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.addresses import EthAddr
 from pox.lib.packet.vlan import vlan
-from pox.openflow.util import make_type_to_class_table
+from pox.openflow.util import make_type_to_unpacker_table
 from pox.openflow.libopenflow_01 import *
 from pox.openflow import libopenflow_01 as of
 from pox.lib.packet.ethernet import ethernet
@@ -59,7 +59,7 @@ class VMOCControllerConnection(threading.Thread):
         self._running = False
         self._vlan = int(vlan)
 
-        self.ofp_msgs = make_type_to_class_table()
+        self.ofp_msgs = make_type_to_unpacker_table()
         self.ofp_handlers = {
             # Reactive handlers
             ofp_type_rev_map['OFPT_HELLO'] : self._receive_hello,
@@ -415,7 +415,7 @@ class VMOCControllerConnection(threading.Thread):
 #                          str(len(buf)) + " " + str(buf_empty))
 
             if not buf_empty:
-                msg_obj = self.ofp_msgs[ofp_type]()
+                new_offset, msg_obj = self.ofp_msgs[ofp_type](buf, 0)
                 msg_obj.unpack(buf)
 #                log.debug("Received msg " + str(ofp_type) + " " + \
 #                          str(packet_length) + \

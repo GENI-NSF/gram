@@ -49,6 +49,7 @@ from geni.am.am3 import *
 
 from gram import config
 from gram.gram_manager import GramManager
+from gram.rspec_handler import generateAdvertisement
 import gram.open_stack_interface
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
@@ -87,29 +88,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             ret = self.Describe(slice_urns, credentials, options)
             return ret
 
-        component_manager_id = self._my_urn
-        component_name = str(uuid.uuid4())
-        component_id = 'urn:public:geni:gpo:vm+' + component_name
-        exclusive = False
-        sliver_type = 'VM'
-        available = True
-        tmpl = '''  <node component_manager_id="%s"
-        component_name="%s"
-        component_id="%s"
-        exclusive="%s">
-        %s
-    <sliver_type name="%s"/>
-    <available now="%s"/>
-  </node></rspec>
-  '''
-        flavors = self._gram_manager.list_flavors()
-        node_types = ""
-        for flavor_name in flavors.values():
-            node_type = '<node_type type_name="%s"/>' % flavor_name
-            node_types = node_types + node_type + "\n"
-        result = self.advert_header() + \
-            (tmpl % (component_manager_id, component_name, \
-                         component_id, exclusive, node_types, sliver_type, available)) 
+        result = generateAdvertisement(self._my_urn)
         
         if 'geni_compressed' in options and options['geni_compressed']:
             try:
@@ -338,7 +317,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.describe(the_slice.getSliceURN(), options)
+        gram_ret = self._gram_manager.describe(the_slice.getSliceURN(), options)
+        return gram_ret
 
     def Renew(self, urns, credentials, expiration_time, options):
         '''Renew the local sliver that is part of the named Slice
@@ -357,7 +337,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.renew_slivers(slivers, expiration_time)
+        gram_ret = self._gram_manager.renew_slivers(slivers, creds, expiration_time)
+        
+        return gram_ret
 
     def Shutdown(self, slice_urn, credentials, options):
         '''For Management Authority / operator use: shut down a badly
@@ -367,8 +349,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         privileges = (SHUTDOWNSLIVERPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               slice_urn)
-        # *** WRITE ME
-        return self._gram_manager.shutdown_slice(slice_urn)
+        gram_ret = self._gram_manager.shutdown_slice(slice_urn)
+
+        return gram_ret
 
     # Read URN from certificate file
     def readURNFromCertfile(self, certfile):

@@ -34,9 +34,11 @@
 #define PORT_TABLE_LOCATION "/etc/gram/gram-ssh-port-table.txt"
 #define PORT_TABLE_LOCKFILE "/etc/gram/gram-ssh-port-table.lock"
 #define PORT_NUMBER_START 3000
+#define PORT_MIN_NUMBER 1024
 
 #define MAX_PORT_TABLE_ENTRIES 1000
 #define MAX_ADDR_STRING_LENGTH 21
+#define MAX_PORT_STRING_LENGTH 6
 #define MAX_IPTABLES_CMD_STR_LEN 200
 
 #define ENABLE_FCNTL
@@ -420,6 +422,85 @@ int add_proxy(char *addr)
 }
 
 
+int add_proxy_with_port(char *addr, char *prt)
+{
+  FILE *pRead;
+  int lockfile;
+  int strlength;
+  int addr0;
+  int addr1;
+  int addr2;
+  int addr3;
+  int table0;
+  int table1;
+  int table2;
+  int table3;
+  int portNumber;
+  int finalPortNumber;
+  int duplicate;
+
+  /* Pasrse the address and check that it's valid */
+  parse_address(addr, &addr0, &addr1, &addr2, &addr3);
+  /*fprintf(stdout, "Address: %d.%d.%d.%d\n", addr0, addr1, addr2, addr3);*/
+
+  /* Initialize state variables */
+  duplicate = FALSE;
+  finalPortNumber = atoi(prt);
+
+  if (finalPortNumber < PORT_MIN_NUMBER)
+  {
+    fprintf(stderr, "Bad port number: %s\n", prt);
+    exit(EXIT_FAILURE);
+  }
+
+#ifdef ENABLE_FCNTL
+  /* Acquire the lock for the port address table file */
+  lockfile = acquire_read_lock();
+#endif
+
+  /* Open the port table for reading */
+  pRead = fopen(PORT_TABLE_LOCATION, "r");
+  if (pRead != NULL)
+  {
+    /* Iterate over the port table
+       Read each line entry and store contents
+       Determine if given address and port are already in the table
+    */
+    while (!feof(pRead))
+    {
+      /* Read the line */
+      strlength = fscanf(pRead, "%d.%d.%d.%d\t%d",  &table0, &table1, &table2, &table3, &portNumber);
+      if (strlength == 5)
+      {
+        /* Break if the address is a duplication */
+        if (table0 == addr0 && table1 == addr1 && table2 == addr2 && table3 == addr3 && portNumber == finalPortNumber)
+        {
+          duplicate = TRUE;
+          break;
+        }
+      } /* if strlength == 5 */
+    } /* eof */
+
+    /* close the read file */
+    fclose(pRead);
+  }
+
+#ifdef ENABLE_FCNTL
+  /* Release the port table file lock */
+  release_lock(lockfile);
+#endif
+
+  /* Exit if duplicate */
+  if (!duplicate)
+  {
+    fprintf(stderr, "Address %s and port number %s not found in port table\n", addr, prt);
+    exit(EXIT_FAILURE);
+  }
+
+  return finalPortNumber;
+}
+
+
 int delete_proxy(char *addr)
 {
   FILE *pRead;
@@ -599,13 +680,16 @@ int main(int argc, char *argv[])
 {
   int opt;
   char *addr;
+  char *prt;
   int mode;
   int portNumber;
   int addr_not_found = TRUE;
+  int port_not_found = TRUE;
 
   mode = MODE_NONE;
   addr = (char *)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
-  while ((opt = getopt(argc, argv, "m:a:")) != -1)
+  prt = (char *)malloc(sizeof(char) * MAX_PORT_STRING_LENGTH);
+  while ((opt = getopt(argc, argv, "m:a:p:")) != -1)
   {
     /*fprintf(stdout, "Option %c\n", opt); */
     switch (opt)
@@ -625,6 +709,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
       }
       break;
+    case 'p':
+      strncpy(prt, optarg, MAX_PORT_STRING_LENGTH);
+      port_not_found = FALSE;
+      break;
     case 'a':
       /*fprintf(stdout, "Address %s\n", (char*)optarg);*/
       strncpy(addr, optarg, MAX_ADDR_STRING_LENGTH);
@@ -643,17 +731,31 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);      
   }
 
-
   if (mode == MODE_CREATE)
   {
-    fprintf(stdout, "Creating SSH Proxy for address %s\n", addr);
-    portNumber = add_proxy(addr);
-    fprintf(stdout, "Assigned port number %d\n", portNumber);
+    if (port_not_found)
+    {
+      fprintf(stdout, "Creating SSH Proxy for address %s\n", addr);
+      portNumber = add_proxy(addr);
+      fprintf(stdout, "Assigned port number %d\n", portNumber);
+    } else {
+      fprintf(stdout, "Creating SSH Proxy for address %s and port %s\n", addr, prt);
+      portNumber = add_proxy_with_port(addr, prt);
+      fprintf(stdout, "Done.\n");
+   }
+
     add_proxy_cmd(addr, portNumber);
+
   } else if (mode == MODE_DELETE) {
-    fprintf(stdout, "Deleting SSH Proxy for address %s\n", addr);
-    portNumber = delete_proxy(addr);
-    fprintf(stdout, "Assigned port number %d\n", portNumber);
+    if (port_not_found)
+    {
+      fprintf(stdout, "Deleting SSH Proxy for address %s\n", addr);
+      portNumber = delete_proxy(addr);
+      fprintf(stdout, "Assigned port number %d\n", portNumber);
+    } else {
+      portNumber = atoi(prt);
+    }
+
     delete_proxy_cmd(addr, portNumber);
   } else {
     fprintf(stdout, "Clearing all SSH Proxy addresses %s\n", addr);
