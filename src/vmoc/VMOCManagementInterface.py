@@ -27,8 +27,10 @@
 
 import json
 import pdb
+import time
 from pox.core import core
 import socket
+import os
 import sys
 import SocketServer
 import threading
@@ -75,7 +77,10 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 				response2 = slice_registry_dump(False)
 				response = response1 + "\n" + response2
 			elif command == 'ping':
-				response = ''
+				response = str(os.getpid())
+#				print "PING RESP = " + response
+			elif command == 'clear':
+				response = self.handleClear()
 			elif command == "register":
 				response = self.handleRegister(slice_config)
 			elif command == "unregister":
@@ -84,6 +89,7 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 				response = "Illegal command " + command
 		except AssertionError, error:
 			response = str(error)
+#		log.debug("Sending " + response)
 		self.request.sendall(response)
 
 	# Handle the register request, returning response 
@@ -121,6 +127,13 @@ class VMOCManagementServerHandler(SocketServer.BaseRequestHandler):
 			response = "No such slice registered: " + slice_id
 		return response
 
+	def handleClear(self):
+		response = "Clear successful"
+		for slice_config in slice_registry_get_slice_configs():
+			slice_id = slice_config.getSliceID()
+			scmap.remove_controller_connections_for_slice(slice_id)
+			slice_registry_unregister_slice(slice_id)
+		return response
 
 class VMOCManagementInterface(threading.Thread):
  	def __init__(self, port, default_controller_url):
@@ -130,12 +143,20 @@ class VMOCManagementInterface(threading.Thread):
 		VMOCGlobals.setDefaultControllerURL(default_controller_url)
 
  	def run(self):
- 		server = \
-		    SocketServer.TCPServer((self._host, self._port), \
-						   VMOCManagementServerHandler)
- 		try:
- 			server.serve_forever()
- 		except BaseException:
- 			server.shutdown()
- 		log.info("VMOCMI.exit")
+		server = None
+		# Keep trying until you successfully open the socket
+		while not server:
+			print "Trying to start server"
+			try:
+				server = \
+				    SocketServer.TCPServer((self._host, self._port), \
+								   VMOCManagementServerHandler)
+				server.serve_forever()
+			except Exception, e:
+				print "Exception" + str(e)
+				if server:
+					server.shutdown()
+					server = None
+				time.sleep(5)
+
 
