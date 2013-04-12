@@ -42,7 +42,6 @@ import zlib
 import geni
 from geni.util.urn_util import publicid_to_urn
 import geni.util.urn_util as urn
-# from geni.SecureXMLRPCServer import SecureXMLRPCServer
 from GramSecureXMLRPCServer import GramSecureXMLRPCServer
 from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
 from geni.am.am3 import *

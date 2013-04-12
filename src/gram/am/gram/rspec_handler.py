@@ -68,32 +68,33 @@ def parseRequestRspec(geni_slice, rspec) :
             config.logger.error(error_string)
             return error_string, sliver_list, None
 
-        # Set optional flavor of the node
-        if node_attributes.has_key('flavor') :
-            vm_object.setVMFlavor(node_attributes['flavor'].value)
-
-        # Alternatively, get flavor from the sliver_type
+        # Get flavor from the sliver_type
         sliver_type_list = node.getElementsByTagName('sliver_type')
         for sliver_type in sliver_type_list:
-            if sliver_type.attributes.has_key('name'):
+            if sliver_type.attributes.has_key('name') :
                 sliver_type_name = sliver_type.attributes['name'].value
-                if open_stack_interface._getFlavorID(sliver_type_name):
-                    vm_object.setVMFlavor(sliver_type_name)
-                    config.logger.info("Setting VM to " + \
-                                               str(sliver_type_name))
-                else:
-                    error_string = "Undefined sliver_type flavor " + \
-                        str(sliver_type_name)
-                    config.logger.error(error_string)
-                    return error_string, sliver_list, None
+            else :
+                sliver_type_name = config.default_VM_flavor
+            if open_stack_interface._getFlavorID(sliver_type_name):
+                vm_object.setVMFlavor(sliver_type_name)
+                config.logger.info("Setting VM to " + \
+                                       str(sliver_type_name))
+            else:
+                error_string = "Undefined sliver_type flavor " + \
+                    str(sliver_type_name)
+                config.logger.error(error_string)
+                return error_string, sliver_list, None
 
             # Get disk image by name from node
             disk_image_list = sliver_type.getElementsByTagName('disk_image')
             for disk_image in disk_image_list:
-                disk_image_name = disk_image.attributes['name'].value
+                if disk_image.attributes.has_key('name') :
+                    disk_image_name = disk_image.attributes['name'].value
+                else :
+                    disk_image_name = config.default_OS_image
                 disk_image_uuid = \
                     open_stack_interface._getImageUUID(disk_image_name)
-                if disk_image_uuid:
+                if disk_image_uuid :
                     config.logger.info("DISK = " + str(disk_image_name) + \
                                            " " + str(disk_image_uuid))
                     vm_object.setOSImageName(disk_image_name)
@@ -279,7 +280,7 @@ def generateManifest(geni_slice, req_rspec) :
             # For each child element of node, set appropriate attrbutes.
             # Child elements of node include sliver_type, services, 
             # interface, etc.
-            sliver_type_set=False
+            sliver_type_set = False
             login_info_set = False
             login_elements_list = list()
             login_elements_list_unset = True 
@@ -295,7 +296,7 @@ def generateManifest(geni_slice, req_rspec) :
                         socket.gethostbyaddr(socket.gethostname())[0]
                     for i in range(0, len(user_names)) :
                         login_element = Element('login')
-                        login_element.setAttribute('authentication', 'ssh-keys')
+                        login_element.setAttribute('authentication','ssh-keys')
                         login_element.setAttribute('hostname', my_host_name)
                         login_element.setAttribute('port', login_port)
                         login_element.setAttribute('username', user_names[i])
@@ -303,21 +304,15 @@ def generateManifest(geni_slice, req_rspec) :
 
                 login_elements_list_unset = False
                 if child_of_node.nodeName == 'sliver_type' :
-                    # sliver_type = child_of_node.attributes['name'].value
-                    child_of_node.setAttribute('name', 'virtual-machine')
+                    child_of_node.setAttribute('name', vm_object.getVMFlavor())
                     # Look for the <disk_image> child of <sliver_type> and
                     # set it to the correct value
                     for sliver_type_child in child_of_node.childNodes :
                         # Find the child <disk_image>
                         if sliver_type_child.nodeName == 'disk_image' :
-                            image_urn = \
-                                'urn:publicid:IDN+emulab.net+image+emulab-ops:'
-                            image_urn += config.default_OS_image
+                            image_urn = config.image_urn_prefix +  \
+                                vm_object.getOSImageName()
                             sliver_type_child.setAttribute('name', image_urn)
-                            sliver_type_child.setAttribute('os', 
-                                                         config.default_OS_type)
-                            sliver_type_child.setAttribute('version', 
-                                                      config.default_OS_version)
                     sliver_type_set = True
                 elif child_of_node.nodeName == 'interface' :
                     # Find the NetworkInterface object for this interface
@@ -352,13 +347,13 @@ def generateManifest(geni_slice, req_rspec) :
                 # There was no sliver_type set on the manifest because there
                 # was no sliver_type element in the request rspec.  We add
                 # a new element for sliver_type
-                sliver_type = "virtual-machine"
+                sliver_type = vm_object.getVMFlavor()
                 sliver_type_elem = Element('sliver_type')
                 sliver_type_elem.setAttribute('name', sliver_type)
                 # Create a <disk_image> child for <silver_type>
                 disk_image = Element('disk_image')
-                image_urn =  'urn:publicid:IDN+emulab.net+image+emulab-ops:'
-                image_urn += config.default_OS_image
+                image_urn = config.image_urn_prefix + \
+                    config.default_OS_image # no image was specified in request
                 disk_image.setAttribute('name', image_urn)
                 disk_image.setAttribute('os', config.default_OS_type)
                 disk_image.setAttribute('version', config.default_OS_version)

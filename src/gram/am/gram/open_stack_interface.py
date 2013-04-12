@@ -1128,9 +1128,7 @@ def _listImages():
 def _lookup_vlans_for_tenant(tenant_id):
     map = {}
     hosts = _listHosts('compute')
-#    print str(hosts)
     ports = _getPortsForTenant(tenant_id)
-#    print str(ports)
     for host in hosts.keys():
         port_data = compute_node_interface.compute_node_command(host, ComputeNodeInterfaceHandler.COMMAND_OVS_VSCTL)
         port_map = _read_vlan_port_map(port_data)

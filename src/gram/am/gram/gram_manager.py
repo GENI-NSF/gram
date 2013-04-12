@@ -434,7 +434,7 @@ class GramManager :
             slice = sliver.getSlice()
             slice_urn = slice.getSliceURN()
             slice.removeSliver(sliver)
-            if not slice.getSlivers() or len(slice.getSlivers() == 0):
+            if not slice.getSlivers() or len(slice.getSlivers()) == 0:
                 config.logger.info("Deleting empty slice %r", slice_urn)
                 SliceURNtoSliceObject.remove_slice_object(slice_urn)
 

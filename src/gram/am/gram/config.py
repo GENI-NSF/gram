@@ -23,6 +23,7 @@
 
 
 import logging
+import socket
 
 # OpenStack related configuration
 #default_VM_flavor = 'm1.small'  
@@ -43,9 +44,15 @@ default_VM_flavor = 'm1.smaller'
 #default_OS_type = 'Linux'
 #default_OS_version = '17'
 
-default_OS_image = 'ubuntu-12.04'
 #default_OS_image = 'ubuntu-12.04-2nic'
+#default_OS_type = 'Linux'
+#default_OS_version = '12'
+
 #default_OS_image = 'ubuntu-2nic-wkey'
+#default_OS_type = 'Linux'
+#default_OS_version = '12'
+
+default_OS_image = 'ubuntu-12.04'
 default_OS_type = 'Linux'
 default_OS_version = '12'
 
@@ -58,10 +65,12 @@ tenant_admin_pwd = 'sliceMaster:-)'  # Password for the tenant's admin user
 # GENI interface related configuration
 default_execute_shell = 'sh'   # default shell to use for use by execute
                                # services specified in the request rspec
-sliver_urn_prefix = 'urn:publicid:IDN+gram+sliver+'
-vm_urn_prefix = sliver_urn_prefix + 'vm+'
+urn_prefix = 'urn:publicid:IDN+' + socket.getfqdn() + '+'
+sliver_urn_prefix = urn_prefix + 'sliver+'
+vm_urn_prefix = urn_prefix + 'vm+'
 interface_urn_prefix = sliver_urn_prefix + 'interface+'
 link_urn_prefix = sliver_urn_prefix + 'link+'
+image_urn_prefix = urn_prefix + 'image+'
 
 allocation_expiration_minutes =  10      # allocations expire in 10 mins
 lease_expiration_minutes =  7 * 24 * 60  # resources can be leased for 7 days
@@ -118,7 +127,7 @@ ssh_proxy_start_port = 3000
 ssh_proxy_end_port = 3999
 
 # GRAM AM URN (Component ID of AM)
-gram_am_urn = ''
+gram_am_urn = 'gram.gram'
 
 # PORT on which to communicate to VMOC interface manager
 vmoc_interface_port = 7001
