@@ -49,10 +49,14 @@ class CreateDpkg:
         parser = optparse.OptionParser()
         parser.add_option("--controller", help="controller name", \
                               default=None, dest="controller")
+        parser.add_option("--compute_node", help="Generate DEB for compute node", \
+                              default="False", dest="compute_node")
         parser.add_option("--deb_location", help="DEB directory", \
                               default="/tmp/gram_dpkg", dest="deb_location")
         parser.add_option("--deb_filename", help="DEB filename", \
                               default="/tmp/gram.deb", dest="deb_filename")
+        parser.add_option("--gcf_root", help="GCF installation", \
+                              default="/opt/gcf-2.2", dest="gcf_root")
         parser.add_option("--should_cleanup", \
                               help="should cleanup before generating", 
                               default="True", dest="should_cleanup")
@@ -67,9 +71,10 @@ class CreateDpkg:
 
         self._should_cleanup = (self.opts.should_cleanup == "True")
         self._should_generate = (self.opts.should_generate == "True")
+        self._compute_node = (self.opts.compute_node == "True")
 
         if self.opts.controller is None:
-            logging.error("USAGE -$ createpkg --controller <your controller name>")
+            logging.error("USAGE -$ createdpkg --controller <your controller name>")
             sys.exit(0)
 
 
@@ -83,19 +88,22 @@ class CreateDpkg:
 
     def generate(self):
 
-        # Create the directory sturcture
+        # Create the directory structure
         self._execCommand("mkdir -p " + self.opts.deb_location)
         self._execCommand("mkdir -p " + self.opts.deb_location + "/opt")
         self._execCommand("mkdir -p " + self.opts.deb_location + "/etc")
         self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram")
-        self._execCommand("mkdir -p " + self.opts.deb_location + "/DEBIAN")
 
         # Copy source and data files into their package locations
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + self.opts.deb_location + "/home/gram")
-        self._execCommand("cp -Rf /opt/gcf-2.2 " + self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf " + self.opts.gcf_root + " " + self.opts.deb_location + "/opt")
         self._execCommand("cp -Rf /opt/pox " + self.opts.deb_location + "/opt")
         self._execCommand("cp -Rf /etc/gram " + self.opts.deb_location + "/etc")
-        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/pkg/gram_dpkg/DEBIAN " + self.opts.deb_location)
+        debian_source = "DEBIAN_control"
+        if self._compute_node: debian_source = "DEBIAN_compute"
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/pkg/gram_dpkg/" + debian_source + \
+                              " " + self.opts.deb_location)
+        self._execCommand("mv " + self.opts.deb_location + "/" + debian_source + " " + self.opts.deb_location + "/DEBIAN")
 
         # Update config files with user-defined controller node name
         self.update_file(self.opts.deb_location + "/home/gram/gram/omni_config", \

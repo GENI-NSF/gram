@@ -1,0 +1,7 @@
+Package: gram
+Version: 0.1
+Priority: optional
+Architecture: all
+Depends: git, cloud-utils, kvm, xmlsec1
+Maintainer: GRAM Developers <gram-dev@bbn.com>
+Description: GRAM installation package
