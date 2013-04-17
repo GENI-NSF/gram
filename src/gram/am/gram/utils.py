@@ -3,6 +3,7 @@ import datetime
 import dateutil.parser
 
 import config
+import constants
 import resources
 
 class SliverList :
@@ -123,7 +124,7 @@ class AllocationTimesSetter(ExpirationTimesSetter) :
         all_slivers = self._geni_slice.getSlivers()
         for sliver_urn in all_slivers :
             sliver = all_slivers[sliver_urn]
-            if sliver.getAllocationState() == config.allocated and \
+            if sliver.getAllocationState() == constants.allocated and \
                     sliver.getExpiration() == None :
 #                print "ALL: SETTING EXP of " + sliver_urn + " to " + str(self._expiration_time)
                 # This sliver has been allocated but does not have an
@@ -149,6 +150,6 @@ class ProvisionTimesSetter(ExpirationTimesSetter) :
         all_slivers = self._geni_slice.getSlivers()
         for sliver_urn in all_slivers :
             sliver = all_slivers[sliver_urn]
-            if sliver.getAllocationState() == config.provisioned :
+            if sliver.getAllocationState() == constants.provisioned :
 #               print "PRV: SETTING EXP of " + sliver_urn + " to " + str(self._expiration_time)
                 self.setExpirationTime(sliver)

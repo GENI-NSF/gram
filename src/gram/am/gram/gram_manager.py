@@ -7,6 +7,7 @@ import signal
 import time
 
 import config
+import constants
 from resources import Slice, VirtualMachine
 import rspec_handler
 import open_stack_interface
@@ -111,7 +112,7 @@ class GramManager :
             error_output = 'Slice already has slivers at this aggregate.  Delete the slice before calling allocate again'
 
             # Create and return an error struct
-            code = {'geni_code': config.SLICE_ALREADY_EXISTS}
+            code = {'geni_code': constants.SLICE_ALREADY_EXISTS}
             return {'code': code, 'value': '', 'output': error_output}
 
         # This is a new slice at this aggregate.  Create Slice object and add
@@ -132,7 +133,7 @@ class GramManager :
                 slice_object.removeSliver(sliver_object)
                 
             # Return an error struct.
-            code = {'geni_code': config.REQUEST_PARSE_FAILED}
+            code = {'geni_code': constants.REQUEST_PARSE_FAILED}
             return {'code': code, 'value': '', 'output': err_output}
 
 
@@ -146,7 +147,7 @@ class GramManager :
                 if isinstance(sliver, VirtualMachine):
                     num_vms = num_vms + 1
             if len(hosts) < num_vms:
-                code = {'geni_code': config.REQUEST_PARSE_FAILED}
+                code = {'geni_code': constants.REQUEST_PARSE_FAILED}
                 error_output = \
                     "For OpenFlow controlled slice, limit of " + \
                     str(len(hosts)) + " VM's"
@@ -174,7 +175,7 @@ class GramManager :
             utils.SliverList().getStatusAllSlivers(slice_object)
 
         # Generate the return struct
-        code = {'geni_code': config.SUCCESS}
+        code = {'geni_code': constants.SUCCESS}
         result_struct = {'geni_rspec':manifest,
                          'geni_slivers':sliver_status_list}
         return {'code': code, 'value': result_struct, 'output': ''}
@@ -190,7 +191,7 @@ class GramManager :
         if slice_object == None :
             #  Unknown slice.  Return error message
             err_output = 'Search for slice %s failed' % slice_urn
-            code = {'geni_code': config.UNKNOWN_SLICE}
+            code = {'geni_code': constants.UNKNOWN_SLICE}
             return {'code': code, 'value': '', 'output': err_output}
 
         # Provision OpenStack Resources
@@ -203,13 +204,13 @@ class GramManager :
         if err_str != None :
             # We failed to provision this slice for some reason (described
             # in err_str)
-            code = {'geni_code': config.OPENSTACK_ERROR}
+            code = {'geni_code': constants.OPENSTACK_ERROR}
             return {'code': code, 'value': '', 'output': err_str}
             
         # Set operational/allocation state
         for sliver in slice_object.getSlivers().values():
-            sliver.setAllocationState(config.provisioned)
-            sliver.setOperationalState(config.notready)
+            sliver.setAllocationState(constants.provisioned)
+            sliver.setOperationalState(constants.notready)
 
         # Set expiration times on the provisioned resources
         utils.ProvisionTimesSetter(slice_object, creds, \
@@ -249,7 +250,7 @@ class GramManager :
         self.registerSliceToVMOC(slice_object)
 
         # Generate the return struct
-        code = {'geni_code': config.SUCCESS}
+        code = {'geni_code': constants.SUCCESS}
         result_struct = {'geni_rspec':manifest, 'geni_slivers':sliver_status_list}
         return {'code': code, 'value': result_struct, 'output': ''}
         
@@ -264,7 +265,7 @@ class GramManager :
         if slice_object == None :
             config.logger.error('Asked to describe unknown slice %s' % urns[0])
             err_output = 'Search for slice %s failed' % slice_urn
-            code = {'geni_code': config.UNKNOWN_SLICE}
+            code = {'geni_code': constants.UNKNOWN_SLICE}
             return {'code': code, 'value': '', 'output': err_output}
 
         open_stack_interface.updateOperationalStatus(slice_object)
@@ -273,7 +274,7 @@ class GramManager :
         sliver_list = sliver_stat_list.getStatusAllSlivers(slice_object)
 
         # Generate the return struct
-        code = {'geni_code': config.SUCCESS}
+        code = {'geni_code': constants.SUCCESS}
         result_struct = {'geni_rspec': slice_object.getManifestRspec(), \
                              'geni_slivers': sliver_list}
 
@@ -293,7 +294,7 @@ class GramManager :
         if slice_object == None :
             config.logger.error('Asked to delete unknown slice %s' % urns[0])
             err_output = 'Search for slice %s failed' % slice_urn
-            code = {'geni_code': config.UNKNOWN_SLICE}
+            code = {'geni_code': constants.UNKNOWN_SLICE}
             return {'code': code, 'value': '', 'output': err_output}
 
         # We do have the slice.  Delete all resources held by the slice
@@ -310,7 +311,7 @@ class GramManager :
         self.registerSliceToVMOC(slice_object, False)
 
         # Generate the return struct
-        code = {'geni_code': config.SUCCESS}
+        code = {'geni_code': constants.SUCCESS}
         return {'code': code, 'value': sliver_status_list,  'output': ''}
 
     # Persist state to file based on current timestamp
@@ -456,19 +457,19 @@ class GramManager :
                    " (past last credential expiration of %s).") % \
             (expiration_time, expiration)
             config.logger.info(msg)
-            return self.errorResult(config.OUT_OF_RANGE, msg)
+            return self.errorResult(constants.OUT_OF_RANGE, msg)
 
         elif requested < now:
             msg = (("Out of range: Expiration %s is out of range" + 
                     " (prior to now %s)") % (expiration_time, now.isoformat()))
             config.logger.error(msg)
-            return self.errorResult(config.OUT_OF_RANGE, msg)
+            return self.errorResult(constants.OUT_OF_RANGE, msg)
 
         else:
             for sliver in slivers:
                 sliver.setExpiration(requested)
 
-        code = {'geni_code':config.SUCCESS}
+        code = {'geni_code':constants.SUCCESS}
         sliver_status_list = utils.SliverList()
         for sliver in slivers: sliver_status_list.addSliver(sliver)
         return {'code':code, \
@@ -484,7 +485,7 @@ class GramManager :
         ret_val =  self.delete(urns, options);
         code = ret_val['code']
         output = ret_val['output']
-        value = code == config.SUCCESS
+        value = code == constants.SUCCESS
         return {'code':code, 'value':value, 'output':output}
 
     def list_flavors(self):
@@ -509,7 +510,8 @@ class GramManager :
             # Otherwise, use the most recent (if indicated)
             # Otherwise, no state to restore
             snapshot_file = None
-            if config.recover_from_snapshot: 
+            if config.recover_from_snapshot and \
+                    config.recover_from_snapshot != "": 
                 snapshot_file = config.recover_from_snapshot
             if not snapshot_file and config.recover_from_most_recent_snapshot:
                 files = self.get_snapshots()

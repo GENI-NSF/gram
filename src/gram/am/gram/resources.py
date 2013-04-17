@@ -32,6 +32,7 @@ import threading
 import os
 
 import config
+import constants
 
 # Helper function for generating field-by-field image 
 # for resources
@@ -341,8 +342,8 @@ class Sliver():
       self._uuid = uuid     # OpenStack UUID of resource
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
-      self._allocation_state = config.allocated  # API v3 allocation state
-      self._operational_state = config.notready  # Operational state
+      self._allocation_state = constants.allocated  # API v3 allocation state
+      self._operational_state = constants.notready  # Operational state
       my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
                                 # by the slice.  sliver_urn must be set.
 

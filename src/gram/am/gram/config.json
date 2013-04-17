@@ -1,18 +1,53 @@
 {
-	"_comments" : 
-	[
-	"This is a config file for initializing AggregateState structure",
-	"The format is to provide:",
-	"   a list of VLAN tags (key = vlan_tags)",
-	"   a list of public IP addresses (key = public_IP_addresses)",
-	"   a list of flavor capacities (how many of each flavor ", 
-	"       type can the aggregate support (key = flavor_capacities)",
-	"  a dictionary of name/value parameters (key = parameters)"
-	],
-	"vlan_tags" : ["1", "3", "5", "7"],
-	"public_IP_addresses" : 
-	["10.0.0.0", "10.0.0.1", "10.0.0.2", "10.0.0.3"],
-	"flavor_capacities" : [{"1" : "3"}, {"2" : "2"}, {"3": "1"}],
-	"archive_directory" : "/tmp/gram", 
-	"parameters" : { }
+   "__001": "This file contains GRAM installation-specific", 
+   "__002": "parameters and structures. The values contained here",
+   "__003": "override values in the gram.am.gram.config module.",
+   "__004": "That is, a key/value pair  K, V  in this file", 
+   "__005": "sets gram.am.config.K = V",
+   "__006": "An error is given if the field (K) does not exist, ",
+   "__007": "Or the type of the value cannot be coerced",
+   "__008": "Further any parameter whose value is None in config.py", 
+   "__009": "and set as null here must be set in this file:",
+   "__010": "no default is provided",
+
+   "disk_image_metadata": null,
+
+   "external_interface": null,
+   "external_address": null,
+   "external_netmask": null,
+   "control_address": null,
+   "control_interface": null,
+   "control_netmask": null,
+   "data_interface": null,
+   "management_interface": null,
+   "management_address": null,
+   "management_netmask": null,
+   "mysql_user": null,
+   "mysql_password": null,
+   "rabbit_password": null,
+   "nova_password": null,
+   "glance_password": null,
+   "keystone_password": null,
+   "quantum_password": null,
+   "os_tenant_name": null,
+   "os_username": null,
+   "os_password": null,
+   "os_auth_url": "http://localhost:5000/v2.0/",
+   "os_region_name" : "RegionOne", 
+   "os_no_cache" : "1",
+   "service_token" : null,
+   "service_endpoint" : "http://localhost:35357/v2.0",
+
+   "public_gateway_ip" : null,
+   "public_subnet_cidr" : null,
+   "public_subnet_start_ip" : null,
+   "public_subnet_end_ip" : null,
+
+   "metadata_port" : "8775",
+
+   "backup_directory" : "/home/gram/.backup",
+   "control_host" : null,
+   "compute_hosts": null,
+   "glance_images" : null
+
 }

@@ -31,6 +31,7 @@ import time
 
 import resources
 import config
+import constants
 import utils
 import gen_metadata
 import manage_ssh_proxy
@@ -188,7 +189,7 @@ def provisionResources(geni_slice, users) :
 
             link.setNetworkUUID(uuids['network_uuid'])
             link.setSubnetUUID(uuids['subnet_uuid'])
-            link.setAllocationState(config.provisioned)
+            link.setAllocationState(constants.provisioned)
             links_created_this_call.append(uuids['network_uuid'])
 
     # Associate the VLANs for the control and data networks
@@ -307,7 +308,7 @@ def provisionResources(geni_slice, users) :
                 return 'GRAM internal error: Failed to create a VM for node %s' % vm.getName()
             else :
                 vm.setUUID(vm_uuid)
-                vm.setAllocationState(config.provisioned)
+                vm.setAllocationState(constants.provisioned)
                 num_vms_created += 1
                 vm_uuids.append(vm_uuid)
                 vms_created_this_call.append(vm)
@@ -347,7 +348,7 @@ def deleteAllResourcesForSlice(geni_slice) :
     # For each VM in the slice, delete the VM and its associated network ports
     for vm in geni_slice.getVMs() :
         _deleteVM(vm)
-        vm.setAllocationState(config.unallocated)
+        vm.setAllocationState(constants.unallocated)
         sliver_stat_list.addSliver(vm)
 
     # Delete ports associated with sliceb
@@ -356,7 +357,7 @@ def deleteAllResourcesForSlice(geni_slice) :
     # Delete the networks and subnets alocated to the slice. 
     for link in geni_slice.getNetworkLinks() :
         _deleteNetworkLink(link.getNetworkUUID())
-        link.setAllocationState(config.unallocated)
+        link.setAllocationState(constants.unallocated)
         sliver_stat_list.addSliver(link)
 
     # Delete the control network for the slice.
@@ -700,7 +701,7 @@ def _createNetworkForLink(link_object) :
         return None
         
     # Set operational status
-    link_object.setOperationalState(config.ready)
+    link_object.setOperationalState(constants.ready)
 
     return {'network_uuid':network_uuid, 'subnet_uuid': subnet_uuid}
 
@@ -905,7 +906,7 @@ def _createVM(vm_object, users, placement_hint) :
     ## _execCommand(cmd_string) 
 
     # Set the operational state of the VM to configuring
-    vm_object.setOperationalState(config.configuring)
+    vm_object.setOperationalState(constants.configuring)
 
     # Set up the SSH proxy for the new VM
     portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
@@ -1188,20 +1189,20 @@ def updateOperationalStatus(geni_slice) :
                 # Failed to update operational status of this VM.   Set the
                 # state to failed
                 config.logger.error('Failed to find the status of VM for node %s' % vm_object.getName())
-                vm_object.setOperationalState(config.failed)
+                vm_object.setOperationalState(constants.failed)
             else :
                 vm_state = _getValueByPropertyName(output, 'status')
                 if vm_state == 'ACTIVE' :
-                    vm_object.setOperationalState(config.ready)
+                    vm_object.setOperationalState(constants.ready)
                 elif vm_state == 'ERROR' :
-                    vm_object.setOperationalState(config.failed)
+                    vm_object.setOperationalState(constants.failed)
 
     links = geni_slice.getNetworkLinks()
     for i in range(0, len(links)) :
         link_object = links[i]
         network_uuid = link_object.getNetworkUUID() 
         if network_uuid != None :
-            link_object.setOperationalState(config.ready)
+            link_object.setOperationalState(constants.ready)
 
 
 if __name__ == "__main__":

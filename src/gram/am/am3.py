@@ -47,6 +47,7 @@ from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
 from geni.am.am3 import *
 
 from gram import config
+from gram import constants
 from gram.gram_manager import GramManager
 from gram.rspec_handler import generateAdvertisement
 import gram.open_stack_interface
@@ -254,7 +255,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         #         every_vm_ready = True
         #         gram.open_stack_interface.updateOperationalStatus(the_slice);
         #         for vm in the_slice.getVMs():
-        #             if vm.getOperationalState() != config.ready: 
+        #             if vm.getOperationalState() != constants.ready: 
         #                 every_vm_ready = False
         #                 print "VM " + str(vm) + " is not ready"
         #                 break
