@@ -36,7 +36,6 @@ class OpenVSwitch(GenericInstaller):
 
         self.comment("Install OVS package")
         self.add("module-assistant auto-install openvswitch-datapath")
-        self.aptGet("openvswitch-switch")
         self.add("/etc/init.d/openvswitch-switch start")
 
         self.comment("Configure virtual bridging")
@@ -66,7 +65,6 @@ class OpenVSwitch(GenericInstaller):
 
         self.comment("*** OpenVSwitch Install (compute) ***")
         self.add("module-assistant auto-install openvswitch-datapath")
-        self.aptGet("quantum-plugin-openvswitch-agent openvswitch-switch", force=True)
 
         backup_directory = config.backup_directory
         control_host = config.control_host
@@ -144,11 +142,9 @@ class OpenVSwitch(GenericInstaller):
 
     def uninstallCommandsControl(self):
         self.comment("*** OpenVSwitch Uninstall (control) ***")
-        self.aptGet("openvswitch-switch openvswitch-datapath-source", True)
 
     def uninstallCommandsCompute(self):
         self.comment("*** OpenVSwitch Uninstall (compute) ***")
-        self.aptGet("quantum-plugin-openvswitch-agent openvswitch-switch", True)
 
         backup_directory = config.backup_directory
         self.restore(self.quantum_directory, backup_directory, self.quantum_conf_filename)

@@ -18,7 +18,6 @@ class Hypervisor(GenericInstaller):
         self.comment("*** Hypervisor Install ***")
 
         self.comment("Install packages")
-        self.aptGet("kvm libvirt-bin pm-utils", force=True)
 
         self.comment("Configure libvirt")
         self.backup(self.libvirt_directory, backup_directory, self.qemu_conf_filename)
@@ -60,7 +59,6 @@ class Hypervisor(GenericInstaller):
 
         self.comment("*** Hypervisor Uninstall ***")
 
-        self.aptGet("kvm libvirt-bin pm-utils", True)
 
         self.restore(self.libvirt_directory, backup_directory, self.qemu_conf_filename)
 

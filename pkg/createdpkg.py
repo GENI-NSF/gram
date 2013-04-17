@@ -47,9 +47,7 @@ class CreateDpkg:
 
     def parse_args(self) :
         parser = optparse.OptionParser()
-        parser.add_option("--controller", help="controller name", \
-                              default=None, dest="controller")
-        parser.add_option("--compute_node", help="Generate DEB for compute node", \
+        parser.add_option("--compute_node", help="DEB for compute node", \
                               default="False", dest="compute_node")
         parser.add_option("--deb_location", help="DEB directory", \
                               default="/tmp/gram_dpkg", dest="deb_location")
@@ -73,10 +71,6 @@ class CreateDpkg:
         self._should_generate = (self.opts.should_generate == "True")
         self._compute_node = (self.opts.compute_node == "True")
 
-        if self.opts.controller is None:
-            logging.error("USAGE -$ createdpkg --controller <your controller name>")
-            sys.exit(0)
-
 
     def update_file(self, filename, old_str, new_str):
         sed_command  = "s/" + old_str + "/" + new_str + "/"
@@ -95,28 +89,48 @@ class CreateDpkg:
         self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram")
 
         # Copy source and data files into their package locations
-        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + self.opts.deb_location + "/home/gram")
-        self._execCommand("cp -Rf " + self.opts.gcf_root + " " + self.opts.deb_location + "/opt")
-        self._execCommand("cp -Rf /opt/pox " + self.opts.deb_location + "/opt")
-        self._execCommand("cp -Rf /etc/gram " + self.opts.deb_location + "/etc")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + \
+                              self.opts.deb_location + "/home/gram")
+        self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
+                              self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
+                              + self.opts.deb_location + "/etc")
+        self._execCommand("cp -Rf /etc/gram " + \
+                              self.opts.deb_location + "/etc")
+
         debian_source = "DEBIAN_control"
         if self._compute_node: debian_source = "DEBIAN_compute"
-        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/pkg/gram_dpkg/" + debian_source + \
-                              " " + self.opts.deb_location)
-        self._execCommand("mv " + self.opts.deb_location + "/" + debian_source + " " + self.opts.deb_location + "/DEBIAN")
+        self._execCommand("cp -Rf " + \
+                              self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
+                              debian_source + " " + self.opts.deb_location)
+        self._execCommand("mv " + \
+                              self.opts.deb_location + "/" + debian_source + \
+                              " " + self.opts.deb_location + "/DEBIAN")
 
-        # Update config files with user-defined controller node name
-        self.update_file(self.opts.deb_location + "/home/gram/gram/omni_config", \
-                             "mycontroller", self.opts.controller)
-        self.update_file(self.opts.deb_location + "/home/gram/gram/gcf_config", \
-                         "mycontroller", self.opts.controller) 
+        #  Only install POX and GCF on control node
+        if not self._compute_node:
+            self._execCommand("cp -Rf /opt/pox " + \
+                                  self.opts.deb_location + "/opt")
+
+            simple_gcf_root = os.path.basename(self.opts.gcf_root)
+            if simple_gcf_root != 'gcf':
+                self._execCommand("mv " + self.opts.deb_location + "/opt/" + \
+                                      simple_gcf_root + " " + \
+                                      self.opts.deb_location + "/opt/gcf")
 
         # Cleaup up some junk before creating archive
-        self._execCommand("rm -rf " + self.opts.deb_location + "/etc/gram/snapshots")
-        self._execCommand("rm -rf " + self.opts.deb_location + "/etc/gram/snapshots")
-        self._execCommand("rm -rf " + self.opts.deb_location + "/home/gram/gram/pkg/gram_dpkg/tmp")
-        self._execCommand("rm -rf " + self.opts.deb_location + "/opt/pox/.git")
-        self._execCommand("rm -rf " + self.opts.deb_location + "/home/gram//gram/.git")
+        self._execCommand("rm -rf " + \
+                              self.opts.deb_location + "/etc/gram/snapshots")
+        self._execCommand("rm -rf " + \
+                              self.opts.deb_location + "/etc/gram/snapshots")
+        self._execCommand("rm -rf " + \
+                              self.opts.deb_location + \
+                              "/home/gram/gram/pkg/gram_dpkg/tmp")
+        self._execCommand("rm -rf " + \
+                              self.opts.deb_location + "/home/gram//gram/.git")
+        if not self._compute_node:
+            self._execCommand("rm -rf " + \
+                                  self.opts.deb_location + "/opt/pox/.git")
 
 
         # Create the package

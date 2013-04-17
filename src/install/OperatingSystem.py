@@ -13,20 +13,10 @@ class OperatingSystem(GenericInstaller):
     def installCommands(self):
         self.comment("*** OperatingSystem Install ***")
         self.comment("Step 2. Add repository and upgrade Ubuntu")
-        self.add("apt-get install -y python-software-properties")
-
-        self.writeToFile('deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/folsom main', 
-                         '/etc/apt/sources.list.d/folsom.list')
-
-#        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-trunk-testing')
-#        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-deps-staging')
 
         if self._control_node:
             self.comment("Set up ubuntu cloud keyring")
         
-            self.aptGet('ubuntu-cloud-keyring')
-
-        self.add('apt-get update && apt-get -y dist-upgrade')
 
  
         self.comment("Enable IP forwarding")
@@ -38,7 +28,6 @@ class OperatingSystem(GenericInstaller):
         self.add('service networking restart')
 
         self.comment("Step 4: Configure NTP")
-        self.aptGet("ntp")
         self.backup("/etc", backup_directory, "ntp.conf")
         self.appendToFile('Use Ubuntu ntp server as fallback.',
                           '/etc/ntp.conf')
@@ -53,7 +42,6 @@ class OperatingSystem(GenericInstaller):
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):
         self.comment("*** OperatingSystem Uninstall ***")
-        self.aptGet("ntp", True)
         backup_directory = config.backup_directory
         self.restore("/etc", backup_directory, "sysctl.conf")
         self.restore("/etc", backup_directory, "ntp.conf")

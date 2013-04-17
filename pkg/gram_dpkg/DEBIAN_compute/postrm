@@ -1,14 +1,4 @@
 #!/bin/bash
 
-#rm -Rf /home/gram/gram
-#rm -Rf /opt/pox
-#rm -Rf /opt/gcf-2.2
-#rm -Rf /opt/gcf
-#rm -Rf /etc/gram
-for svc in gram-am gram-amv2 gram-cni gram-ch  gram-ctrl gram-vmoc 
-do
-    service $svc stop
-done
-
 
 

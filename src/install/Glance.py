@@ -12,7 +12,6 @@ class Glance(GenericInstaller):
     def installCommands(self):
         self.comment("*** Glance Install ***")
         self.comment("Step 1. Install packages.")
-        self.aptGet('glance glance-api python-glanceclient glance-common')
 
         self.comment("Step 2. Configure Glance")
         glance_user = config.glance_user
@@ -85,7 +84,6 @@ class Glance(GenericInstaller):
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):
         self.comment("*** Glance Uninstall ***")
-        self.aptGet('glance glance-api python-glanceclient glance-common', True)
         backup_directory = config.backup_directory
         self.restore(self.glance_directory, backup_directory, \
                          self.glance_registry_conf_filename)

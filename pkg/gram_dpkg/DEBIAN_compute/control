@@ -2,6 +2,6 @@ Package: gram
 Version: 0.1
 Priority: optional
 Architecture: all
-Depends: git, cloud-utils, kvm, xmlsec1
+Depends: git, cloud-utils, kvm, xmlsec1, libvirt-bin, pm-utils, nova-api-metadata, nova-compute-kvm, guestmount, quantum-plugin-openvswitch-agent, openvswitch-switch, python-software-properties, ntp, module-assistant
 Maintainer: GRAM Developers <gram-dev@bbn.com>
 Description: GRAM installation package

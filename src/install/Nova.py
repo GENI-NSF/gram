@@ -32,19 +32,20 @@ class Nova(GenericInstaller):
         self.backup_directory = config.backup_directory
         self.control_host = config.control_address
 
-        self.connection = "sql_connection = mysql://" + self.nova_user + ":" +\
+        self.connection = "sql_connection = mysql://" + \
+            self.nova_user + ":" + \
             self.nova_password + "@" + self.control_host + ":3306/nova"
 
         if self._control_node:
             self.installCommandsControl()
+            self.connection = "sql_connection = mysql://" + \
+                self.nova_user + ":" + \
+                self.nova_password + "@localhost:3306/nova"
         else:
             self.installCommandsCompute()
 
     def installCommandsControl(self):
         self.comment("*** Nova Install (control) ***")
-
-        self.aptGet("nova-api nova-cert nova-common nova-scheduler python-nova python-novaclient nova-consoleauth novnc nova-novncproxy")
-
 
         self.modify_api_paste_file()
 
@@ -108,13 +109,10 @@ class Nova(GenericInstaller):
         self.add('service nova-cert restart')
         self.add('service nova-consoleauth restart')
         self.add('service nova-scheduler restart')
-        self.add('service novnc restart')
 
     def installCommandsCompute(self):
         self.comment("*** Nova Install (compute) ***")
 
-        self.aptGet("nova-api-metadata nova-compute-kvm", force=True)
-        self.aptGet("guestmount", force=True)
 
         self.comment("Configure NOVA")
         self.modify_api_paste_file()
@@ -203,7 +201,6 @@ class Nova(GenericInstaller):
     def uninstallCommandsControl(self):
         self.comment("*** Nova Uninstall (control) ***")
 
-        self.aptGet("nova-api nova-cert nova-common nova-scheduler python-nova python-novaclient nova-consoleauth novnc nova-novncproxy", True)
         self.restore(self.nova_directory, self.backup_directory, \
                          self.api_paste_filename)
         self.restore(self.nova_directory, self.backup_directory, self.config_filename)
@@ -211,7 +208,6 @@ class Nova(GenericInstaller):
     def uninstallCommandsCompute(self):
         self.comment("*** Nova Uninstall (compute) ***")
 
-        self.aptGet("nova-api-metadata nova-compute-kvm", True)
         self.restore(self.nova_directory, self.backup_directory, \
                          self.api_paste_filename)
         self.restore(self.nova_directory, self.backup_directory, \

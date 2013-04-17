@@ -29,7 +29,6 @@ class Quantum(GenericInstaller):
         self.comment("*** Quantum Install ***")
 
         self.comment("Install packages")
-        self.aptGet("quantum-server python-cliff quantum-plugin-openvswitch-agent quantum-l3-agent quantum-dhcp-agent python-pyparsing", force=True)
 
         self.comment("Configure quantum services")
         self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)

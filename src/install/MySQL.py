@@ -6,7 +6,6 @@ class MySQL(GenericInstaller):
     # Return a list of command strings for installing this component
     def installCommands(self):
         self.comment("*** MySQL Install ***")
-        self.aptGet("mysql-server python-mysqldb")
         self.sed('s/127.0.0.1/0.0.0.0/g', '/etc/mysql/my.cnf')
         self.add("service mysql restart")
         sql_filename = '/tmp/commands.sql'
@@ -38,7 +37,6 @@ class MySQL(GenericInstaller):
         self.appendToFile('DROP DATABASE keystone;', sql_filename)
         self.appendToFile('DROP DATABASE quantum;', sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
-        self.aptGet("mysql-server python-mysqldb", True)
 
     def generatePrivileges(self, db, user_name, user_pwd, \
                            compute_nodes, filename):
@@ -53,9 +51,9 @@ class MySQL(GenericInstaller):
 
     def generatePrivilegesForAddress(self, db, user_name, user_pwd, \
                                          address, filename):
-        self.appendToFile("GRANT ALL PRIVILEGES ON " + db + ".* TO '" + 
-                          user_name + "'@'" + address + 
-                          "' IDENTIFIED BY '" + user_pwd + "';", 
+        self.appendToFile("GRANT ALL PRIVILEGES ON " + db + ".* TO " + '"' +
+                          user_name + '"' + "@" + '"' + address + '"' + 
+                          " IDENTIFIED BY " + '"' + user_pwd + '"' + ";", 
                           filename)
     
 

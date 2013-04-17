@@ -8,7 +8,6 @@ class Keystone(GenericInstaller):
 
         self.comment("*** Keystone Install ***")
 
-        self.aptGet("keystone python-keystone python-keystoneclient")
         # Set the SQL connection in /etc/keystone/conf
 
         self.comment("Step 2. Edit /etc/keystone/keystone.conf")
@@ -86,7 +85,7 @@ class Keystone(GenericInstaller):
         self.add("./" + endpoints_script_filename + \
                      " -p " + config.keystone_password + \
                      " -T " +config.service_token + \
-                     "-K " + config.control_address)
+                     " -K " + config.control_address)
 
 
     # Return a list of command strings for uninstalling this component
@@ -95,7 +94,6 @@ class Keystone(GenericInstaller):
         backup_directory = config.backup_directory
 
         self.comment("*** Keystone Uninstall ***")
-        self.aptGet("keystone python-keystone python-keystoneclient", True)
         self.restore("/etc/keystone", backup_directory, "keystone.conf")
         self.restore("/etc/keystone", backup_directory, "logging.conf")
         self.restore("/etc", backup_directory, "novarc")
