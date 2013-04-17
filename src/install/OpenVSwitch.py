@@ -1,5 +1,5 @@
 from GenericInstaller import GenericInstaller
-from Configuration import Configuration
+from gram.am.gram import config
 
 class OpenVSwitch(GenericInstaller):
 
@@ -14,24 +14,24 @@ class OpenVSwitch(GenericInstaller):
     networking_directory = "/etc/network"
     interfaces_filename = "interfaces"
 
-    def __init__(self, controller_node):
-        self._controller_node = controller_node
+    def __init__(self, control_node):
+        self._control_node = control_node
 
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
+    def installCommands(self):
 
 
-        if self._controller_node:
-            self.installCommandsController(params)
+        if self._control_node:
+            self.installCommandsControl()
         else:
-            self.installCommandsCompute(params)
+            self.installCommandsCompute()
 
-    def installCommandsController(self, params):
+    def installCommandsControl(self):
 
-        self.comment("*** OpenVSwitch Install (controller) ***")
+        self.comment("*** OpenVSwitch Install (control) ***")
 
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        management_interface = params[Configuration.ENV.MANAGEMENT_INTERFACE]
+        backup_directory = config.backup_directory
+        external_interface = config.external_interface
         external_bridge = "br-ex"
 
         self.comment("Install OVS package")
@@ -51,36 +51,36 @@ class OpenVSwitch(GenericInstaller):
         # Replace references to management interface with references to br-ex
         self.backup(self.networking_directory, backup_directory, self.interfaces_filename)
         interfaces = self.networking_directory + "/" + self.interfaces_filename
-        # Add new manual configuration for management interface
-        self.sed("s/" + management_interface + "/" + external_bridge + "/", interfaces)
+        # Add new manual configuration for external interface
+        self.sed("s/" + external_interface + "/" + external_bridge + "/", interfaces)
         self.appendToFile("", interfaces)
-        self.appendToFile("auto " + management_interface,  interfaces)
-        self.appendToFile("iface " + management_interface + " inet manual", interfaces)
+        self.appendToFile("auto " + external_interface,  interfaces)
+        self.appendToFile("iface " + external_interface + " inet manual", interfaces)
         self.appendToFile("up ifconfig $IFACE 0.0.0.0 up", interfaces)
         self.appendToFile("up ip link set $IFACE promisc on", interfaces)
         self.appendToFile("down ip link set $IFACE promisc off", interfaces)
         self.appendToFile("down ifconfig $IFACE down",  interfaces)
         self.add("service networking restart")
 
-    def installCommandsCompute(self, params):
+    def installCommandsCompute(self):
 
         self.comment("*** OpenVSwitch Install (compute) ***")
         self.add("module-assistant auto-install openvswitch-datapath")
         self.aptGet("quantum-plugin-openvswitch-agent openvswitch-switch", force=True)
 
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        controller_host = params[Configuration.ENV.CONTROL_ADDRESS]
-        rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
-        quantum_user = params[Configuration.ENV.QUANTUM_USER]
-        quantum_password = params[Configuration.ENV.QUANTUM_PASSWORD]
-        os_password = params[Configuration.ENV.OS_PASSWORD]
+        backup_directory = config.backup_directory
+        control_host = config.control_host
+        rabbit_password = config.rabbit_password
+        quantum_user = config.quantum_user
+        quantum_password = config.quantum_password
+        os_password = config.os_password
 
         self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
         self.sed("s/^core_plugin.*/core_plugin = quantum.plugins.openvswitch.ovs_quantum_plugin.OVSQuantumPluginV2/", 
                  self.quantum_conf)
         self.sed("s/^\# auth_strategy.*/auth_strategy = keystone/", self.quantum_conf)
         self.sed("s/^\# fake_rabbit.*/fake_rabbit = False/", self.quantum_conf)
-        self.sed("s/^\# rabbit_host.*/rabbit_host = " + controller_host + "/", \
+        self.sed("s/^\# rabbit_host.*/rabbit_host = " + control_host + "/", \
                      self.quantum_conf)
         self.sed("s/^\# rabbit_password.*/rabbit_password = " + rabbit_password + "/", \
                      self.quantum_conf)
@@ -105,7 +105,7 @@ class OpenVSwitch(GenericInstaller):
         self.backup(self.quantum_plugin_directory, backup_directory, \
                         self.quantum_plugin_filename)
         connection = "sql_connection = mysql:\/\/" + quantum_user + ":" +\
-            quantum_password + "@" + controller_host + ":3306\/quantum"
+            quantum_password + "@" + control_host + ":3306\/quantum"
         self.sed("s/sql_connection.*/" + connection + "/", 
                  self.quantum_plugin_conf)
         self.sed("s/reconnect_interval.*/reconnect_interval=2/", 
@@ -135,24 +135,22 @@ class OpenVSwitch(GenericInstaller):
         self.add("service quantum-plugin-openvswitch-agent restart")
 
 
-        
-
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
-        if self._controller_node:
-            self.uninstallCommandsController(params)
+    def uninstallCommands(self):
+        if self._control_node:
+            self.uninstallCommandsControl()
         else:
-            self.uninstallCommandsCompute(params)
+            self.uninstallCommandsCompute()
 
-    def uninstallCommandsController(self, params):
-        self.comment("*** OpenVSwitch Uninstall (controller) ***")
+    def uninstallCommandsControl(self):
+        self.comment("*** OpenVSwitch Uninstall (control) ***")
         self.aptGet("openvswitch-switch openvswitch-datapath-source", True)
 
-    def uninstallCommandsCompute(self, params):
+    def uninstallCommandsCompute(self):
         self.comment("*** OpenVSwitch Uninstall (compute) ***")
         self.aptGet("quantum-plugin-openvswitch-agent openvswitch-switch", True)
 
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        backup_directory = config.backup_directory
         self.restore(self.quantum_directory, backup_directory, self.quantum_conf_filename)
 
         self.restore(self.quantum_plugin_directory, backup_directory, \

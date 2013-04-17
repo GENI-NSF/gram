@@ -14,11 +14,11 @@ class GenericInstaller:
         self._commands = []
     
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
+    def installCommands(self):
         pass
 
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
+    def uninstallCommands(self):
         pass
 
     # Add a command to list of commands being accumulated

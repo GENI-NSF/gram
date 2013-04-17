@@ -1,5 +1,5 @@
 from GenericInstaller import GenericInstaller
-from Configuration import Configuration
+from gram.am.gram import config
 
 class Nova(GenericInstaller):
 
@@ -9,8 +9,8 @@ class Nova(GenericInstaller):
     config_filename = "nova.conf"
     nova_compute_filename = "nova-compute.conf"
 
-    def __init__(self, controller_node):
-        self._controller_node = controller_node
+    def __init__(self, control_node):
+        self._control_node = control_node
         self.nova_user = None
         self.nova_password = None
         self.quantum_user = None
@@ -19,29 +19,29 @@ class Nova(GenericInstaller):
         self.os_password = None
         self.backup_directory = None
         self.connection = None
-        self.controller_host = None
+        self.control_host = None
 
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
-        self.nova_user = params[Configuration.ENV.NOVA_USER]
-        self.nova_password = params[Configuration.ENV.NOVA_PASSWORD]
-        self.quantum_user = params[Configuration.ENV.QUANTUM_USER]
-        self.quantum_password = params[Configuration.ENV.QUANTUM_PASSWORD]
-        self.rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
-        self.os_password = params[Configuration.ENV.OS_PASSWORD]
-        self.backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        self.controller_host = params[Configuration.ENV.CONTROL_ADDRESS]
+    def installCommands(self):
+        self.nova_user = config.nova_user
+        self.nova_password = config.nova_password
+        self.quantum_user = config.quantum_user
+        self.quantum_password = config.quantum_password
+        self.rabbit_password = config.rabbit_password
+        self.os_password = config.os_password
+        self.backup_directory = config.backup_directory
+        self.control_host = config.control_address
 
         self.connection = "sql_connection = mysql://" + self.nova_user + ":" +\
-            self.nova_password + "@" + self.controller_host + ":3306/nova"
+            self.nova_password + "@" + self.control_host + ":3306/nova"
 
-        if self._controller_node:
-            self.installCommandsController(params)
+        if self._control_node:
+            self.installCommandsControl()
         else:
-            self.installCommandsCompute(params)
+            self.installCommandsCompute()
 
-    def installCommandsController(self, params):
-        self.comment("*** Nova Install (controller) ***")
+    def installCommandsControl(self):
+        self.comment("*** Nova Install (control) ***")
 
         self.aptGet("nova-api nova-cert nova-common nova-scheduler python-nova python-novaclient nova-consoleauth novnc nova-novncproxy")
 
@@ -110,7 +110,7 @@ class Nova(GenericInstaller):
         self.add('service nova-scheduler restart')
         self.add('service novnc restart')
 
-    def installCommandsCompute(self, params):
+    def installCommandsCompute(self):
         self.comment("*** Nova Install (compute) ***")
 
         self.aptGet("nova-api-metadata nova-compute-kvm", force=True)
@@ -133,34 +133,34 @@ class Nova(GenericInstaller):
         self.writeToFile("[DEFAULT]", nova_conf)
         self.appendToFile("# MySQL Connection #", nova_conf)
         self.appendToFile(self.connection, nova_conf)
-        self.appendToFile("rabbit_host=" + self.controller_host, nova_conf)
+        self.appendToFile("rabbit_host=" + self.control_host, nova_conf)
         self.appendToFile("rabbit_password=" + self.rabbit_password, nova_conf)
         self.appendToFile("scheduler_driver=nova.scheduler.simple.SimpleScheduler", nova_conf)
         self.appendToFile("# nova-api #", nova_conf)
-        self.appendToFile("cc_host=" + self.controller_host, nova_conf)
+        self.appendToFile("cc_host=" + self.control_host, nova_conf)
         self.appendToFile("auth_strategy=keystone", nova_conf)
-        self.appendToFile("s3_host=" + self.controller_host, nova_conf)
-        self.appendToFile("ec2_host=" + self.controller_host, nova_conf)
-        self.appendToFile("nova_url=http://" + self.controller_host + ":8774/v1.1/", nova_conf)
-        self.appendToFile("ec2_url=http://" + self.controller_host + ":8773/services/Cloud", nova_conf)
-        self.appendToFile("keystone_ec2_url=http://" + self.controller_host + ":5000/v2.0/ec2tokens", nova_conf)
+        self.appendToFile("s3_host=" + self.control_host, nova_conf)
+        self.appendToFile("ec2_host=" + self.control_host, nova_conf)
+        self.appendToFile("nova_url=http://" + self.control_host + ":8774/v1.1/", nova_conf)
+        self.appendToFile("ec2_url=http://" + self.control_host + ":8773/services/Cloud", nova_conf)
+        self.appendToFile("keystone_ec2_url=http://" + self.control_host + ":5000/v2.0/ec2tokens", nova_conf)
         self.appendToFile("api_paste_config=/etc/nova/api-paste.ini", nova_conf)
         self.appendToFile("allow_admin_api=true", nova_conf)
         self.appendToFile("use_deprecated_auth=false", nova_conf)
         self.appendToFile("ec2_private_dns_show_ip=True", nova_conf)
         self.appendToFile("dmz_cidr=169.254.169.254/32", nova_conf)
-        self.appendToFile("ec2_dmz_host=" + self.controller_host, nova_conf)
-        self.appendToFile("metadata_host=" + self.controller_host, nova_conf)
+        self.appendToFile("ec2_dmz_host=" + self.control_host, nova_conf)
+        self.appendToFile("metadata_host=" + self.control_host, nova_conf)
         self.appendToFile("metadata_listen=0.0.0.0", nova_conf)
         self.appendToFile("enabled_apis=metadata", nova_conf)
         self.appendToFile("# Networking #", nova_conf)
         self.appendToFile("network_api_class=nova.network.quantumv2.api.API", nova_conf)
-        self.appendToFile("quantum_url=http://" + self.controller_host + ":9696", nova_conf)
+        self.appendToFile("quantum_url=http://" + self.control_host + ":9696", nova_conf)
         self.appendToFile("quantum_auth_strategy=keystone", nova_conf)
         self.appendToFile("quantum_admin_tenant_name=service", nova_conf)
         self.appendToFile("quantum_admin_username=" + self.quantum_user, nova_conf)
         self.appendToFile("quantum_admin_password=" + self.os_password, nova_conf)
-        self.appendToFile("quantum_admin_auth_url=http://" + self.controller_host + ":35357/v2.0", nova_conf)
+        self.appendToFile("quantum_admin_auth_url=http://" + self.control_host + ":35357/v2.0", nova_conf)
         self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver", nova_conf)
         self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver", nova_conf)
         self.appendToFile("firewall_driver=nova.virt.libvirt.firewall.IptablesFirewallDriver", nova_conf)
@@ -169,11 +169,11 @@ class Nova(GenericInstaller):
         self.appendToFile("# Cinder #", nova_conf)
         self.appendToFile("volume_api_class=nova.volume.cinder.API", nova_conf)
         self.appendToFile("# Glance #", nova_conf)
-        self.appendToFile("glance_api_servers=" + self.controller_host + ":9292", nova_conf)
+        self.appendToFile("glance_api_servers=" + self.control_host + ":9292", nova_conf)
         self.appendToFile("image_service=nova.image.glance.GlanceImageService", nova_conf)
         self.appendToFile("# novnc #", nova_conf)
         self.appendToFile("novnc_enable=true", nova_conf)
-        self.appendToFile("novncproxy_base_url=http://" + self.controller_host + ":6080/vnc_auto.html", nova_conf)
+        self.appendToFile("novncproxy_base_url=http://" + self.control_host + ":6080/vnc_auto.html", nova_conf)
         self.appendToFile("vncserver_proxyclient_address=127.0.0.1", nova_conf)
         self.appendToFile("vncserver_listen=0.0.0.0", nova_conf)
         self.appendToFile("# Misc #", nova_conf)
@@ -189,26 +189,26 @@ class Nova(GenericInstaller):
         self.add("service nova-compute restart")
 
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
-        self.nova_user = params[Configuration.ENV.NOVA_USER]
-        self.nova_password = params[Configuration.ENV.NOVA_PASSWORD]
-        self.rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
-        self.os_password = params[Configuration.ENV.OS_PASSWORD]
-        self.backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        if self._controller_node:
-            self.uninstallCommandsController(params)
+    def uninstallCommands(self):
+        self.nova_user = config.nova_user
+        self.nova_password = config.nova_password
+        self.rabbit_password = config.rabbit_password
+        self.os_password = config.os_password
+        self.backup_directory = config.backup_directory
+        if self._control_node:
+            self.uninstallCommandsControl()
         else:
-            self.uninstallCommandsCompute(params)
+            self.uninstallCommandsCompute()
 
-    def uninstallCommandsController(self, params):
-        self.comment("*** Nova Uninstall (controller) ***")
+    def uninstallCommandsControl(self):
+        self.comment("*** Nova Uninstall (control) ***")
 
         self.aptGet("nova-api nova-cert nova-common nova-scheduler python-nova python-novaclient nova-consoleauth novnc nova-novncproxy", True)
         self.restore(self.nova_directory, self.backup_directory, \
                          self.api_paste_filename)
         self.restore(self.nova_directory, self.backup_directory, self.config_filename)
 
-    def uninstallCommandsCompute(self, params):
+    def uninstallCommandsCompute(self):
         self.comment("*** Nova Uninstall (compute) ***")
 
         self.aptGet("nova-api-metadata nova-compute-kvm", True)
@@ -229,7 +229,7 @@ class Nova(GenericInstaller):
                  self.nova_directory + "/" + self.api_paste_filename)
         self.sed("s/admin_password.*/admin_password = " + self.os_password + "/", 
                  self.nova_directory + "/" + self.api_paste_filename)
-        if self._controller_node:
+        if self._control_node:
             self.sed("/volume/d", 
                      self.nova_directory + "/" + self.api_paste_filename)
 

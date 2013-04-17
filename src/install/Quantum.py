@@ -1,5 +1,5 @@
 from GenericInstaller import GenericInstaller
-from Configuration import Configuration
+from gram.am.gram import config
 
 class Quantum(GenericInstaller):
 
@@ -13,18 +13,18 @@ class Quantum(GenericInstaller):
     service_tenant_name = "service"
 
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
-        control_address = params[Configuration.ENV.CONTROL_ADDRESS]
-        metadata_port = params[Configuration.ENV.METADATA_PORT]
-        quantum_user = params[Configuration.ENV.QUANTUM_USER]
-        quantum_password = params[Configuration.ENV.QUANTUM_PASSWORD]
-        rabbit_password = params[Configuration.ENV.RABBIT_PASSWORD]
-        os_password = params[Configuration.ENV.OS_PASSWORD]
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
-        public_gateway_ip = params[Configuration.ENV.PUBLIC_GATEWAY_IP]
-        public_subnet_cidr = params[Configuration.ENV.PUBLIC_SUBNET_CIDR]
-        public_subnet_start_ip = params[Configuration.ENV.PUBLIC_SUBNET_START_IP]
-        public_subnet_end_ip = params[Configuration.ENV.PUBLIC_SUBNET_END_IP]
+    def installCommands(self):
+        control_address = config.control_address
+        metadata_port = config.metadata_port
+        quantum_user = config.quantum_user
+        quantum_password = config.quantum_password
+        rabbit_password = config.rabbit_password
+        os_password = config.os_password
+        backup_directory = config.backup_directory
+        public_gateway_ip = config.public_gateway_ip
+        public_subnet_cidr = config.public_subnet_cidr
+        public_subnet_start_ip = config.public_subnet_start_ip
+        public_subnet_end_ip = config.public_subnet_end_ip
 
         self.comment("*** Quantum Install ***")
 
@@ -105,7 +105,7 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/^\# use_namespaces.*/use_namespaces = False/", 
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
-        self.appendToFile("metadata_port=" + metadata_port,
+        self.appendToFile("metadata_port=" + str(metadata_port),
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.appendToFile("metdata_ip=" + control_address,
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
@@ -163,8 +163,8 @@ class Quantum(GenericInstaller):
         
 
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+    def uninstallCommands(self):
+        backup_directory = config.backup_directory
 
         self.comment("*** Quantum Uninstall ***")
 

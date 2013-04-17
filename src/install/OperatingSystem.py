@@ -1,16 +1,16 @@
 from GenericInstaller import GenericInstaller
-from Configuration import Configuration
+from gram.am.gram import config
 
 # We assume at this point that these have been completed:
 # steps #1 (install Ubuntu) and #3 (configure the network)
 # and reboot
 class OperatingSystem(GenericInstaller):
 
-    def __init__(self, controller_node):
-        self._controller_node = controller_node
+    def __init__(self, control_node):
+        self._control_node = control_node
 
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
+    def installCommands(self):
         self.comment("*** OperatingSystem Install ***")
         self.comment("Step 2. Add repository and upgrade Ubuntu")
         self.add("apt-get install -y python-software-properties")
@@ -21,7 +21,7 @@ class OperatingSystem(GenericInstaller):
 #        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-trunk-testing')
 #        self.add('add-apt-repository -y ppa:openstack-ubuntu-testing/folsom-deps-staging')
 
-        if self._controller_node:
+        if self._control_node:
             self.comment("Set up ubuntu cloud keyring")
         
             self.aptGet('ubuntu-cloud-keyring')
@@ -30,7 +30,7 @@ class OperatingSystem(GenericInstaller):
 
  
         self.comment("Enable IP forwarding")
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        backup_directory = config.backup_directory
         self.backup("/etc", backup_directory, "sysctl.conf")
         self.sed('s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/',
                  '/etc/sysctl.conf')
@@ -51,10 +51,10 @@ class OperatingSystem(GenericInstaller):
 
 
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
+    def uninstallCommands(self):
         self.comment("*** OperatingSystem Uninstall ***")
         self.aptGet("ntp", True)
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+        backup_directory = config.backup_directory
         self.restore("/etc", backup_directory, "sysctl.conf")
         self.restore("/etc", backup_directory, "ntp.conf")
 

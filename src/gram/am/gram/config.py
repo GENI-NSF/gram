@@ -144,9 +144,13 @@ public_subnet_end_ip = None
 mysql_user = None
 mysql_password = None
 rabbit_password = None
+nova_user = "nova"
 nova_password = None
+glance_user = "glance"
 glance_password = None
+keystone_user = "keystone"
 keystone_password = None
+quantum_user = "quantum"
 quantum_password = None
 
 # OpenStack user configuration 
@@ -157,7 +161,7 @@ os_auth_url = "http://localhost:5000/v2.0/"
 os_region_name = "RegionOne"
 os_no_cache = 1
 service_token = None
-service_endpoint = "http://localhost:35357/v2.0",
+service_endpoint = "http://localhost:35357/v2.0"
 
 # TCP port over which metadata is transmitted
 metadata_port = 8775
@@ -177,7 +181,7 @@ import sys
 # Try to set the associated value in config module
 # if it can be coerced into the object of current type
 def initialize(config_file):
-    print "config.initialize: " + config_file
+#    print "config.initialize: " + config_file
 
     data = None
     try:

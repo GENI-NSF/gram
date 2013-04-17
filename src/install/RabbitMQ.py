@@ -1,16 +1,16 @@
 from GenericInstaller import GenericInstaller
-from Configuration import Configuration
+from gram.am.gram import config
 
 class RabbitMQ(GenericInstaller):
 
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
+    def installCommands(self):
         self.comment("*** RabbitMQ Install ***")
         self.aptGet("rabbitmq-server")
-        rabbit_pwd_var = Configuration.ENV.RABBIT_PASSWORD
-        self.add("rabbitmqctl change_password guest $" + rabbit_pwd_var)
+        rabbit_pwd = config.rabbit_password
+        self.add("rabbitmqctl change_password guest " + rabbit_pwd)
 
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
+    def uninstallCommands(self):
         self.comment("*** RabbitMQ Uninstall ***")
         self.aptGet("rabbitmq-server", True)

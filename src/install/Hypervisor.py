@@ -1,5 +1,5 @@
 from GenericInstaller import GenericInstaller
-from Configuration import Configuration
+from gram.am.gram import config
 
 class Hypervisor(GenericInstaller):
 
@@ -12,8 +12,8 @@ class Hypervisor(GenericInstaller):
     libvirt_bin_filename = "libvirt-bin"
 
     # Return a list of command strings for installing this component
-    def installCommands(self, params):
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+    def installCommands(self):
+        backup_directory = config.backup_directory
 
         self.comment("*** Hypervisor Install ***")
 
@@ -55,8 +55,8 @@ class Hypervisor(GenericInstaller):
 
 
     # Return a list of command strings for uninstalling this component
-    def uninstallCommands(self, params):
-        backup_directory = params[Configuration.ENV.BACKUP_DIRECTORY]
+    def uninstallCommands(self):
+        backup_directory = config.backup_directory
 
         self.comment("*** Hypervisor Uninstall ***")
 

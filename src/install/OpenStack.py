@@ -2,20 +2,19 @@
 # Per OpenStack Folsum Guide (revised for Ubuntu Precise)
 
 import os, errno
+from gram.am.gram import config
 import Glance, Keystone, Nova, OpenVSwitch, RabbitMQ, MySQL
-import OperatingSystem, Quantum, Configuration, Hypervisor
+import OperatingSystem, Quantum,  Hypervisor
 
 class OpenStack:
 
     def __init__(self):
-        self._config = None
-        self._declarations = None
-        self._dict = None
+        pass
 
-    _CONTROLLER_INSTALLERS = [
+    _CONTROL_INSTALLERS = [
         {
-            "name": "operating_system_controller", 
-            "installer" : OperatingSystem.OperatingSystem(controller_node=True) 
+            "name": "operating_system_control", 
+            "installer" : OperatingSystem.OperatingSystem(control_node=True) 
         },
 
         {
@@ -39,13 +38,13 @@ class OpenStack:
         }, 
 
         {
-            "name": "nova_controller",
-            "installer": Nova.Nova(controller_node=True)
+            "name": "nova_control",
+            "installer": Nova.Nova(control_node=True)
         }, 
 
         {
-            "name": "openvswitch_controller",
-            "installer": OpenVSwitch.OpenVSwitch(controller_node=True)
+            "name": "openvswitch_control",
+            "installer": OpenVSwitch.OpenVSwitch(control_node=True)
         }, 
 
         {
@@ -57,7 +56,7 @@ class OpenStack:
     _COMPUTE_INSTALLERS = [
         {
             "name": "operating_system_compute", 
-            "installer" : OperatingSystem.OperatingSystem(controller_node=False) 
+            "installer" : OperatingSystem.OperatingSystem(control_node=False) 
         },
 
         {
@@ -67,12 +66,12 @@ class OpenStack:
 
         {
             "name": "nova_compute", 
-            "installer": Nova.Nova(controller_node=False)
+            "installer": Nova.Nova(control_node=False)
         },
 
         {
             "name": "openvswitch_compute", 
-            "installer": OpenVSwitch.OpenVSwitch(controller_node=False)
+            "installer": OpenVSwitch.OpenVSwitch(control_node=False)
         } 
         ]
 
@@ -82,14 +81,7 @@ class OpenStack:
                            installers, 
                            directory, 
                            install_filename,
-                           uninstall_filename,
-                           config_filename = "openstack.conf"):
-        
-        self._config = Configuration.Configuration(config_filename)
-        self._declarations = self._config.dump()
-        self._dict = self._config.getParameters()
-
-
+                           uninstall_filename):
         try:
             os.makedirs(directory)
         except OSError as exc: # Python >2.5
@@ -125,11 +117,10 @@ class OpenStack:
         module_install_file = open("%s/%s_%s.sh" % (dir, prefix, module_name), "w")
         module_installer.clear()
         if install:
-            module_installer.installCommands(self._dict)
+            module_installer.installCommands()
         else:
-            module_installer.uninstallCommands(self._dict)
+            module_installer.uninstallCommands()
         module_install_commands = module_installer.getCommands()
-        module_install_file.write(self._declarations)
         for ic in module_install_commands:
             module_install_file.write(ic)
             module_install_file.write("\n")
@@ -139,11 +130,12 @@ class OpenStack:
 
 
 if __name__ == "__main__":
+    config.initialize("/etc/gram/config.json")
     openstack = OpenStack()
-    openstack.createCommands(OpenStack._CONTROLLER_INSTALLERS, \
+    openstack.createCommands(OpenStack._CONTROL_INSTALLERS, \
                                  "/tmp/install",
-                                 "install_controller.sh", \
-                                 "uninstall_controller.sh")
+                                 "install_control.sh", \
+                                 "uninstall_control.sh")
     openstack.createCommands(OpenStack._COMPUTE_INSTALLERS, \
                                  "/tmp/install",
                                  "install_compute.sh", \
