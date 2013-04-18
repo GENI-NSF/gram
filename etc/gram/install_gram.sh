@@ -9,6 +9,9 @@ then
     export SENSE=$1
 fi
 
+# Align the owner id of gram for the packages we've read in
+chown -R gram.gram ~gram /etc/gram
+
 # This seems not to get set early enough in some circumstances...
 mkdir -p /etc/quantum
 
