@@ -37,10 +37,10 @@ class Nova(GenericInstaller):
             self.nova_password + "@" + self.control_host + ":3306/nova"
 
         if self._control_node:
-            self.installCommandsControl()
             self.connection = "sql_connection = mysql://" + \
                 self.nova_user + ":" + \
                 self.nova_password + "@localhost:3306/nova"
+            self.installCommandsControl()
         else:
             self.installCommandsCompute()
 

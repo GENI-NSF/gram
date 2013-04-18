@@ -125,6 +125,7 @@ class Quantum(GenericInstaller):
         self.sed("s/admin_password.*/admin_password = " + os_password + "/", 
                  self.quantum_directory + "/" + self.quantum_api_conf_filename)
 
+        self.add("source /etc/novarc")
 
         self.add("service quantum-server restart")
         self.add("service quantum-plugin-openvswitch-agent restart")

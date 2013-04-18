@@ -91,6 +91,8 @@ class CreateDpkg:
         # Copy source and data files into their package locations
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + \
                               self.opts.deb_location + "/home/gram")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/.gcf " + \
+                              self.opts.deb_location + "/home/gram")
         self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
                               self.opts.deb_location + "/opt")
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \

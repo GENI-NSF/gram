@@ -60,6 +60,10 @@ class OpenVSwitch(GenericInstaller):
         self.appendToFile("down ip link set $IFACE promisc off", interfaces)
         self.appendToFile("down ifconfig $IFACE down",  interfaces)
         self.add("service networking restart")
+        self.add("ifdown " + external_interface)
+        self.add("ifup " + external_interface)
+        self.add("ifdown br-ex")
+        self.add("ifup br-ex")
 
     def installCommandsCompute(self):
 
