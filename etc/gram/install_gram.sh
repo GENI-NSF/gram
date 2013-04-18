@@ -23,6 +23,7 @@ chmod a+x *.sh
 
 if [ $SENSE = "control" ]
 then
+    /etc/gram/install_gram_services.sh
     /etc/gram/gram_services.sh start
 fi
 
