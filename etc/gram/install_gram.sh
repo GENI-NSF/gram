@@ -12,8 +12,8 @@ fi
 mkdir -p /etc/quantum
 rm -f /etc/apt/sources.list.d/folsom.list
 echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/folsom main" > /etc/apt/sources.list.d/folsom.list
-apt-get install -f
-apt-get update && apt-get dist-upgrade
+apt-get -y install -f
+apt-get -y update && apt-get -y dist-upgrade
 cd ~gram/gram/src/install
 export PYTHONPATH=$PYTHONPATH:~gram/gram/src
 python OpenStack.py
