@@ -29,6 +29,11 @@ if [ $SENSE = "control" ]
 then
     # Change the 'host' entry in .gcf/gcf_config to fit the configuration
     python modify_conf_env.py ~/.gcf/gcf_config host control_host "" | sh
+
+    # Install gram_ssh_proxy
+    cd ~gram/gram/src/gram/am/gram
+    make gram_ssh_proxy
+
     # Install and start up gram on the control node
     /etc/gram/install_gram_services.sh
     /etc/gram/gram_services.sh start
