@@ -24,9 +24,12 @@ cd /tmp/install
 chmod a+x *.sh
 ./install_$SENSE.sh
 
-# Start up gram on the control node
+# Control-node specific logic 
 if [ $SENSE = "control" ]
 then
+    # Change the 'host' entry in .gcf/gcf_config to fit the configuration
+    python modify_conf_env.py ~/.gcf/gcf_config host control_host "" | sh
+    # Install and start up gram on the control node
     /etc/gram/install_gram_services.sh
     /etc/gram/gram_services.sh start
 fi
