@@ -46,9 +46,26 @@ def init() :
         Perform OpenStack related initialization.  Called once when the
         GRAM AM starts up.
     """
-    return
+    # Get the UUID of the GRAM management network
+    mgmt_net_name = config.management_network_name 
+    cmd_string = 'quantum net-list'
+    try :
+        output = _execCommand(cmd_string)
+    except :
+        config.logger.error('GRAM AM failed at init.  Failed to do a quantum net-list')
+        sys.exit(1)
         
+    mgmt_net_uuid = _getUUIDByName(output, mgmt_net_name)
+    if mgmt_net_uuid == None :
+        config.logger.error('GRAM AM failed at init.  Failed to find the GRAM management network %s' % mgmt_net_name)
+        sys.exit(1)
 
+    resources.GramManagementNetwork.set_mgmt_net_uuid(mgmt_net_uuid)
+    config.logger.info('Found GRAM managemnet network %s with uuid %s' % \
+                           (mgmt_net_name, mgmt_net_uuid))
+    
+    
+        
 def cleanup(signal, frame) :
     """
         Perform OpenStack related cleanup.  Called when the aggregate 
@@ -56,7 +73,7 @@ def cleanup(signal, frame) :
     """
     # Delete the control network
     if _control_net_uuid != None :
-        cmd_string = 'quantum net_delete %s' % _control_net_uuid
+        cmd_string = 'quantum net-delete %s' % _control_net_uuid
         try :
             _execCommand(cmd_string)
         except :
@@ -800,21 +817,11 @@ def _createVM(vm_object, users, placement_hint) :
     vm_flavor_id = _getFlavorID(vm_object.getVMFlavor())
     vm_name = vm_object.getName()
 
-    # Create network ports for this VM.  Each nic gets a network port
-    # First create a port for the control network
-    control_net_info = slice_object.getControlNetInfo()
-    control_net_addr = control_net_info['control_net_addr'] # subnet address
-    control_net_prefix = control_net_addr[0 : control_net_addr.rfind('0/24')]
-    control_nic_ipaddr = control_net_prefix + vm_object.getLastOctet()
-    vm_object.setControlNetAddr(control_nic_ipaddr)
-    control_net_uuid = control_net_info['control_net_uuid']
-    control_subnet_uuid = control_net_info['control_subnet_uuid']
-    cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' %  \
-       (tenant_uuid, control_subnet_uuid, control_nic_ipaddr, control_net_uuid)
-    output = _execCommand(cmd_string) 
-    control_port_uuid = _getValueByPropertyName(output, 'id')
+    # Assumption: The management network is a /24 network
+    # Meta-data services code makes a similar assumption
+    control_net_prefix = config.mgmt_net_addr[0 : config.mgmt_net_addr.rfind('0/24')]
 
-    # Now create ports for the experiment data networks
+    # Create ports for the experiment data networks
     vm_net_infs = vm_object.getNetworkInterfaces()
     for nic in vm_net_infs :
         link_object = nic.getLink()
@@ -861,10 +868,11 @@ def _createVM(vm_object, users, placement_hint) :
     # Add security group support
     cmd_string += ' --security_groups %s' % slice_object.getSecurityGroup()
     
-    # Now add to the cmd_string information about the NICs to be instantiated
-    # First add the NIC for the control network
-    cmd_string += ' --nic port-id=%s' % control_port_uuid
-    
+    # Tell nova to create a NIC on the VM that is connected to the GRAM 
+    # management network
+    cmd_string += ' --nic net-id=%s' % \
+        resources.GramManagementNetwork.get_mgmt_net_uuid()
+
     # Now add the NICs for the experiment data network
     for nic in vm_net_infs :
         port_uuid = nic.getUUID()
@@ -880,7 +888,11 @@ def _createVM(vm_object, users, placement_hint) :
             cmd_string += (' --hint different_host=%s' % placement_hint[i])
 
     # Issue the command to create the VM
-    output = _execCommand(cmd_string) 
+    try :
+        output = _execCommand(cmd_string) 
+    except :
+        config.logger.error('Failed to create VM %s' % vm_name)
+        return None
 
     # Get the UUID of the VM that was created 
     vm_uuid = _getValueByPropertyName(output, 'id')
@@ -888,30 +900,25 @@ def _createVM(vm_object, users, placement_hint) :
     # Delete the temp file
     os.unlink(zipped_userdata_filename)
 
-    # Wait for the vm status to turn to 'active' and then reboot
-    ## while True :
-    ##     cmd_string = 'nova show %s' % vm_uuid
-    ##     output = _execCommand(cmd_string) 
-    ##     vm_state = _getValueByPropertyName(output, 'OS-EXT-STS:vm_state')
-    ##     config.logger.info('VM state is %s' % vm_state)
-    ##     if vm_state == 'active' :
-    ##         break
-    ##     time.sleep(3)
-        
-
-    # Reboot the VM.  This seems to be necessary for the NICs to get IP addrs 
-    ## cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
-    ##     % (admin_name, admin_pwd, slice_object.getTenantName())
-    ## cmd_string += (' reboot %s' % vm_name)
-    ## _execCommand(cmd_string) 
-
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(constants.configuring)
 
     # Set up the SSH proxy for the new VM
-    portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
-    vm_object.setSSHProxyLoginPort(portNumber)
-    config.logger.info('SSH Proxy assigned port number %d' % portNumber)
+    # Find the IP address for this VM on the management network.  To do this
+    # we do a 'nova show vm_uuid' to list properties of the VM and then
+    # look for the property with the name of the management network
+    cmd_string = 'nova show %s' % vm_uuid
+    try :
+        output = _execCommand(cmd_string)
+    except :
+        config.logger.error('Failed to get properties for vm %s' % vm_uuid)
+        return None
+    property_name = config.management_network_name + ' network'
+    control_nic_ipaddr = _getValueByPropertyName(output, property_name)
+    if control_nic_ipaddr != None :
+        portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
+        vm_object.setSSHProxyLoginPort(portNumber)
+        config.logger.info('SSH Proxy assigned port number %d' % portNumber)
 
     return vm_uuid
 

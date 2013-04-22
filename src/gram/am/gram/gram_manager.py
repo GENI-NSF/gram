@@ -60,7 +60,7 @@ class GramManager :
         Only one instances of this class is created.
     """
     def __init__(self) :
-        # open_stack_interface.init() # OpenStack related initialization
+        open_stack_interface.init() # OpenStack related initialization
 
         # Set up a signal handler to clean up on a control-c
         # signal.signal(signal.SIGINT, open_stack_interface.cleanup)

@@ -300,6 +300,8 @@ def _generateDefaultGatewaySupport(control_nic_prefix, scriptFile) :
 
     # Generate the script content to assign the default gateway
 #    scriptFile.write('desiredgw=`ifconfig | grep \"inet addr:\" | grep \"10.10\" | awk \'{print $2}\' | sed -e \'s/addr://g\' | awk -F\'.\' \'{print $1 \".\" $2 \".\" $3 \".1\"}\'`\n')
+    # The computation of the desiredgw assumes the management network is a
+    # /24 network and so the gateway address will have a last octet of 1
     scriptFile.write('desiredgw="%s1"\n' % control_nic_prefix)
     scriptFile.write('currentgw=`netstat -rn | grep \"^0.0.0.0\" | awk \'{print $2}\'`\n')
 
