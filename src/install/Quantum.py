@@ -106,7 +106,7 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.appendToFile("metadata_port=" + str(metadata_port),
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
-        self.appendToFile("metdata_ip=" + control_address,
+        self.appendToFile("metadata_ip=" + control_address,
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
 
         self.backup(self.quantum_directory, backup_directory, \
