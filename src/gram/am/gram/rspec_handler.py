@@ -68,6 +68,14 @@ def parseRequestRspec(geni_slice, rspec) :
             config.logger.error(error_string)
             return error_string, sliver_list, None
 
+        # Make sure there isn't an exclusive="true" clause in the node 
+        if node_attributes.has_key("exclusive"):
+            value = node_attributes["exclusive"].value
+            if value.lower() == 'true':
+                error_string = "GRAM instance can't allocate exclusive compute resources"
+                config.logger.error(error_string)
+                return error_string, sliver_list, None
+
         # Get flavor from the sliver_type
         sliver_type_list = node.getElementsByTagName('sliver_type')
         for sliver_type in sliver_type_list:
