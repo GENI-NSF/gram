@@ -64,8 +64,15 @@ class CreateDpkg:
         parser.add_option("--gram_root", \
                               help="source of GRAM tree", 
                               default=os.environ['HOME'], dest="gram_root")
+        parser.add_option("--version", \
+                              help="Version of this GRAM deb release", \
+                              default=None, dest="version")
 
         [self.opts, args] = parser.parse_args()
+
+        if self.opts.version is None:
+            print("Version must be set")
+            sys.exit(0)
 
         self._should_cleanup = (self.opts.should_cleanup == "True")
         self._should_generate = (self.opts.should_generate == "True")
@@ -99,6 +106,9 @@ class CreateDpkg:
                               + self.opts.deb_location + "/etc")
         self._execCommand("cp -Rf /etc/gram " + \
                               self.opts.deb_location + "/etc")
+        self._execCommand("cp " + self.opts.gram_root + \
+                              "/gram/src/gram/am/gram/config.json " + \
+                              self.opts.deb_location + "/etc/gram")
 
         debian_source = "DEBIAN_control"
         if self._compute_node: debian_source = "DEBIAN_compute"
@@ -108,6 +118,13 @@ class CreateDpkg:
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
                               " " + self.opts.deb_location + "/DEBIAN")
+
+        # Change the version in the DEBIAN control file 
+        template = 'sed -i "s/Version.*/Version: ' + \
+                      self.opts.version + '/" %s'
+#        sed_command = template % (self.opts.deb_location + "/DEBIAN/control")
+        sed_command = ['sed', '-i', 's/Version.*/Version: ' + self.opts.version + '/', self.opts.deb_location + "/DEBIAN/control"]
+        res  = subprocess.check_output(sed_command)
 
         #  Only install POX and GCF on control node
         if not self._compute_node:
