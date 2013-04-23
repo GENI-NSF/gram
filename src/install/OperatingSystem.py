@@ -29,7 +29,7 @@ class OperatingSystem(GenericInstaller):
 
         self.comment("Step 4: Configure NTP")
         self.backup("/etc", backup_directory, "ntp.conf")
-        self.appendToFile('Use Ubuntu ntp server as fallback.',
+        self.appendToFile('# Use Ubuntu ntp server as fallback.',
                           '/etc/ntp.conf')
         self.appendToFile('server ntp.ubuntu.com iburst', 
                           '/etc/ntp.conf')
