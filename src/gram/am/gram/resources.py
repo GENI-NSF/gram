@@ -63,6 +63,19 @@ def resource_image(obj, label):
    return "#<" + label + " " + members_image + ">";
 
 
+# Holds information about the GRAM management network (used for aggregate
+# control plane traffic).  E.g. ssh connections to the VMs
+class GramManagementNetwork :
+   _mgmt_net_uuid = None
+
+   @staticmethod
+   def set_mgmt_net_uuid(net_uuid) :
+      GramManagementNetwork._mgmt_net_uuid = net_uuid
+
+   @staticmethod
+   def get_mgmt_net_uuid() :
+      return GramManagementNetwork._mgmt_net_uuid
+
 
 # A slice that has been allocated.
 class Slice:
