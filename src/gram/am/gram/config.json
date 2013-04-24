@@ -10,6 +10,11 @@
    "__009": "and set as null here must be set in this file:",
    "__010": "no default is provided",
 
+   "default_VM_flavor": "m1.small",
+   "default_OS_image": "ubuntu-12.04",
+   "default_OS_type": "Linux",
+   "default_OS_version": "12",
+
    "disk_image_metadata": null,
 
    "external_interface": null,
@@ -22,6 +27,8 @@
    "management_interface": null,
    "management_address": null,
    "management_netmask": null,
+   "managaement_network_name": "GRAM-mgmt-net",
+   "mgmt_net_addr": "192.168.10.0/24", 
    "mysql_user": null,
    "mysql_password": null,
    "rabbit_password": null,
