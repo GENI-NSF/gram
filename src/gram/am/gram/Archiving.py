@@ -80,6 +80,8 @@ class GramJSONEncoder(json.JSONEncoder):
                     "network_interfaces":[nic.getSliverURN() for nic in o.getNetworkInterfaces()],
                     "last_octet":o.getLastOctet(),
                     "os_image":o.getOSImageName(),
+                    "os_type":o.getOSType(),
+                    "os_version":o.getOSVersion(),
                     "vm_flavor":o.getVMFlavor(),
                     "host":o.getHost()
                     }
@@ -222,6 +224,8 @@ class GramJSONDecoder:
                 vm._executes = json_object["executes"]
                 vm._ip_last_octet = json_object["last_octet"]
                 vm._os_image = json_object["os_image"]
+                vm._os_type = json_object["os_type"]
+                vm._os_version = json_object["os_version"]
                 vm._flavor = json_object["vm_flavor"]
                 vm.setHost(json_object['host'])
                 
