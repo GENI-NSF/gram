@@ -127,8 +127,8 @@ class VMOCClientInterface(threading.Thread):
                   slice_configs = \
                       VMOCClientInterface._configs_by_slice.values()
                   VMOCClientInterface._pending_queue = []
-                  config.logger.info("Disconnected from VMOC: " + 
-                                     "restoring slice configs")
+#                  config.logger.info("Disconnected from VMOC: " + 
+#                                     "restoring slice configs")
                   for slice_config in slice_configs:
                       VMOCClientInterface.register(slice_config)
                   self._vmoc_restarted = False
