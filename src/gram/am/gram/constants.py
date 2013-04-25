@@ -48,3 +48,7 @@ OUT_OF_RANGE = 19               # typically for time mismatches
 
 # GRAM specific codes
 OPENSTACK_ERROR = 100
+
+# We manage the IP address space for the control and management networks
+control_netmask = "255.255.255.0"
+management_netmask = "255.255.255.0"
