@@ -167,6 +167,9 @@ class GramManager :
         manifest =  rspec_handler.generateManifest(slice_object, rspec)
         slice_object.setManifestRspec(manifest)
 
+        manifest_new = \
+            rspec_handler.generateManifestForSlivers(slice_object, \
+                                                         rspec, slivers)
         # Persist aggregate state
         self.persist_state()
 
@@ -220,6 +223,11 @@ class GramManager :
         # Generate a manifest rpsec 
         req_rspec = slice_object.getRequestRspec()
         manifest = rspec_handler.generateManifest(slice_object, req_rspec)
+
+        slivers = slice_object.getSlivers().values()
+        manifest_new = \
+            rspec_handler.generateManifestForSlivers(slice_object, \
+                                                          req_rspec, slivers)
     
         # Save the manifest in the slice object.  THIS IS TEMPORARY.  WE
         # SHOULD BE GENERATING THE SLICE MANIFEST AS NEEDED
@@ -275,7 +283,11 @@ class GramManager :
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_rspec': slice_object.getManifestRspec(), \
+        manifest = slice_object.getManifestRspec()
+        manifest_new = rspec_handler.generateManifestForSlivers(slice_object, \
+                                                                    slice_object.getRequestRspec(),
+                                                                slice_object.getSlivers().values())
+        result_struct = {'geni_rspec': manifest, \
                              'geni_slivers': sliver_list}
 
         ret_val = {'code': code, 'value': result_struct, 'output': ''}
