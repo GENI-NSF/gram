@@ -1,0 +1,70 @@
+{
+   "__001": "This file contains GRAM installation-specific", 
+   "__002": "parameters and structures. The values contained here",
+   "__003": "override values in the gram.am.gram.config module.",
+   "__004": "That is, a key/value pair  K, V  in this file", 
+   "__005": "sets gram.am.config.K = V",
+   "__006": "An error is given if the field (K) does not exist, ",
+   "__007": "Or the type of the value cannot be coerced",
+   "__008": "Further any parameter whose value is None in config.py", 
+   "__009": "and set as null here must be set in this file:",
+   "__010": "no default is provided",
+
+
+   "disk_image_metadata": 
+   {
+   "ubuntu-2nic": 
+       {
+        "os": "Linux", 
+        "version": "12.0", 
+        "description":"Ubuntu image with 2 NICs configured"
+	},
+   "cirros-2nic-x86_64": 
+       {
+        "os": "Linux", 
+        "version": "12.0", 
+        "description":"Cirros image with 2 NICs configured"
+	}
+   }, 
+
+   "external_interface": "eth2", 
+   "external_address": "128.33.251.71",
+   "external_netmask": "255.255.255.0", 
+   "control_address": "10.10.8.71", 
+   "control_interface": "eth0", 
+   "data_interface": "eth1", 
+   "management_interface": "eth0",
+   "management_address": "10.10.6.100",
+   "mysql_user": "admin", 
+   "mysql_password": "mysql_pwd", 
+   "rabbit_password": "rabbit_pwd", 
+   "nova_password": "nova_pwd", 
+   "glance_password": "glance_pwd", 
+   "keystone_password": "keystone_pwd", 
+   "quantum_password": "quantum_pwd", 
+   "os_tenant_name": "admin", 
+   "os_username": "admin", 
+   "os_password": "os_pwd", 
+   "os_auth_url": "http://localhost:5000/v2.0/",
+   "os_region_name" : "RegionOne", 
+   "os_no_cache" : "1",
+   "service_token" : "pridev",
+   "service_endpoint" : "http://localhost:35357/v2.0",
+
+   "management_network_name": "gram-control-net",
+
+   "public_gateway_ip" : "128.89.91.162",
+   "public_subnet_cidr" : "128.89.91.160/27",
+   "public_subnet_start_ip" : "128.89.91.163",
+   "public_subnet_end_ip" : "128.89.91.169",
+
+   "metadata_port" : "8775",
+
+   "backup_directory" : "/home/gram/.backup",
+   "control_host" : "pridevcontrol", 
+   "compute_hosts": {
+   	    "pridevcompute1": "10.10.8.72", 
+	    "pridevcompute2": "10.10.8.732"},
+   "glance_images" : []
+
+}
