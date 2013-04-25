@@ -535,7 +535,7 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          return self._host
 
-   def setHost(self, host): # Set VirtualMachine host for NIC
+   def setHost(self, host): # Name of compute node on which VM resides
       with self._slice.getLock() :
          self._host = host;
 

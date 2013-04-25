@@ -296,10 +296,12 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
 
 
     elif geni_sliver.__class__ == VirtualMachine:
-        component_id = geni_slice.getSliceURN()
-        node.setAttribute("component_id", component_id)
+        hostname = geni_sliver.getHost()
+        if hostname is not None:
+            component_id = config.urn_prefix + "node+" + hostname
+            node.setAttribute("component_id", component_id)
 
-        component_manager_id = config.gram_am_urn
+        component_manager_id = config.urn_prefix + "authority+cm"
         node.setAttribute("component_manager_id", component_manager_id)
 
         node.setAttribute('exclusive', 'false')
@@ -354,7 +356,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
             node.appendChild(services)
 
         host = root.createElement("host")
-        host_name = geni_sliver.getHost()
+        host_name = geni_sliver.getName()
         host.setAttribute('name', host_name)
         node.appendChild(host)
 
@@ -520,7 +522,6 @@ def generateManifest(geni_slice, req_rspec) :
             # Set the hostname element of the manifest (how the VM calls itself)
             host_attribute = Element('host')
             host_attribute.setAttribute('name', node_name)
-            vm_object.setHost(node_name)
             child.appendChild(host_attribute)
 
         elif child.nodeName == 'link' :
