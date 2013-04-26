@@ -100,12 +100,22 @@ def parseRequestRspec(geni_slice, rspec) :
                     disk_image_name = disk_image.attributes['name'].value
                 else :
                     disk_image_name = config.default_OS_image
+                if disk_image.attributes.has_key('os'):
+                    os_type = disk_image.attributes['os'].value
+                else:
+                    os_type = config.default_OS_type
+                if disk_image.attributes.has_key('version'):
+                    os_version = disk_image.attributes['version'].value
+                else:
+                    os_version = config.default_OS_version
                 disk_image_uuid = \
                     open_stack_interface._getImageUUID(disk_image_name)
                 if disk_image_uuid :
                     config.logger.info("DISK = " + str(disk_image_name) + \
                                            " " + str(disk_image_uuid))
                     vm_object.setOSImageName(disk_image_name)
+                    vm_object.setOSType(os_type)
+                    vm_object.setOSVersion(os_version)
                 else:
                     error_string = "Unsupported disk image: " + \
                         str(disk_image_name)
@@ -219,6 +229,152 @@ def parseRequestRspec(geni_slice, rspec) :
         controller = controller_node.attributes['url'].value
 
     return error_string, sliver_list, controller
+
+def generateManifestForSlivers(geni_slice, req_rspec, geni_slivers):
+    request = parseString(req_rspec).childNodes[0]
+
+    root = Document()
+    manifest = root.createElement("rspec")
+    manifest.setAttribute('type', 'manifest')
+    root.appendChild(manifest)
+
+    namespace = request.attributes['xmlns'].value
+    manifest.setAttribute("xmlns", namespace)
+    xml_schema_instance = request.attributes['xmlns:xsi'].value
+    manifest.setAttribute("xmlns:xsi", xml_schema_instance)
+    xsi_schema_location = request.attributes['xsi:schemaLocation'].value
+    xsi_schema_location = xsi_schema_location.replace('request.xsd', 'manifest.xsd')
+    manifest.setAttribute("xsi:schemaLocation", xsi_schema_location)
+
+    for sliver_request in request.childNodes:
+        if sliver_request.nodeType != Node.ELEMENT_NODE: continue
+        sliver = getSliverForRequest(sliver_request, geni_slivers)
+        sliver_manifest = generateManifestForSliver(geni_slice, sliver, root, \
+                                                    sliver_request)
+        if sliver_manifest is not None:
+            manifest.appendChild(sliver_manifest)
+
+    return cleanXML(root, "NewManifest")
+
+def getSliverForRequest(request, slivers):
+    client_id = request.attributes['client_id'].value
+    found = None
+    for sliver in slivers:
+        if sliver.getName() == client_id:
+            found = sliver
+            break
+    return found
+
+# def getSliverRequest(sliver, request):
+#     sliver_name = sliver.getName()
+#     sliver_request = None
+#     for child in request.childNodes:
+#         if child.attributes is not None and \
+#                 child.attributes.has_key('client_id') and \
+#                 child.attributes['client_id'].value == sliver_name:
+#             sliver_request = child
+#             break
+#     return sliver_request
+
+def generateManifestForSliver(geni_slice, geni_sliver, root, request):
+    node_name = "node"
+    if geni_sliver.__class__ == NetworkLink: node_name = "link"
+    node = root.createElement(node_name)
+
+    if geni_sliver.__class__ == NetworkInterface:
+        return None
+
+    client_id = geni_sliver.getName()
+    node.setAttribute("client_id", client_id)
+    sliver_id = geni_sliver.getSliverURN()
+    node.setAttribute("sliver_id", sliver_id)
+    if geni_sliver.__class__ == NetworkLink:
+
+        for interface in geni_sliver.getEndpoints():
+            interface_ref = root.createElement('interface_ref')
+            client_id = interface.getName()
+            interface_ref.setAttribute('client_id', client_id)
+            node.appendChild(interface_ref)
+
+        property_nodes = request.getElementsByTagName('property')
+        for property_node in property_nodes:
+            node.appendChild(property_node)
+
+        link_type_nodes = request.getElementsByTagName('link_type')
+        for link_type_node in link_type_nodes:
+            node.appendChild(link_type_node)
+
+
+    elif geni_sliver.__class__ == VirtualMachine:
+        hostname = geni_sliver.getHost()
+        if hostname is not None:
+            component_id = config.urn_prefix + "node+" + hostname
+            node.setAttribute("component_id", component_id)
+
+        component_manager_id = config.urn_prefix + "authority+cm"
+        node.setAttribute("component_manager_id", component_manager_id)
+
+        node.setAttribute('exclusive', 'false')
+
+        for interface in geni_sliver.getNetworkInterfaces():
+            interface_node = root.createElement("interface")
+            interface_client_id = interface.getName()
+            # Need to add the mac_address if there is one
+            mac_address = interface.getMACAddress()
+            if mac_address is not None:
+                interface_node.setAttribute("mac_address", mac_address)
+            interface_node.setAttribute("client_id", interface_client_id)
+            interface_node.setAttribute("sliver_id", interface.getSliverURN())
+            # Need to add IP_address if there is one
+            ip_address = interface.getIPAddress()
+            if ip_address is not None:
+                ip_node = root.createElement("ip")
+                ip_node.setAttribute("address", ip_address)
+                ip_node.setAttribute("type", "ip")
+                interface_node.appendChild(ip_node)
+            node.appendChild(interface_node)
+
+        sliver_type = root.createElement("sliver_type")
+        sliver_type_name = geni_sliver.getVMFlavor()
+        sliver_type.setAttribute("name", sliver_type_name)
+
+        disk_image = root.createElement("disk_image")
+
+        disk_image_name = config.image_urn_prefix + \
+            geni_sliver.getOSImageName()
+        disk_image.setAttribute("name", disk_image_name)
+
+
+        disk_image_os = geni_sliver.getOSType()
+        disk_image.setAttribute("os", disk_image_os)
+
+        disk_image_version = geni_sliver.getOSVersion()
+        disk_image.setAttribute("version", disk_image_version)
+
+        sliver_type.appendChild(disk_image)
+        node.appendChild(sliver_type)
+
+        # Need to add the services, if there are any
+        users = geni_sliver.getAuthorizedUsers()
+        if users is not None and len(users) > 0:
+            services = root.createElement("services")
+            for user in users:
+                login = root.createElement("login")
+                login.setAttribute("authentication", "ssh-keys")
+                my_host_name = \
+                    socket.gethostbyaddr(socket.gethostname())[0]
+                login.setAttribute("hostname", my_host_name)
+                login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
+                login.setAttribute("username", user)
+                services.appendChild(login)
+            node.appendChild(services)
+
+        host = root.createElement("host")
+        host_name = geni_sliver.getName()
+        host.setAttribute('name', host_name)
+        node.appendChild(host)
+
+    return node
 
 
 def generateManifest(geni_slice, req_rspec) :
@@ -392,19 +548,19 @@ def generateManifest(geni_slice, req_rspec) :
                     break
             child.setAttribute('sliver_id', link_object.getSliverURN())
 
-    manifest = manifest.toprettyxml(indent = '    ')
-    config.logger.info('Manifest = %s' % manifest)
+    return cleanXML(manifest, "Manifest")
 
-    # Create a clean version of the manifest without the extraneous
-    # spaces and newlines added by minidom
-    clean_manifest = ''
-    for line in manifest.split('\n') :
-        if line.strip() :
-            clean_manifest += line + '\n'
-
-    config.logger.info('Clean manifest = %s' % clean_manifest)
-
-    return clean_manifest
+def cleanXML(doc, label):
+    xml = doc.toprettyxml(indent = '    ')
+    config.logger.info("%s = %s" % (label, xml))
+    clean_xml = ""
+    for line in xml.split('\n'):
+        if line.strip():
+            clean_xml += line + '\n'
+    config.logger.info("Clean %s = %s" % (label, clean_xml))
+    return clean_xml
+    
+    
 
 # Generate advertisement RSPEC for aggeregate based on 
 # flavors and disk images registered with open stack
