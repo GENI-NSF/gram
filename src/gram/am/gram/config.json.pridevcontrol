@@ -52,6 +52,8 @@
    "service_endpoint" : "http://localhost:35357/v2.0",
 
    "management_network_name": "gram-control-net",
+   "management_network_vlan": "2500",
+   "management_network_cidr": "10.10.6.0/24",
 
    "public_gateway_ip" : "128.89.91.162",
    "public_subnet_cidr" : "128.89.91.160/27",
