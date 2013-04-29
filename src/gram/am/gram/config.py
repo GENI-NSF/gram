@@ -36,6 +36,10 @@ import logging
 import socket
 import sys
 
+# GRAM aggregate manager ports for V2 and V3
+gram_am_port = 8001
+gram_am_v2_port = 8002
+
 # OpenStack related configuration
 default_VM_flavor = 'm1.small'  
 default_OS_image = 'ubuntu-12.04'

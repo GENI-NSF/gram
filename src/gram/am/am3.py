@@ -33,6 +33,7 @@ import datetime
 import dateutil.parser
 import logging
 import os
+import socket
 import time
 import traceback
 import uuid
@@ -70,7 +71,13 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     def GetVersion(self, options):
         self._gram_manager.expire_slivers()
-        return ReferenceAggregateManager.GetVersion(self, options)
+        result = ReferenceAggregateManager.GetVersion(self, options)
+        hostname = socket.getfqdn()
+        v3_url = "https://%s:%d" % (hostname, config.gram_am_port)
+        v2_url = "https://%s:%d" % (hostname, config.gram_am_v2_port)
+        geni_api_versions = {'2' : v2_url, '3' : v3_url}
+        result['value']['geni_api_versions'] = geni_api_versions
+        return result
 
     # The list of credentials are options - some single cred
     # must give the caller required permissions.
