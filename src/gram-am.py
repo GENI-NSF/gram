@@ -111,6 +111,12 @@ def main(argv=None):
 
     gram.am.gram.config.initialize(opts.config_file)
 
+    # If the port isn't set explicitly, use defaults from config
+    if not opts.port:
+        opts.port = gram.am.gram.config.gram_am_port
+        if opts.api_version == 2:
+            opts.port = gram.am.gram.config.gram_am_v2_port
+
     level = logging.INFO
     if opts.debug:
         level = logging.DEBUG

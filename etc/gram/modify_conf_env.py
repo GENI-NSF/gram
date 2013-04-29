@@ -8,7 +8,7 @@
 # where new value is taken from the gram.am.gram.config package
 
 import sys
-from gram.am.gram import .config
+from gram.am.gram import config
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

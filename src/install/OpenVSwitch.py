@@ -32,7 +32,13 @@ class OpenVSwitch(GenericInstaller):
 
         backup_directory = config.backup_directory
         external_interface = config.external_interface
+        mgmt_if = config.management_interface
+        mgmt_net_name = config.management_network_name
+        mgmt_net_vlan = config.management_network_vlan
+        mgmt_net_cidr = config.management_network_cidr
+        external_if = config.external_interface
         external_bridge = "br-ex"
+        data_if = config.data_interface
 
         self.comment("Install OVS package")
         self.add("module-assistant auto-install openvswitch-datapath")
@@ -42,9 +48,11 @@ class OpenVSwitch(GenericInstaller):
         self.add("ovs-vsctl add-br br-int")
         self.add("ovs-vsctl add-br br-ex")
         self.add("ovs-vsctl br-set-external-id br-ex bridge-id br-ex")
-        self.add("ovs-vsctl add-port br-ex eth2")
-        self.add("ovs-vsctl add-br br-eth1")
-        self.add("ovs-vsctl add-port br-eth1 eth1")
+        self.add("ovs-vsctl add-port br-ex " + external_if)
+        self.add("ovs-vsctl add-br br-" + data_if)
+        self.add("ovs-vsctl add-port br-" + data_if + " " + data_if)
+        self.add("ovs-vsctl add-br br-" + mgmt_if)
+        self.add("ovs-vsctl add-port br-" + mgmt_if + " " + mgmt_if)
 
         self.comment("Modify /etc/network/interfaces to reflect the new configuration")
         # Replace references to management interface with references to br-ex
@@ -76,6 +84,11 @@ class OpenVSwitch(GenericInstaller):
         quantum_user = config.quantum_user
         quantum_password = config.quantum_password
         os_password = config.os_password
+        mgmt_if = config.management_interface
+        mgmt_net_name = config.management_network_name
+        mgmt_net_vlan = config.management_network_vlan
+        mgmt_net_cidr = config.management_network_cidr
+        data_if = config.data_interface
 
         self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
         self.sed("s/^core_plugin.*/core_plugin = quantum.plugins.openvswitch.ovs_quantum_plugin.OVSQuantumPluginV2/", 
@@ -100,8 +113,10 @@ class OpenVSwitch(GenericInstaller):
 
         self.comment("configure virtual bridging")
         self.add("ovs-vsctl add-br br-int")
-        self.add("ovs-vsctl add-br br-eth1")
-        self.add("ovs-vsctl add-port br-eth1 eth1")
+        self.add("ovs-vsctl add-br br-" + data_if)
+        self.add("ovs-vsctl add-port br-" + data_if + " " + data_if)
+        self.add("ovs-vsctl add-br br-" + mgmt_if)
+        self.add("ovs-vsctl add-port br-" + mgmt_if + " " + mgmt_if)
 
         self.comment("edit ovs_quantum_plugin.ini")
         self.backup(self.quantum_plugin_directory, backup_directory, \
@@ -128,9 +143,10 @@ class OpenVSwitch(GenericInstaller):
                  self.quantum_plugin_conf)
         self.sed("s/\# Default: tenant_network_type.*/tenant_network_type=vlan/",
                  self.quantum_plugin_conf)
-        self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2000/",
+        # TODO:  How do we handle these ranges?
+        self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2000,physnet2:2001:3000/",
                  self.quantum_plugin_conf)
-        self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-eth1/",
+        self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-" + data_if + ",physnet2:br-" + mgmt_if + "/",
                  self.quantum_plugin_conf)
 
         self.comment("Start the agent")

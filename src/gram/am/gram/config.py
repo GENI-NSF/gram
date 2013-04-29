@@ -36,6 +36,10 @@ import logging
 import socket
 import sys
 
+# GRAM aggregate manager ports for V2 and V3
+gram_am_port = 8001
+gram_am_v2_port = 8002
+
 # OpenStack related configuration
 default_VM_flavor = 'm1.small'  
 default_OS_image = 'ubuntu-12.04'
@@ -121,7 +125,6 @@ external_netmask = None
 # (for OpenStack/Gram API control traffic
 control_interface = None
 control_address = None
-control_netmask = None
 
 # Interface for 'data' network
 # This network is controlled by quantum and flows through
@@ -132,11 +135,11 @@ data_interface = None
 # This is the network over which experimenters can SSH into VM's
 management_interface = None
 management_address = None
-management_netmask = None
 
 #### THIS SHOULD BE IN CONFIG.JSON
 management_network_name = 'GRAM-mgmt-net'
-mgmt_net_addr = '192.168.10.0/24'
+management_network_cidr = '192.168.10.0/24'
+management_network_vlan = '2500'
 
 # Parameters for establishing the 'public' Quantum network
 public_gateway_ip = None

@@ -963,9 +963,11 @@ def _createVM(vm_object, users, placement_hint) :
         return None
     property_name = config.management_network_name + ' network'
     control_nic_ipaddr = _getValueByPropertyName(output, property_name)
+    compute_host = _getValueByPropertyName(output, 'OS-EXT-SRV-ATTR:host')
     if control_nic_ipaddr != None :
         portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
         vm_object.setSSHProxyLoginPort(portNumber)
+        vm_object.setHost(compute_host)
         config.logger.info('SSH Proxy assigned port number %d' % portNumber)
 
     return vm_uuid

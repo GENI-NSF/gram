@@ -470,6 +470,8 @@ class VirtualMachine(Sliver): #
                      # assigned to this VM will be of the form x.x.x.last_octet
       self._flavor = config.default_VM_flavor
       self._os_image = config.default_OS_image
+      self._os_type = config.default_OS_type
+      self._os_version = config.default_OS_version
       self._host = None # name of compute node on which VM resides
       self._authorized_users =  None # List of User names with accts on the VM
       self._ssh_proxy_login_port = None # Port number assigned for remote 
@@ -515,6 +517,22 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          self._os_image = os_image
 
+   def getOSType(self) :
+      with self._slice.getLock() :
+         return self._os_type
+
+   def setOSType(self, os_type) :
+      with self._slice.getLock() :
+         self._os_type = os_type
+
+   def getOSVersion(self) :
+      with self._slice.getLock() :
+         return self._os_version
+
+   def setOSVersion(self, os_version) :
+      with self._slice.getLock() :
+         self._os_version = os_version
+
    def getVMFlavor(self) :
       with self._slice.getLock() :
          return self._flavor
@@ -535,7 +553,7 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          return self._host
 
-   def setHost(self, host): # Set VirtualMachine host for NIC
+   def setHost(self, host): # Name of compute node on which VM resides
       with self._slice.getLock() :
          self._host = host;
 

@@ -113,12 +113,22 @@ def parseRequestRspec(geni_slice, rspec) :
                     disk_image_name = disk_image.attributes['name'].value
                 else :
                     disk_image_name = config.default_OS_image
+                if disk_image.attributes.has_key('os'):
+                    os_type = disk_image.attributes['os'].value
+                else:
+                    os_type = config.default_OS_type
+                if disk_image.attributes.has_key('version'):
+                    os_version = disk_image.attributes['version'].value
+                else:
+                    os_version = config.default_OS_version
                 disk_image_uuid = \
                     open_stack_interface._getImageUUID(disk_image_name)
                 if disk_image_uuid :
                     config.logger.info("DISK = " + str(disk_image_name) + \
                                            " " + str(disk_image_uuid))
                     vm_object.setOSImageName(disk_image_name)
+                    vm_object.setOSType(os_type)
+                    vm_object.setOSVersion(os_version)
                 else:
                     error_string = "Unsupported disk image: " + \
                         str(disk_image_name)
@@ -321,10 +331,12 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
 
 
     elif geni_sliver.__class__ == VirtualMachine:
-        component_id = geni_slice.getSliceURN()
-        node.setAttribute("component_id", component_id)
+        hostname = geni_sliver.getHost()
+        if hostname is not None:
+            component_id = config.urn_prefix + "node+" + hostname
+            node.setAttribute("component_id", component_id)
 
-        component_manager_id = config.gram_am_urn
+        component_manager_id = config.urn_prefix + "authority+cm"
         node.setAttribute("component_manager_id", component_manager_id)
 
         node.setAttribute('exclusive', 'false')
@@ -350,14 +362,18 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
         sliver_type = root.createElement("sliver_type")
         sliver_type_name = geni_sliver.getVMFlavor()
         sliver_type.setAttribute("name", sliver_type_name)
+
         disk_image = root.createElement("disk_image")
-        disk_image_name = config.image_urn_prefix + geni_sliver.getOSImageName()
+
+        disk_image_name = config.image_urn_prefix + \
+            geni_sliver.getOSImageName()
         disk_image.setAttribute("name", disk_image_name)
 
-        # *** Need to pull these out of the vm
-        disk_image_os = config.default_OS_type
-        disk_image_version = config.default_OS_version
+
+        disk_image_os = geni_sliver.getOSType()
         disk_image.setAttribute("os", disk_image_os)
+
+        disk_image_version = geni_sliver.getOSVersion()
         disk_image.setAttribute("version", disk_image_version)
 
         sliver_type.appendChild(disk_image)
@@ -379,7 +395,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
             node.appendChild(services)
 
         host = root.createElement("host")
-        host_name = geni_sliver.getHost()
+        host_name = geni_sliver.getName()
         host.setAttribute('name', host_name)
         node.appendChild(host)
 
@@ -545,7 +561,6 @@ def generateManifest(geni_slice, req_rspec) :
             # Set the hostname element of the manifest (how the VM calls itself)
             host_attribute = Element('host')
             host_attribute.setAttribute('name', node_name)
-            vm_object.setHost(node_name)
             child.appendChild(host_attribute)
 
         elif child.nodeName == 'link' :

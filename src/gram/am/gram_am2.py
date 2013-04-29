@@ -1,6 +1,7 @@
 # AM API V2 version of Gram aggregate manager
 # For testing against tools (Flack, portal) that speak AM API V2
 # Since Gram is written to support V3
+from gram import config
 from geni.am.am2 import ReferenceAggregateManager
 from geni.am.am2 import AggregateManager, AggregateManagerServer
 from am3 import GramReferenceAggregateManager as GramReferenceAggregateManager_V3
@@ -8,8 +9,10 @@ from GramSecureXMLRPCServer import GramSecureXMLRPCServer
 from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
 import base64
 import os
-import zlib
+import socket
 import uuid
+import zlib
+
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
 
@@ -26,7 +29,13 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._v3_am._server = server
 
     def GetVersion(self, options):
-        return ReferenceAggregateManager.GetVersion(self, options)
+        result = ReferenceAggregateManager.GetVersion(self, options)
+        hostname = socket.getfqdn()
+        v3_url = "https://%s:%d" % (hostname, config.gram_am_port)
+        v2_url = "https://%s:%d" % (hostname, config.gram_am_v2_port)
+        geni_api_versions = {'2' : v2_url, '3' : v3_url}
+        result['value']['geni_api_versions'] = geni_api_versions
+        return result
 
     def ListResources(self, credentials, options):
 #        print  "OPTIONS = " + str(options)

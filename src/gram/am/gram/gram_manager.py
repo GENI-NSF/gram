@@ -85,8 +85,9 @@ class GramManager :
 
         # If any slices restored from snapshot, report to VMOC
         with SliceURNtoSliceObject._lock:
-            for slice in SliceURNtoSliceObject._slices:
-                self.registerSliceToVMOC(slice)
+            for slice_name in SliceURNtoSliceObject._slices:
+                the_slice = SliceURNtoSliceObject._slices[slice_name]
+                self.registerSliceToVMOC(the_slice)
         
         # Remove extraneous snapshots
         self.prune_snapshots()

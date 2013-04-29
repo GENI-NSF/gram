@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Create GRAM DEB package gram_control.deb and gram_compute.deb
 # Usage: python create_gram_packages.py version
 #
