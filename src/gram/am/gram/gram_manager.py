@@ -91,6 +91,7 @@ class GramManager :
         # Remove extraneous snapshots
         self.prune_snapshots()
 
+
     def allocate(self, slice_urn, creds, rspec, options) :
         """
             Request reservation of GRAM resources.  We assume that by the 
@@ -105,20 +106,11 @@ class GramManager :
 
         # Check if we already have slivers for this slice
         slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
-        if slice_object != None :
-            # This is a request to add additional resources to this slice.
-            # Feature not supported at this time.
-            config.logger.error('Cannot call allocate while holding slivers');
-            error_output = 'Slice already has slivers at this aggregate.  Delete the slice before calling allocate again'
-
-            # Create and return an error struct
-            code = {'geni_code': constants.SLICE_ALREADY_EXISTS}
-            return {'code': code, 'value': '', 'output': error_output}
-
-        # This is a new slice at this aggregate.  Create Slice object and add
-        # it the list of slices at this AM
-        slice_object = Slice(slice_urn)
-        SliceURNtoSliceObject.set_slice_object(slice_urn, slice_object)
+        if slice_object == None :
+            # This is a new slice at this aggregate.  Create Slice object 
+            # and add it the list of slices at this AM
+            slice_object = Slice(slice_urn)
+            SliceURNtoSliceObject.set_slice_object(slice_urn, slice_object)
 
         # Parse the request rspec.  Get back any error message from parsing
         # the rspec and a list of slivers created while parsing
@@ -167,15 +159,12 @@ class GramManager :
         manifest =  rspec_handler.generateManifest(slice_object, rspec)
         slice_object.setManifestRspec(manifest)
 
-        manifest_new = \
-            rspec_handler.generateManifestForSlivers(slice_object, \
-                                                         rspec, slivers)
         # Persist aggregate state
         self.persist_state()
 
-        # Create a sliver status list for the slivers in this slice
+        # Create a sliver status list for the slivers allocated by this call
         sliver_status_list = \
-            utils.SliverList().getStatusAllSlivers(slice_object)
+            utils.SliverList().getStatusOfSlivers(slivers)
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
@@ -184,37 +173,31 @@ class GramManager :
         return {'code': code, 'value': result_struct, 'output': ''}
         
 
-    def provision(self, slice_urn, creds, options) :
+    def provision(self, slice_object, sliver_objects, creds, options) :
         """
-            For now we provision all resources allocated by a slice.  In the
-            future we'll have to provision individual slivers.
+            Provision the slivers listed in sliver_objects, if they have
+            not already been provisioned.
         """
-        # Find the slice object for this slice
-        slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
-        if slice_object == None :
-            #  Unknown slice.  Return error message
-            err_output = 'Search for slice %s failed' % slice_urn
-            code = {'geni_code': constants.UNKNOWN_SLICE}
-            return {'code': code, 'value': '', 'output': err_output}
-
-        # Provision OpenStack Resources
+        # See if the geni_users option has been set.  This option is used to
+        # specify user accounts to be created on virtual machines that are
+        # provisioned by this call
         if options.has_key('geni_users'):
             users = options['geni_users']
         else :
             users = list()
 
-        err_str = open_stack_interface.provisionResources(slice_object, users)
+        
+        err_str = open_stack_interface.provisionResources(slice_object,
+                                                          sliver_objects,
+                                                          users)
+
+        #err_str = open_stack_interface.provisionResources(slice_object, users)
         if err_str != None :
             # We failed to provision this slice for some reason (described
             # in err_str)
             code = {'geni_code': constants.OPENSTACK_ERROR}
             return {'code': code, 'value': '', 'output': err_str}
             
-        # Set operational/allocation state
-        for sliver in slice_object.getSlivers().values():
-            sliver.setAllocationState(constants.provisioned)
-            sliver.setOperationalState(constants.notready)
-
         # Set expiration times on the provisioned resources
         utils.ProvisionTimesSetter(slice_object, creds, \
                                        ('geni_end_time' in options \
@@ -223,11 +206,6 @@ class GramManager :
         # Generate a manifest rpsec 
         req_rspec = slice_object.getRequestRspec()
         manifest = rspec_handler.generateManifest(slice_object, req_rspec)
-
-        slivers = slice_object.getSlivers().values()
-        manifest_new = \
-            rspec_handler.generateManifestForSlivers(slice_object, \
-                                                          req_rspec, slivers)
     
         # Save the manifest in the slice object.  THIS IS TEMPORARY.  WE
         # SHOULD BE GENERATING THE SLICE MANIFEST AS NEEDED
@@ -235,21 +213,6 @@ class GramManager :
 
         # Create a sliver status list for the slivers in this slice
         sliver_status_list = utils.SliverList().getStatusAllSlivers(slice_object)
-
-        # # Set host and VLAN information
-        # vlan_map = open_stack_interface._lookup_vlans_for_tenant(slice_object.getTenantUUID())
-        # for vm in slice_object.getVMs():
-        #     for nic in vm.getNetworkInterfaces():
-        #         mac = nic.getMACAddress()
-        #         if vlan_map.has_key(mac):
-        #             vlan = vlan_map[mac]['vlan']
-        #             hostname = vlan_map[mac]['host']
-        #             vm.setHost(hostname)
-        #             nic.setVLANTag(vlan)
-        #             config.logger.info("Setting VLAN of NIC " + str(nic.getUUID()) + " to " + str(vlan))
-        #             config.logger.info("Setting HOST of VM " + str(vm.getUUID()) + " to " + str(hostname))
-        #         else:
-        #             config.logger.error("MAC not found: in ovs-vsctl data: " + str(mac))
 
         # Persist new GramManager state
         self.persist_state()
@@ -283,11 +246,7 @@ class GramManager :
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
-        manifest = slice_object.getManifestRspec()
-        manifest_new = rspec_handler.generateManifestForSlivers(slice_object, \
-                                                                    slice_object.getRequestRspec(),
-                                                                slice_object.getSlivers().values())
-        result_struct = {'geni_rspec': manifest, \
+        result_struct = {'geni_rspec': slice_object.getManifestRspec(), \
                              'geni_slivers': sliver_list}
 
         ret_val = {'code': code, 'value': result_struct, 'output': ''}
@@ -393,10 +352,10 @@ class GramManager :
     # Resolve a set of URN's to a slice and set of slivers
     # Either:
     # It is a single slice URN 
-    #     (return slice and associated slivers)
+    #     (return slice and associated sliver objects)
     # Or it is a set of sliver URN's  
     #     (return slice and slivers for these sliver URN's)
-    # Returns a slice and a list of slivers     
+    # Returns a slice and a list of sliver objects    
     def decode_urns(self, urns):
         slice = None
         slivers = list()
@@ -410,7 +369,8 @@ class GramManager :
         elif len(urns) > 0:
             # Case 2: This is a sliver URN.
             # Make sure they all belong to the same slice
-            # And if so, return the slice and the slvers for these sliver urns
+            # And if so, return the slice and the sliver objects for these 
+            # sliver urns
             sliver_urn = urns[0]
             slice = None
             for test_slice in SliceURNtoSliceObject.get_slice_objects() :
@@ -447,9 +407,7 @@ class GramManager :
             slice = sliver.getSlice()
             slice_urn = slice.getSliceURN()
             slice.removeSliver(sliver)
-            if not slice.getSlivers() or len(slice.getSlivers()) == 0:
-                config.logger.info("Deleting empty slice %r", slice_urn)
-                SliceURNtoSliceObject.remove_slice_object(slice_urn)
+
 
     def renew_slivers(self, slivers, creds, expiration_time):
         urns = [sliver.getSliverURN() for sliver in slivers]

@@ -81,10 +81,17 @@ def cleanup(signal, frame) :
             pass
         
 
-# users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
-def provisionResources(geni_slice, users) :
+def provisionResources(geni_slice, slivers, users) :
     """
         Allocate network and VM resources for this slice.
+           geni_slice is the slice_object of the slice being provisioned
+           sliver_objects is the list of slivers to be provisioned
+           users is a list of dictionaries [keys=>list_of_ssh_keys,
+                                            urn=>user_urn]
+
+        Returns None on success
+        Returns an error message string on failure.  Failure to provision 
+        any sliver results in the entire provision call being rolled back.
     """
     # Create a new tenant for this slice if we don't already have one.  We
     # will not have a tenant_id associated with this slice if this is the
@@ -169,24 +176,50 @@ def provisionResources(geni_slice, users) :
 
         # Create a control network for this tenant if it does not already
         # exist
-        if geni_slice.getControlNetInfo() == None :
-            # Don't have a control network.  Create one.
-            control_net_info = _createControlNetwork(geni_slice)
-            if control_net_info != None :
-                geni_slice.setControlNetInfo(control_net_info)
-            else :
-                # Failed to create control net.  Cleanup actions before
-                # we return:
-                #    - delete tenant admin
-                #    - delete tenant
-                _deleteUserByUUID(admin_user_info['admin_uuid'])
-                _deleteTenantByUUID(tenant_uuid)
-                return 'GRAM internal error: Failed to create a control network for slice %s' % geni_slice.getSliceURN()
+        # if geni_slice.getControlNetInfo() == None :
+        #    # Don't have a control network.  Create one.
+        #    control_net_info = _createControlNetwork(geni_slice)
+        #    if control_net_info != None :
+        #        geni_slice.setControlNetInfo(control_net_info)
+        #    else :
+        #        # Failed to create control net.  Cleanup actions before
+        #        # we return:
+        #        #    - delete tenant admin
+        #        #    - delete tenant
+        #        _deleteUserByUUID(admin_user_info['admin_uuid'])
+        #        _deleteTenantByUUID(tenant_uuid)
+        #        return 'GRAM internal error: Failed to create a control network for slice %s' % geni_slice.getSliceURN()
+    else :
+        # Tenant, tenant admin, tenant_router already exist.  Set variables
+        # that are used be code below
+        tenant_name = geni_slice.getTenantName()
+        tenant_uuid = geni_slice.getTenantUUID()
+        admin_name, admin_pwd, admin_uuid = geni_slice.getTenantAdminInfo()
+        admin_user_info = { 'admin_name' : admin_name,
+                            'admin_pwd' : admin_pwd,
+                            'admin_uuid' : admin_uuid }
 
-    # For each link in the experimenter topology that does not have an
-    # associated quantum network/subnet, set up a network and subnet
-    links_created_this_call = list() 
-    for link in geni_slice.getNetworkLinks() :
+    # We provision all the links before we provision the VMs
+    # Walk through the list of sliver_objects in slivers and create two list:
+    # links_to_be_provisioned and vms_to_be_provisioned
+    links_to_be_provisioned = list()
+    vms_to_be_provisioned = list()
+    for i in range(0, len(slivers)) :
+        if (slivers[i].getSliverURN()).startswith(config.link_urn_prefix) :
+            # slivers[i] a link object
+            links_to_be_provisioned.append(slivers[i])
+        elif (slivers[i].getSliverURN()).startswith(config.vm_urn_prefix) :
+            # slivers[i] a vm object
+            vms_to_be_provisioned.append(slivers[i])
+    config.logger.info('Provisioning %s links and %s vms' % \
+                           (len(links_to_be_provisioned), 
+                            len(vms_to_be_provisioned))) 
+
+    # For each link to be provisioned, set up a quantum network and subnet if
+    # it does not already have one.  (It will have a quantum network and 
+    # subnet if it was provisioned by a previous call to provision.)
+    links_created_this_call = list()  # Links created by this call to provision
+    for link in links_to_be_provisioned :
         if link.getUUID() == None :
             # This network link has not been set up
             uuids = _createNetworkForLink(link)
@@ -209,6 +242,8 @@ def provisionResources(geni_slice, users) :
             link.setSubnetUUID(uuids['subnet_uuid'])
             link.setAllocationState(constants.provisioned)
             links_created_this_call.append(uuids['network_uuid'])
+            link.setAllocationState(constants.provisioned)
+            link.setOperationalState(constants.ready)
 
     # Associate the VLANs for the control and data networks
     nets_info = _getNetsForTenant(tenant_uuid)
@@ -227,23 +262,23 @@ def provisionResources(geni_slice, users) :
         _deleteTenantByUUID(tenant_uuid)
         return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
 
-    control_net_info = geni_slice.getControlNetInfo()
-    for net_uuid in nets_info.keys():
-        net_info = nets_info[net_uuid]
-        vlan = net_info['vlan']
-        if net_uuid == control_net_info['control_net_uuid']:
-            config.logger.info("Setting control net vlan to " + str(vlan))
-            control_net_info['control_net_vlan'] = vlan
-        else:
-            for link in geni_slice.getNetworkLinks():
-                if link.getNetworkUUID() == net_uuid:
-                    name = net_info['name']
-                    config.logger.info("Setting data net " + name + " VLAN to " + vlan)
-                    link.setVLANTag(vlan)
+#    control_net_info = geni_slice.getControlNetInfo()
+#    for net_uuid in nets_info.keys():
+#        net_info = nets_info[net_uuid]
+#        vlan = net_info['vlan']
+#        if net_uuid == control_net_info['control_net_uuid']:
+#            config.logger.info("Setting control net vlan to " + str(vlan))
+#            control_net_info['control_net_vlan'] = vlan
+#        else:
+#            for link in geni_slice.getNetworkLinks():
+#                if link.getNetworkUUID() == net_uuid:
+#                    name = net_info['name']
+#                    config.logger.info("Setting data net " + name + " VLAN to " + vlan)
+#                    link.setVLANTag(vlan)
 
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
-    for vm in geni_slice.getVMs() :
+    for vm in vms_to_be_provisioned :
         for nic in vm.getNetworkInterfaces() :
             if nic.getIPAddress() == None :
                 # NIC needs an IP, if it is connected to a link
@@ -252,12 +287,21 @@ def provisionResources(geni_slice, users) :
                     # NIC is not connected to a link.  Go to next NIC
                     break
                 
-                # NIC is connected to a link.  If the link has a subnet
-                # address of the form 10.0.x.0/24, this interface gets the
+                # NIC is connected to a link.  We assign an IP address to the
+                # NIC only if the link it is connected to has been created
+                if link.getUUID() == None :
+                    # NIC is not connected to a link that not been 
+                    # provisioned.  Go to next NIC
+                    break
+
+                # NIC is connected to a link that has been provisioned. Give
+                # it an IP address.  If IP addresses are from the 
+                # 10.0.x.0/24 subnet, this interface gets the
                 # ip address 10.0.x.nnn where nnn is the last octet for this vm
                 subnet_addr = link.getSubnet()
                 subnet_prefix = subnet_addr[0 : subnet_addr.rfind('0/24')]
                 nic.setIPAddress(subnet_prefix + vm.getLastOctet())
+                nic.enable()
 
     # For each VirtualMachine object in the slice, create an OpenStack
     # VM if such a VM has not already been created.
@@ -294,7 +338,7 @@ def provisionResources(geni_slice, users) :
     vm_uuids = []  # List of uuids of VMs created in this provision call
     vms_created_this_call = [] # List of VM objects corresponding to VMs 
                                # created during this call to provision
-    for vm in geni_slice.getVMs() :
+    for vm in vms_to_be_provisioned  :
         if vm.getUUID() == None :
             # This VM object does not have an openstack VM associated with it.
             # We need to create one.
@@ -331,6 +375,8 @@ def provisionResources(geni_slice, users) :
                 vm_uuids.append(vm_uuid)
                 vms_created_this_call.append(vm)
                 vm.setAuthorizedUsers(user_names)
+                vm.setAllocationState(constants.provisioned)
+                vm.setOperationalState(constants.notready)
 
 # Delete all ports associated with given slice/tenant
 # Allow some failures: there will be some that can't be deleted
@@ -825,15 +871,15 @@ def _createVM(vm_object, users, placement_hint) :
     # Create ports for the experiment data networks
     vm_net_infs = vm_object.getNetworkInterfaces()
     for nic in vm_net_infs :
-        link_object = nic.getLink()
-        if not link_object: continue
-        net_uuid = link_object.getNetworkUUID()
-        nic_ip_addr = nic.getIPAddress()
-        if nic_ip_addr != None :
-            subnet_uuid = link_object.getSubnetUUID()
-            cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
-            output = _execCommand(cmd_string) 
-            nic.setUUID(_getValueByPropertyName(output, 'id'))
+        if nic.isEnabled :
+            link_object = nic.getLink()
+            net_uuid = link_object.getNetworkUUID()
+            nic_ip_addr = nic.getIPAddress()
+            if nic_ip_addr != None :
+                subnet_uuid = link_object.getSubnetUUID()
+                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
+                output = _execCommand(cmd_string) 
+                nic.setUUID(_getValueByPropertyName(output, 'id'))
 
     # Now grab and set the mac addresses from the port list
     ports_info = _getPortsForTenant(tenant_uuid)
@@ -876,9 +922,10 @@ def _createVM(vm_object, users, placement_hint) :
 
     # Now add the NICs for the experiment data network
     for nic in vm_net_infs :
-        port_uuid = nic.getUUID()
-        if port_uuid != None :
-            cmd_string += (' --nic port-id=%s' % port_uuid)
+        if nic.isEnabled() :
+            port_uuid = nic.getUUID()
+            if port_uuid != None :
+                cmd_string += (' --nic port-id=%s' % port_uuid)
             
     # Now add any hints for where these should go.  Specifically, if we
     # need to provide a placement_hint (placement_hint != None), we ask

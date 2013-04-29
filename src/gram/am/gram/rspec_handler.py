@@ -54,19 +54,32 @@ def parseRequestRspec(geni_slice, rspec) :
     # For each node in the rspec, extract experimenter specified information
     node_list = rspec_dom.getElementsByTagName('node')
     for node in node_list :
-        # Create a VirtualMachine object for this node and add it to the list
-        # of virtual machines that belong to this slice
-        vm_object = VirtualMachine(geni_slice)
-        sliver_list.append(vm_object)
-
         # Get information about the node from the rspec
         node_attributes = node.attributes
+
+        # Find the name of the node.  We need to make sure we don't already
+        # have a node with this name before we do anything else.
         if node_attributes.has_key('client_id') :
-            vm_object.setName(node_attributes['client_id'].value)
+            node_name = node_attributes['client_id'].value
+            list_of_existing_vms = geni_slice.getVMs()
+            for i in range(0, len(list_of_existing_vms)) :
+                if node_name == list_of_existing_vms[i].getName() :
+                    # Duplicate name.  Fail this allocate
+                    error_string = \
+                        'Rspec error: VM with name %s already exists' % \
+                        node_name
+                    config.logger.error(error_string)
+                    return error_string, sliver_list, None
         else :
             error_string = 'Malformed rspec: Node name not specified' 
             config.logger.error(error_string)
             return error_string, sliver_list, None
+
+        # Create a VirtualMachine object for this node and add it to the list
+        # of virtual machines that belong to this slice
+        vm_object = VirtualMachine(geni_slice)
+        vm_object.setName(node_name)
+        sliver_list.append(vm_object)
 
         # Make sure there isn't an exclusive="true" clause in the node 
         if node_attributes.has_key("exclusive"):
@@ -118,7 +131,6 @@ def parseRequestRspec(geni_slice, rspec) :
             # Create a NetworkInterface object this interface and associate
             # it with the VirtualMachine object for the node
             interface_object = NetworkInterface(geni_slice, vm_object)
-            sliver_list.append(interface_object)
             vm_object.addNetworkInterface(interface_object)
             
             # Get information about this network interface from rspec
@@ -176,19 +188,32 @@ def parseRequestRspec(geni_slice, rspec) :
     # about links.
     link_list = rspec_dom.getElementsByTagName('link')
     for link in link_list :
-        # Create a NetworkLink object for this link 
-        link_object = NetworkLink(geni_slice)
-        sliver_list.append(link_object)
-
         # Get information about this link from the rspec
         link_attributes = link.attributes
+
+        # Find the name of the link.  We need to make sure we don't already
+        # have a link with this name before we do anything else.
         if link_attributes.has_key('client_id') :
-            link_object.setName(link_attributes['client_id'].value)
+            link_name = link_attributes['client_id'].value
+            list_of_existing_links = geni_slice.getNetworkLinks()
+            for i in range(0, len(list_of_existing_links)) :
+                if link_name == list_of_existing_links[i].getName() :
+                    # Duplicate name.  Fail this allocate
+                    error_string = \
+                        'Rspec error: Link with name %s already exists' % \
+                        link_name
+                    config.logger.error(error_string)
+                    return error_string, sliver_list, None
         else :
             error_string = 'Malformed rspec: Link name not specified'
             config.logger.error(error_string)
             return error_string, sliver_list, None
-        
+
+        # Create a NetworkLink object for this link 
+        link_object = NetworkLink(geni_slice)
+        link_object.setName(link_name)
+        sliver_list.append(link_object)
+
         # Get the end-points for this link.  Each end_point is a network
         # interface
         end_points = link.getElementsByTagName('interface_ref')

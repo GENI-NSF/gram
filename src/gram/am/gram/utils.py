@@ -40,6 +40,9 @@ class SliverList :
         return self._sliver_list
 
     def getStatusAllSlivers(self, geni_slice) :
+        """
+            Return the status of all the slivers in the specified slice
+        """
         vms = geni_slice.getVMs()
         for i in range(0, len(vms)) :
             self.addSliver(vms[i])
@@ -49,6 +52,16 @@ class SliverList :
             self.addSliver(links[i])
 
         return self._sliver_list
+
+    def getStatusOfSlivers(self, slivers) :
+        """
+            Return the status of the specified slivers
+        """
+        for sliver_object in slivers :
+            self.addSliver(sliver_object)
+
+        return self._sliver_list
+            
 
 
 def rfc3339format(dt):

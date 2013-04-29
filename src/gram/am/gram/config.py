@@ -54,10 +54,10 @@ default_execute_shell = 'sh'   # default shell to use for use by execute
                                # services specified in the request rspec
 urn_prefix = 'urn:publicid:IDN+' + socket.getfqdn() + '+'
 sliver_urn_prefix = urn_prefix + 'sliver+'
-vm_urn_prefix = urn_prefix + 'vm+'
-interface_urn_prefix = sliver_urn_prefix + 'interface+'
-link_urn_prefix = sliver_urn_prefix + 'link+'
-image_urn_prefix = urn_prefix + 'image+'
+vm_urn_prefix = sliver_urn_prefix + 'vm'
+interface_urn_prefix = sliver_urn_prefix + 'interface'
+link_urn_prefix = sliver_urn_prefix + 'link'
+image_urn_prefix = urn_prefix + 'image'
 
 allocation_expiration_minutes =  10      # allocations expire in 10 mins
 lease_expiration_minutes =  7 * 24 * 60  # resources can be leased for 7 days

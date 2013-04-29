@@ -132,7 +132,12 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self.logger.info('Provision(%r)' % (urns))
         self._gram_manager.expire_slivers()
 
+        # Set the_slice to the slice_object that contains the slivers to
+        # be provisioned.  Set slivers to the silver_objects that need to
+        # be provisioned.  If the Provision API call was given just a 
+        # slice_urn, slivers will include all sliver_objects in the slice
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+
         if not the_slice: 
             self._no_slice_found(urns)
 
@@ -150,8 +155,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.provision(the_slice.getSliceURN(), 
-                                            credentials,  options)
+        return self._gram_manager.provision(the_slice, slivers, credentials,
+                                            options)
 
 
     def Delete(self, urns, credentials, options):
