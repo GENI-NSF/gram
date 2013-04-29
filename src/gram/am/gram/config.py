@@ -134,7 +134,8 @@ management_address = None
 
 #### THIS SHOULD BE IN CONFIG.JSON
 management_network_name = 'GRAM-mgmt-net'
-mgmt_net_addr = '192.168.10.0/24'
+management_network_cidr = '192.168.10.0/24'
+management_network_vlan = '2500'
 
 # Parameters for establishing the 'public' Quantum network
 public_gateway_ip = None

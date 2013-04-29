@@ -25,6 +25,10 @@ class Quantum(GenericInstaller):
         public_subnet_cidr = config.public_subnet_cidr
         public_subnet_start_ip = config.public_subnet_start_ip
         public_subnet_end_ip = config.public_subnet_end_ip
+        mgmt_if = config.management_interface
+        mgmt_net_name = config.management_network_name
+        mgmt_net_cidr = config.management_network_cidr
+        mgmt_net_vlan = config.management_network_vlan
 
         self.comment("*** Quantum Install ***")
 
@@ -87,10 +91,11 @@ class Quantum(GenericInstaller):
         self.sed("s/\# Default: tenant_network_type.*/tenant_network_type=vlan/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2000/",
+        # TODO:  Figure out ranges
+        self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2000,physnet2:2001:3000/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-eth1/",
+        self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-eth1,physnet2:br-" + mgmt_if + "/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
 
@@ -131,6 +136,9 @@ class Quantum(GenericInstaller):
         self.add("service quantum-plugin-openvswitch-agent restart")
         self.add("service quantum-dhcp-agent restart")
         self.add("service quantum-l3-agent restart")
+	self.add("quantum net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared=true")
+	self.add("quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr)
+	self.add('export MGMT_SUBNET_ID=`quantum net-list | grep ' + mgmt_net_name + ' | cut -d "|" -f 4`')
 
         self.add("quantum net-create public --router:external=True")
 
@@ -143,6 +151,7 @@ class Quantum(GenericInstaller):
                  " -- --enable_dhcp=False")
         self.add("quantum router-create externalRouter")
         self.add("quantum router-gateway-set externalRouter $PUBLIC_NET_ID")
+	self.add("quantum router-interface-add externalRouter $MGMT_SUBNET_ID")
         self.add('export EXTERNAL_ROUTER_ID=`quantum router-list | grep externalRouter | cut -d " " -f 2`')
 
         ## We need now to configure again the L3 agent in editing 
