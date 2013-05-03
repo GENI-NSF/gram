@@ -269,7 +269,8 @@ def generateManifestForSlivers(geni_slice, req_rspec, geni_slivers):
     xml_schema_instance = request.attributes['xmlns:xsi'].value
     manifest.setAttribute("xmlns:xsi", xml_schema_instance)
     xsi_schema_location = request.attributes['xsi:schemaLocation'].value
-    xsi_schema_location = xsi_schema_location.replace('request.xsd', 'manifest.xsd')
+    xsi_schema_location = xsi_schema_location.replace('request.xsd', 
+                                                      'manifest.xsd')
     manifest.setAttribute("xsi:schemaLocation", xsi_schema_location)
 
     for sliver_request in request.childNodes:

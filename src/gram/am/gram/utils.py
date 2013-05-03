@@ -2,14 +2,10 @@
 import datetime
 import dateutil.parser
 
-import config
-import constants
-import resources
-
 class SliverList :
     """
         Some API calls return a list of slivers and information about
-        the slivers.  This module helps create such lists.
+        the slivers.  This class helps create such lists.
     """
     def __init__(self) :
         self._sliver_list = []
@@ -36,19 +32,6 @@ class SliverList :
 
         self._sliver_list.append(sliver_list_item)
 
-    def getStatusAllSlivers(self, geni_slice) :
-        """
-            Return the status of all the slivers in the specified slice
-        """
-        vms = geni_slice.getVMs()
-        for i in range(0, len(vms)) :
-            self.addSliverStatus(vms[i])
-
-        links = geni_slice.getNetworkLinks()
-        for i in range(0, len(links)) :
-            self.addSliverStatus(links[i])
-
-        return self._sliver_list
 
     def getStatusOfSlivers(self, slivers) :
         """

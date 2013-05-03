@@ -255,8 +255,9 @@ class GramManager :
         """
         open_stack_interface.updateOperationalStatus(slice_object)
 
-        sliver_stat_list = utils.SliverList()
-        sliver_list = sliver_stat_list.getStatusAllSlivers(slice_object)
+        # Get the status of the slivers
+        sliver_status_list = \
+            utils.SliverList().getStatusOfSlivers(slivers)
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
@@ -413,10 +414,16 @@ class GramManager :
 
 
     def expire_slivers(self):
-        expired = list()
+        """
+            Find and delete slivers that have expired.
+        """
+        # We walk through the list of slices.  For each slice we make a 
+        # list of slivers that have expired.  If the slice has slivers that
+        # have expired, we use the self.delete method to delete these slivers
         now = datetime.datetime.utcnow()
-        for slice in SliceURNtoSliceObject.get_slice_objects():
-            slivers = slice.getSlivers()
+        for slice_object in SliceURNtoSliceObject.get_slice_objects():
+            slivers = slice_object.getSlivers()
+            expired_slivers = list()
             for sliver in slivers.values():
                 config.logger.debug('Checking sliver %s (expiration=%r) at %r', 
                                    sliver.getSliverURN(), 
@@ -425,13 +432,12 @@ class GramManager :
                     config.logger.debug('Expiring sliver %s (expire=%r) at %r', 
                                         sliver.getSliverURN(),
                                         sliver.getExpiration(), now)
-                    expired.append(sliver)
-            config.logger.info('Expiring %d slivers', len(expired))
-        for sliver in expired:
-            slice_object = sliver.getSlice()
-            self.delete(slice_object, 
-            slice_urn = slice.getSliceURN()
-            slice.removeSliver(sliver)
+                    expired_slivers.append(sliver)
+            if len(expired_slivers) != 0 :
+                config.logger.info('Expiring %d slivers for slice %s' % \
+                                       (len(expired_slivers),
+                                        slice_object.getSliceURN()))
+                self.delete(slice_object, expired_slivers, None)
 
 
     def renew_slivers(self, slivers, creds, expiration_time):
