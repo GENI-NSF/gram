@@ -37,8 +37,8 @@ import socket
 import sys
 
 # GRAM aggregate manager ports for V2 and V3
-gram_am_port = 8001
-gram_am_v2_port = 8002
+gram_am_port = 5001
+gram_am_v2_port = 5002
 
 # OpenStack related configuration
 default_VM_flavor = 'm1.small'  
@@ -138,7 +138,7 @@ management_address = None
 
 #### THIS SHOULD BE IN CONFIG.JSON
 management_network_name = 'GRAM-mgmt-net'
-management_network_cidr = '192.168.10.0/24'
+management_network_cidr = '192.168.10.0/24' # GRAM AM assumes this is a /24 network
 management_network_vlan = '2500'
 
 # Parameters for establishing the 'public' Quantum network

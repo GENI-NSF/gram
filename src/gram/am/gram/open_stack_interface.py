@@ -66,19 +66,14 @@ def init() :
                            (mgmt_net_name, mgmt_net_uuid))
     
     
-        
 def cleanup(signal, frame) :
     """
         Perform OpenStack related cleanup.  Called when the aggregate 
         is shut down.
     """
-    # Delete the control network
-    if _control_net_uuid != None :
-        cmd_string = 'quantum net-delete %s' % _control_net_uuid
-        try :
-            _execCommand(cmd_string)
-        except :
-            pass
+    # Not sure what, if anything we need to do here.  Currently this 
+    # function isn't called by anyone.  
+    pass
         
 
 def provisionResources(geni_slice, slivers, users) :
@@ -173,22 +168,6 @@ def provisionResources(geni_slice, slivers, users) :
         router_name = config.external_router_name
         geni_slice.setTenantRouterName(router_name)
         geni_slice.setTenantRouterUUID(_getRouterUUID(router_name))
-
-        # Create a control network for this tenant if it does not already
-        # exist
-        # if geni_slice.getControlNetInfo() == None :
-        #    # Don't have a control network.  Create one.
-        #    control_net_info = _createControlNetwork(geni_slice)
-        #    if control_net_info != None :
-        #        geni_slice.setControlNetInfo(control_net_info)
-        #    else :
-        #        # Failed to create control net.  Cleanup actions before
-        #        # we return:
-        #        #    - delete tenant admin
-        #        #    - delete tenant
-        #        _deleteUserByUUID(admin_user_info['admin_uuid'])
-        #        _deleteTenantByUUID(tenant_uuid)
-        #        return 'GRAM internal error: Failed to create a control network for slice %s' % geni_slice.getSliceURN()
     else :
         # Tenant, tenant admin, tenant_router already exist.  Set variables
         # that are used be code below
@@ -204,13 +183,13 @@ def provisionResources(geni_slice, slivers, users) :
     # links_to_be_provisioned and vms_to_be_provisioned
     links_to_be_provisioned = list()
     vms_to_be_provisioned = list()
-    for i in range(0, len(slivers)) :
-        if (slivers[i].getSliverURN()).startswith(config.link_urn_prefix) :
-            # slivers[i] a link object
-            links_to_be_provisioned.append(slivers[i])
-        elif (slivers[i].getSliverURN()).startswith(config.vm_urn_prefix) :
-            # slivers[i] a vm object
-            vms_to_be_provisioned.append(slivers[i])
+    for sliver in slivers :
+        if isinstance(sliver, resources.NetworkLink) :
+            # sliver is a link object
+            links_to_be_provisioned.append(sliver)
+        elif isinstance(sliver, resources.VirtualMachine) :
+            # sliver is a vm object
+            vms_to_be_provisioned.append(sliver)
     config.logger.info('Provisioning %s links and %s vms' % \
                            (len(links_to_be_provisioned), 
                             len(vms_to_be_provisioned))) 
@@ -228,53 +207,49 @@ def provisionResources(geni_slice, slivers, users) :
                 # we return:
                 #    - delete the network links created so far in this
                 #      call to provisionResources
-                #    - delete the control network for this slice
                 #    - delete tenant admin
                 #    - delete tenant
                 for i in range(0, len(links_created_this_call)) :
                     _deleteNetworkLink(links_created_this_call)
-                _deleteControlNetwork(geni_slice)
                 _deleteUserByUUID(admin_user_info['admin_uuid'])
                 _deleteTenantByUUID(tenant_uuid)
                 return 'GRAM internal error: Failed to create a quantum network for link %s' % link.getName()
 
             link.setNetworkUUID(uuids['network_uuid'])
             link.setSubnetUUID(uuids['subnet_uuid'])
+            link.setUUID(uuids['network_uuid'])
             link.setAllocationState(constants.provisioned)
             links_created_this_call.append(uuids['network_uuid'])
             link.setAllocationState(constants.provisioned)
             link.setOperationalState(constants.ready)
 
-    # Associate the VLANs for the control and data networks
+    # Find the VLANs used by this slice
     nets_info = _getNetsForTenant(tenant_uuid)
     if nets_info == None :
         # Failed to get information on networks  Cleanup actions before 
         # we return:
         #    - delete the network links created so far in this
         #      call to provisionResources
-        #    - delete the control network for this slice
         #    - delete tenant admin
         #    - delete tenant
         for i in range(0, len(links_created_this_call)) :
             _deleteNetworkLink(links_created_this_call)
-        _deleteControlNetwork(geni_slice)
         _deleteUserByUUID(admin_user_info['admin_uuid'])
         _deleteTenantByUUID(tenant_uuid)
         return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
 
-#    control_net_info = geni_slice.getControlNetInfo()
-#    for net_uuid in nets_info.keys():
-#        net_info = nets_info[net_uuid]
-#        vlan = net_info['vlan']
+    for net_uuid in nets_info.keys():
+        net_info = nets_info[net_uuid]
+        vlan = net_info['vlan']
 #        if net_uuid == control_net_info['control_net_uuid']:
 #            config.logger.info("Setting control net vlan to " + str(vlan))
 #            control_net_info['control_net_vlan'] = vlan
 #        else:
-#            for link in geni_slice.getNetworkLinks():
-#                if link.getNetworkUUID() == net_uuid:
-#                    name = net_info['name']
-#                    config.logger.info("Setting data net " + name + " VLAN to " + vlan)
-#                    link.setVLANTag(vlan)
+        for link in geni_slice.getNetworkLinks():
+            if link.getNetworkUUID() == net_uuid:
+                name = net_info['name']
+                config.logger.info("Setting data net " + name + " VLAN to " + vlan)
+                link.setVLANTag(vlan)
 
     # For each VM, assign IP addresses to all its interfaces that are
     # connected to a network link
@@ -355,14 +330,12 @@ def provisionResources(geni_slice, slivers, users) :
                 #    - delete all the VMs created in this call to provision
                 #    - delete the network links created so far in this
                 #      call to provisionResources
-                #    - delete the control network for this slice
                 #    - delete tenant admin
                 #    - delete tenant
                 for i in range (0, len(vms_created_this_call)) :
                     _deleteVM(vms_created_this_call[i])
                     for i in range(0, len(links_created_this_call)) :
                         _deleteNetworkLink(links_created_this_call)
-                    _deleteControlNetwork(geni_slice)
                     _deleteUserByUUID(admin_user_info['admin_uuid'])
                     _deleteTenantByUUID(tenant_uuid)
                 config.logger.error('Failed to create vm for node %s' % \
@@ -385,8 +358,8 @@ def _deleteNetworkPorts(geni_slice):
     tenant_uuid = geni_slice.getTenantUUID();
 
     ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
-    print ports_cmd
     ports_output = _execCommand(ports_cmd)
+    config.logger.info('ports output = %s' % ports_output)
     port_lines = ports_output.split('\n')
     for i in range(3, len(port_lines)-2):
         port_columns = port_lines[i].split('|')
@@ -403,39 +376,70 @@ def _deleteNetworkPorts(geni_slice):
             print "Failed to delete port %s" % port_id
             pass
 
-def deleteAllResourcesForSlice(geni_slice) :
+
+def deleteSlivers(geni_slice, slivers) :
     """
-        Deallocate all network and VM resources held by this slice.
+        Delete the specified sliver_objects (slivers).  All slivers belong
+        to the same slice (geni_slice)
+
+        Returns True if all slivers were successfully deleted.
+        Returns False if one or more slivers did not get deleted.
     """
-    sliver_stat_list = utils.SliverList()  # Status list to be returned 
+    return_val = True  # Value returned by this method.  Be optimistic!
 
-    # For each VM in the slice, delete the VM and its associated network ports
-    for vm in geni_slice.getVMs() :
-        _deleteVM(vm)
-        vm.setAllocationState(constants.unallocated)
-        sliver_stat_list.addSliver(vm)
+    # We delete all the VMs before we delete the links.
+    # Walk through the list of sliver_objects and create two list:
+    # links_to_be_deleted and vms_to_be_deleted
+    links_to_be_deleted = list()
+    vms_to_be_deleted = list()
+    for sliver in slivers :
+        if isinstance(sliver, resources.NetworkLink) :
+            # sliver is a link object
+            links_to_be_deleted.append(sliver)
+        elif isinstance(sliver, resources.VirtualMachine) :
+            # sliver is a vm object
+            vms_to_be_deleted.append(sliver)
+    config.logger.info('Deleting %s links and %s vms' % \
+                           (len(links_to_be_deleted), 
+                            len(vms_to_be_deleted))) 
 
-    # Delete ports associated with sliceb
-    _deleteNetworkPorts(geni_slice)
+    # For each VM to be deleted, delete the VM and its associated network ports
+    for vm in vms_to_be_deleted  :
+        success = _deleteVM(vm)
+        if success :
+            vm.setAllocationState(constants.unallocated)
+            vm.setOperationalState(constants.stopping)
+        else :
+            return_val = false
 
-    # Delete the networks and subnets alocated to the slice. 
-    for link in geni_slice.getNetworkLinks() :
-        _deleteNetworkLink(link.getNetworkUUID())
-        link.setAllocationState(constants.unallocated)
-        sliver_stat_list.addSliver(link)
-
-    # Delete the control network for the slice.
-    _deleteControlNetwork(geni_slice)
+    # Delete the networks and subnets associated with the links to be deleted 
+    for link in links_to_be_deleted :
+        success = _deleteNetworkLink(link.getNetworkUUID())
+        if success :
+            link.setAllocationState(constants.unallocated)
+            link.setOperationalState(constants.stopping)
+        else :
+            return_val = false
 
     ### Delete tenant router.  This section is empty right now as we don't
     ### do per-tenant routers as yet.
 
-    # Get information about the tenant admin
+    return return_val
+
+
+def expireSlice(geni_slice) :
+    """
+        Called when a slice is past its expiration time.
+    """
+    # Delete all slivers that belong to this slice
+    slivers = geni_slice.getSlivers().values()
+    deleteSlivers(geni_slice, slivers)
+
+    # Get information about the slice tenant admin
     admin_name, admin_pwd, admin_uuid = geni_slice.getTenantAdminInfo()
 
     # Delete the security group for this tenant
     if admin_name and admin_pwd and admin_uuid:
-        time.sleep(10)
         _deleteTenantSecurityGroup(admin_name, admin_pwd,
                                    geni_slice.getTenantName(),
                                    geni_slice.getSecurityGroup())
@@ -451,8 +455,9 @@ def deleteAllResourcesForSlice(geni_slice) :
             config.logger.error('Failed to delete tenant name = %s, uuid = %s'\
                                     % (geni_slice.getTenantName, 
                                        geni_slice.getTenantUUID()))
+        geni_slice.setTenantUUID(None) # Indicates tenant info is no longer valid
 
-    return sliver_stat_list.getSliverStatusList()
+    return 
     
 
 
@@ -592,12 +597,28 @@ def _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-delete %s' % secgrp_name
-    try :
-        _execCommand(cmd_string) 
-    except :
-        # Not much we can do other than log the failure
-        config.logger.error('Failed to delete security group for tenant %s' % \
-                                tenant_name)
+
+    # We may need to make multiple attempts to delete a security group.  This
+    # often happens when a VM using this security group has not yet been 
+    # completely deleted.  We try a few times hoping all VMs using this security
+    # group will eventually get deleted.  There is no harm if the security 
+    # group does not get deleted.  We just keep accumulating security groups
+    # that are no longer in use.
+    sec_grp_delete_attempts = 0
+    while sec_grp_delete_attempts < 4 :
+        try :
+            _execCommand(cmd_string)
+            # Delete successful.  Break out of loop
+            break
+        except :
+            # Delete failed.  Try again if we haven't exceeded our number
+            # of retries.
+            sec_grp_delete_attempts += 1
+            config.logger.info('Retrying delete of security group %s' % \
+                                   secgrp_name)
+            time.sleep(15)
+    if sec_grp_delete_attempts == 4 :
+        config.logger.info('Failed to delete security group %s' % secgrp_name)
 
 
 def _deleteUserByUUID(user_uuid) :
@@ -631,79 +652,6 @@ def _createRouter(tenant_name, router_name) :
         return _getValueByPropertyName(output, 'id')
 
 
-def _createControlNetwork(slice_object) :
-    """
-        Create a control network for this tenant (slice).  This network
-        is connected to the external router
-    """
-    tenant_uuid = slice_object.getTenantUUID()
-
-    # Create the control network
-    control_net_name = 'cntrlNet-' + slice_object.getTenantName()
-    cmd_string = 'quantum net-create --tenant-id %s %s' % (tenant_uuid,
-                                                           control_net_name)
-    try :
-        output = _execCommand(cmd_string)
-    except :
-        # Failed to create control network.  Cleanup actions:
-        #    - None
-        return None
-    else :
-        control_net_uuid = _getValueByPropertyName(output, 'id')
-    
-    # Create a subnet (L3 network) for the control network
-    control_subnet_addr = slice_object.generateControlNetAddress()
-    gateway_addr = \
-        control_subnet_addr[0 : control_subnet_addr.rfind('0/24')] + '1'
-    cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
-        (tenant_uuid, gateway_addr, control_net_uuid, control_subnet_addr)
-    try :
-        output = _execCommand(cmd_string) 
-    except :
-        # Failed to create subnet for control network.  Cleanup actions:
-        #    - Delete the network that was created
-        _deleteControlNetwork(slice_object)
-        return None
-    else :
-        control_subnet_uuid = _getValueByPropertyName(output, 'id')
-
-    # Add an interface for this network to the external router
-    external_router_uuid = _getRouterUUID(config.external_router_name)
-    cmd_string = 'quantum router-interface-add %s %s' %  \
-        (config.external_router_name, control_subnet_uuid)
-    try :
-        _execCommand(cmd_string) 
-    except :
-        # Failed to add interface on the external router.  Cleanup actions:
-        #    - Delete the network.  Subnets of the network will be 
-        #      deleted automatically
-        _deleteControlNetwork(slice_object)
-        return None
-
-    # Success!
-    return {'control_net_name' : control_net_name, \
-                'control_net_uuid' : control_net_uuid, \
-                'control_subnet_uuid' : control_subnet_uuid, \
-                'control_net_addr' : control_subnet_addr}
-
-
-def _deleteControlNetwork(slice_object) :
-    """
-        Delete the control network for this slice.
-    """
-    control_net_info = slice_object.getControlNetInfo()
-    if control_net_info :
-        control_net_uuid = control_net_info['control_net_uuid']
-        if control_net_uuid:
-            cmd_string = 'quantum net-delete %s' % control_net_uuid
-            try :
-                _execCommand(cmd_string)
-            except :
-                # Failed to delete network.  Not much we can do about it.
-                config.logger.error('Failed to delete control network %s' % \
-                                        control_net_info['control_net_name'])
-                
-        
 def _createNetworkForLink(link_object) :
     """
         Creates a network (L2) and subnet (L3) for the link.
@@ -782,6 +730,8 @@ def _deleteNetworkLink(net_uuid) :
             # Failed to delete network.  Not much we can do.
             config.logger.error('Failed to delete network with uuid %s' % \
                                     net_uuid)
+            return False # Failure
+        return True # Success
 
 
 def _getNetsForTenant(tenant_uuid):
@@ -866,12 +816,13 @@ def _createVM(vm_object, users, placement_hint) :
 
     # Assumption: The management network is a /24 network
     # Meta-data services code makes a similar assumption
-    control_net_prefix = config.mgmt_net_addr[0 : config.mgmt_net_addr.rfind('0/24')]
+    mgmt_net_prefix = \
+        config.management_network_cidr[0:config.management_network_cidr.rfind('0/24')]
 
     # Create ports for the experiment data networks
     vm_net_infs = vm_object.getNetworkInterfaces()
     for nic in vm_net_infs :
-        if nic.isEnabled :
+        if nic.isEnabled() :
             link_object = nic.getLink()
             net_uuid = link_object.getNetworkUUID()
             nic_ip_addr = nic.getIPAddress()
@@ -908,7 +859,12 @@ def _createVM(vm_object, users, placement_hint) :
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
     total_nic_count = len(vm_net_infs) + 1
-    metadata_cmd_count = gen_metadata.configMetadataSvcs(slice_object, users, vm_installs, vm_executes, total_nic_count, control_net_prefix, userdata_filename)
+    metadata_cmd_count = gen_metadata.configMetadataSvcs(slice_object, users,
+                                                         vm_installs, 
+                                                         vm_executes, 
+                                                         total_nic_count, 
+                                                         mgmt_net_prefix, 
+                                                         userdata_filename)
     if metadata_cmd_count > 0 :
         cmd_string += (' --user_data %s' % zipped_userdata_filename)
 
@@ -962,13 +918,15 @@ def _createVM(vm_object, users, placement_hint) :
         config.logger.error('Failed to get properties for vm %s' % vm_uuid)
         return None
     property_name = config.management_network_name + ' network'
-    control_nic_ipaddr = _getValueByPropertyName(output, property_name)
+    mgmt_nic_ipaddr = _getValueByPropertyName(output, property_name)
     compute_host = _getValueByPropertyName(output, 'OS-EXT-SRV-ATTR:host')
-    if control_nic_ipaddr != None :
-        portNumber = manage_ssh_proxy._addNewProxy(control_nic_ipaddr)
+    if mgmt_nic_ipaddr != None :
+        portNumber = manage_ssh_proxy._addNewProxy(mgmt_nic_ipaddr)
         vm_object.setSSHProxyLoginPort(portNumber)
         vm_object.setHost(compute_host)
-        config.logger.info('SSH Proxy assigned port number %d' % portNumber)
+        vm_object.setMgmtNetAddr(mgmt_nic_ipaddr)
+        config.logger.info('SSH Proxy assigned port number %d to host %s' % \
+                               (portNumber, vm_name))
 
     return vm_uuid
 
@@ -977,29 +935,41 @@ def _deleteVM(vm_object) :
     """
         Delete the OpenStack VM that corresponds to this vm_object.
         Delete the network ports associated with the VM
+
+        Returns True of VM was successfully deleted.  False otherwise.
     """
+    return_val = True
+
     # Delete ports associatd with the VM
     for nic in vm_object.getNetworkInterfaces() :
         port_uuid = nic.getUUID()
         if port_uuid:
             cmd_string = 'quantum port-delete %s' % port_uuid
-            _execCommand(cmd_string)
+            try :
+                _execCommand(cmd_string)
+            except :
+                config.logger.error('Failed to delete port %s for VM %s' % \
+                                        (port_uuid, vm_object.getName()))
 
     # Delete the VM
     vm_uuid = vm_object.getUUID()
     if vm_uuid != None :
         cmd_string = 'nova delete %s' % vm_uuid
-        _execCommand(cmd_string)
+        try :
+            _execCommand(cmd_string)
+        except :
+            config.logger.error('Failed to delete VM %s with uuid %s' % \
+                                    (vm_object.getName(), vm_uuid))
+            return_val = False
 
         # Delete the SSH Proxy support for the VM
-        slice_object = vm_object.getSlice()
-        control_net_info = slice_object.getControlNetInfo()
-        control_net_addr = control_net_info['control_net_addr'] # subnet address
-        control_net_prefix = control_net_addr[0 : control_net_addr.rfind('0/24')]
-        control_nic_ipaddr = control_net_prefix + vm_object.getLastOctet()
-        manage_ssh_proxy._removeProxy(control_nic_ipaddr)
+        manage_ssh_proxy._removeProxy(vm_object.getMgmtNetAddr())
+    else :
+        return_val = False
 
-    
+    return return_val
+
+
 def _getRouterUUID(router_name) :
     """
         Return the UUID of a router given the name of the router.

@@ -126,8 +126,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
         # If we get here, the credentials give the caller
         # all needed privileges to act on the given target.
-        gram_return = self._gram_manager.allocate(slice_urn, credentials,
-                                                  rspec, options)
+        gram_return = self._gram_manager.allocate(slice_urn, creds, rspec,
+                                                  options)
 
         return gram_return
 
@@ -162,8 +162,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.provision(the_slice, slivers, credentials,
-                                            options)
+        return self._gram_manager.provision(the_slice, slivers, creds, options)
 
 
     def Delete(self, urns, credentials, options):
@@ -172,6 +171,10 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self.logger.info('Delete(%r)' % (urns))
         self._gram_manager.expire_slivers()
 
+        # Set the_slice to the slice_object that contains the slivers to
+        # be provisioned.  Set slivers to the silver_objects that need to
+        # be provisioned.  If the Provision API call was given just a 
+        # slice_urn, slivers will include all sliver_objects in the slice
         the_slice, slivers = self._gram_manager.decode_urns(urns)
         if not the_slice:
             return self._no_slice_found(urns)
@@ -180,7 +183,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.delete(urns, options)
+        return self._gram_manager.delete(the_slice, slivers, options)
 
 
     def PerformOperationalAction(self, urns, credentials, action, options):
@@ -299,21 +302,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         privileges = (SLIVERSTATUSPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
-        geni_slivers = list()
-        for sliver in slivers:
-            expiration = None
-            if sliver.getExpiration():
-                expiration = self.rfc3339format(sliver.getExpiration())
-            allocation_state = sliver.getAllocationState()
-            operational_state = sliver.getOperationalState()
-            geni_slivers.append(dict(geni_sliver_urn=sliver.getSliverURN(),
-                                     geni_expires=expiration,
-                                     geni_allocation_status=allocation_state,
-                                     geni_operational_status=operational_state,
-                                     geni_error=''))
-        result = dict(geni_urn=the_slice.getSliceURN(),
-                      geni_slivers=geni_slivers)
-        return self.successResult(result)
+        return self._gram_manager.status(the_slice, slivers, options)
+
 
     def Describe(self, urns, credentials, options):
         """Generate a manifest RSpec for the given resources.
@@ -329,8 +319,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        gram_ret = self._gram_manager.describe(the_slice.getSliceURN(), options)
-        return gram_ret
+        return self._gram_manager.describe(the_slice, slivers, options)
+
 
     def Renew(self, urns, credentials, expiration_time, options):
         '''Renew the local sliver that is part of the named Slice

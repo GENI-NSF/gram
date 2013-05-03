@@ -35,6 +35,7 @@ notready = 'geni_notready'
 configuring = 'geni_configuring'
 ready = 'geni_ready'
 failed = 'geni_failed'
+stopping = 'geni_stopping'
 
 
 # Error codes returned by this aggregate manager

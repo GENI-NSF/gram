@@ -15,7 +15,7 @@ class SliverList :
         self._sliver_list = []
     
 
-    def addSliver(self, sliver_object) :
+    def addSliverStatus(self, sliver_object) :
         sliver_list_item = {}
         
         urn = sliver_object.getSliverURN()
@@ -31,13 +31,10 @@ class SliverList :
         if oper_status != None :
             sliver_list_item['geni_operational_status'] =  oper_status
         if expiration != None :
-            sliver_list_item['geni_expires'] = rfc3339format(expiration)
+            sliver_list_item['geni_expires'] = _rfc3339format(expiration)
+        sliver_list_item['geni_error'] = ''
 
         self._sliver_list.append(sliver_list_item)
-
-
-    def getSliverStatusList(self) :
-        return self._sliver_list
 
     def getStatusAllSlivers(self, geni_slice) :
         """
@@ -45,11 +42,11 @@ class SliverList :
         """
         vms = geni_slice.getVMs()
         for i in range(0, len(vms)) :
-            self.addSliver(vms[i])
+            self.addSliverStatus(vms[i])
 
         links = geni_slice.getNetworkLinks()
         for i in range(0, len(links)) :
-            self.addSliver(links[i])
+            self.addSliverStatus(links[i])
 
         return self._sliver_list
 
@@ -58,13 +55,48 @@ class SliverList :
             Return the status of the specified slivers
         """
         for sliver_object in slivers :
-            self.addSliver(sliver_object)
+            self.addSliverStatus(sliver_object)
 
         return self._sliver_list
             
 
+def min_expire(creds, max_duration=None, requested=None):
+    """Compute the expiration time from the supplied credentials,
+       a max duration, and an optional requested duration. The shortest
+       time amongst all of these is the resulting expiration.
+    """
+    now = datetime.datetime.utcnow()
+    expires = [_naiveUTC(c.expiration) for c in creds]
+    if max_duration:
+        expires.append(now + max_duration)
+    if requested:
+        requested = _naiveUTC(dateutil.parser.parse(str(requested)))
+        # Ignore requested time in the past.
+        if requested > now:
+            expires.append(_naiveUTC(requested))
 
-def rfc3339format(dt):
+    return min(expires)
+
+
+#########
+### Private Support Functions
+#########
+
+def _naiveUTC(dt):
+    """
+        Converts dt to a naive datetime in UTC.
+        if 'dt' has a timezone then 
+            convert to UTC
+            strip off timezone (make it "naive" in Python parlance)
+    """
+    if dt.tzinfo:
+        tz_utc = dateutil.tz.tzutc()
+        dt = dt.astimezone(tz_utc)
+        dt = dt.replace(tzinfo=None)
+    return dt
+
+
+def _rfc3339format(dt):
         """
             Return a string representing the given datetime in rfc3339 format.
         """
@@ -77,92 +109,3 @@ def rfc3339format(dt):
         time_with_tz = dt.replace(tzinfo=dateutil.tz.tzutc())
         return time_with_tz.isoformat()
 
-
-class ExpirationTimesSetter :
-    """
-        Base class for classes that set the expiration times on slivers.
-        Expiration times are set on allocate, provision and renew.
-    """
-    max_alloc_time = \
-        datetime.timedelta(minutes=config.allocation_expiration_minutes)
-    max_prov_time = \
-        datetime.timedelta(minutes=config.lease_expiration_minutes)
-
-    def __init__(self, slice_obj, credentials, requested_time) :
-        self._geni_slice = slice_obj    # Set times on slivers of this slice
-        self._creds = credentials       # Experimenter slice credentials
-        self._request = requested_time  # Experimenter requested expiration time
-        self._expiration_time = None    # Expiration time for slivers
-        
-    def calculateExpirationTime(self, max_allowed_time) :
-        """
-            Compute the expiration time from the supplied credentials,
-            max allowed time, and an optional requested duration. 
-            Return the shortest of these times.
-        """
-        # For now we are ignoring slice expiration times and requested times
-        now = datetime.datetime.utcnow()
-        return now + max_allowed_time
-        
-
-        ### expires = [self._naiveUTC(c.expiration) for c in creds]
-        ### if max_duration:
-        ###     expires.append(now + max_duration)
-        ### if requested:
-        ##     requested = self._naiveUTC(dateutil.parser.parse(str(requested)))
-        ###     # Ignore requested time in the past.
-        ###     if requested > now:
-        ###         expires.append(self._naiveUTC(requested))
-        ### return min(expires)
-
-    def setExpirationTime(self, sliver) :
-        sliver.setExpiration(self._expiration_time)
-        
-
-class AllocationTimesSetter(ExpirationTimesSetter) :
-    """
-        Sets expiration times on slivers that don't already have one.
-    """
-    def __init__(self, slice_obj, credentials, requested_time = None) :
-        ExpirationTimesSetter.__init__(self, slice_obj, credentials,
-                                       requested_time)
-
-        # Calculate the expiration time that will be set on the slivers
-        self._expiration_time = \
-            self.calculateExpirationTime(ExpirationTimesSetter.max_alloc_time)
-
-        slice_obj.setExpiration(self._expiration_time)
-
-        # Find the slivers that need their expiration times set
-        all_slivers = self._geni_slice.getSlivers()
-        for sliver_urn in all_slivers :
-            sliver = all_slivers[sliver_urn]
-            if sliver.getAllocationState() == constants.allocated and \
-                    sliver.getExpiration() == None :
-#                print "ALL: SETTING EXP of " + sliver_urn + " to " + str(self._expiration_time)
-                # This sliver has been allocated but does not have an
-                # expiration time.  Set it.
-                self.setExpirationTime(sliver)
-            
-
-class ProvisionTimesSetter(ExpirationTimesSetter) :
-    """
-        Sets expiration times on slivers that don't already have one.
-    """
-    def __init__(self, slice_obj, credentials, requested_time = None) :
-        ExpirationTimesSetter.__init__(self, slice_obj, credentials,
-                                       requested_time)
-
-        # Calculate the expiration time that will be set on the slivers
-        self._expiration_time = \
-            self.calculateExpirationTime(ExpirationTimesSetter.max_prov_time)
-
-        slice_obj.setExpiration(self._expiration_time)
-
-        # Find the slivers that need their expiration times set
-        all_slivers = self._geni_slice.getSlivers()
-        for sliver_urn in all_slivers :
-            sliver = all_slivers[sliver_urn]
-            if sliver.getAllocationState() == constants.provisioned :
-#               print "PRV: SETTING EXP of " + sliver_urn + " to " + str(self._expiration_time)
-                self.setExpirationTime(sliver)

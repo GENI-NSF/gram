@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import time
 
 import config
 import open_stack_interface
@@ -100,7 +101,6 @@ for slice in slices:
     cmd_string = 'quantum net-list -- --tenant_id %s' % tenant_uuid
     print cmd_string
     net_list_output = open_stack_interface._execCommand(cmd_string)
-#    print "NETS = " + net_list_output
     net_list_output_lines = net_list_output.split('\n')
     for i in range(3, len(net_list_output_lines) - 2) :
         columns = net_list_output_lines[i].split('|')
@@ -112,11 +112,20 @@ for slice in slices:
     # Delete the security group associated with the tenant
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s secgroup-delete %s_secgrp ' % (tenant_admin, tenant_pwd, tenant_name, tenant_name)
     print cmd_string
-    try :
-        open_stack_interface._execCommand(cmd_string)
-    except :
-        # Sometimes the security group is reused by other tenants- if this is the case, simply swallow the exception and go on
-        pass
+    sec_grp_delete_attempts = 0
+    while sec_grp_delete_attempts < 3 :
+        try :
+            open_stack_interface._execCommand(cmd_string)
+            print 'Deleted security group for this tenant'
+            break
+        except :
+            # Failure to delete a security group is usually because one or
+            # VMs in this security group are still in the process of being
+            # deleted.  Usually waiting for the deletions to complete will
+            # allow us to successfully delete the security group
+            sec_grp_delete_attempts += 1
+            print 'Failed to delete security group.  Waiting 10 seconds to try again...'
+            time.sleep(10)
 
     # Delete the tenant admin account
     cmd_string = 'keystone user-delete %s' % tenant_admin_uuid

@@ -48,7 +48,7 @@ class GramJSONEncoder(json.JSONEncoder):
                 "tenant_admin_name":tenant_admin_name,
                 "tenant_admin_pwd":tenant_admin_pwd,
                 "tenant_admin_uuid":tenant_admin_uuid,
-                "control_net_info":o.getControlNetInfo(),
+#                "control_net_info":o.getControlNetInfo(),
                 "tenant_router_name":o.getTenantRouterName(),
                 "tenant_router_uuid":o.getTenantRouterUUID(),
 #                "control_net_address":o.getControlNetAddress(),
@@ -60,7 +60,7 @@ class GramJSONEncoder(json.JSONEncoder):
                 "last_subnet_assigned":o._last_subnet_assigned,
                 "next_vm_num":o._next_vm_num,
                 "controller_url":o.getControllerURL(),
-                "slivers":[sliver.getSliverURN() for sliver in o.getSlivers().values()]
+                "slivers":[sliver.getSliverURN() for sliver in o.getAllSlivers().values()]
                   
                 }
 
@@ -74,7 +74,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "expiration":expiration_time,
                     "allocation_state":o.getAllocationState(),
                     "operational_state":o.getOperationalState(),
-                    "control_net_addr":o.getControlNetAddr(),
+                    "mgmt_net_addr":o.getMgmtNetAddr(),
                     "installs":o.getInstalls(),
                     "executes":o.getExecutes(),
                     "network_interfaces":[nic.getSliverURN() for nic in o.getNetworkInterfaces()],
@@ -138,7 +138,7 @@ def write_slices(filename, slices):
     for slice in slices.values(): 
         objects.append(slice)
     for slice in slices.values(): 
-        for sliver in slice.getSlivers().values():
+        for sliver in slice.getAllSlivers().values():
             objects.append(sliver)
     data = GramJSONEncoder().encode(objects)
     file.write(data)

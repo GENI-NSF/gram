@@ -90,7 +90,6 @@ class Slice:
       self._tenant_security_grp = None # Security group for tenant (slice)
       self._router_name = None    # Name of router for this tenant (slice)
       self._router_uuid = None    # UUID of router for this tenant (slice)
-      self._control_net_info = None  # name, uuid, ip addr, etc for control net
       self._user_urn = None
       self._expiration = None
       self._request_rspec = None
@@ -102,7 +101,7 @@ class Slice:
       self._last_subnet_assigned = 2 # If value is x then the last subnet
                                      # address assinged to a link in the slice
                                      # was 10.0.x.0/24.  Starts with 2 since
-                                     # 10.0.1.0/24 is for the control network
+                                     # 10.0.1.0/24 is for the management network
                                      # and 10.0.2.0/24 is often used by the
                                      # underlying virtualization technology
       self._next_vm_num = 99  # All VMs in the slice are assigned numbers 
@@ -149,6 +148,9 @@ class Slice:
 
          # Remove sliver from appropriate list based on sliver type
          if sliver.__class__.__name__ == 'VirtualMachine' :
+            # First remove from the slice all NICs associated with this VM
+            for nic in sliver.getNetworkInterfaces() :
+               self.removeSliver(nic)
             self._VMs.remove(sliver)
          elif sliver.__class__.__name__ == 'NetworkInterface' :
             self._NICs.remove(sliver)
@@ -190,14 +192,6 @@ class Slice:
       with self._slice_lock :
          return self._tenant_security_grp 
 
-   def setControlNetInfo(self, info) :
-      with self._slice_lock :
-         self._control_net_info = info
-
-   def getControlNetInfo(self) :
-      with self._slice_lock :
-         return self._control_net_info
-
    def setTenantRouterName(self, name) :
       with self._slice_lock :
          self._router_name = name
@@ -230,8 +224,28 @@ class Slice:
          return self._VMs
 
    def getSlivers(self) :
+      """
+          Return a list of VM and link slivers.  These are the only slivers
+          relevant to experimenters.  For all sliver objects associated with
+          this slice, use getAllSlivers().
+      """
+      slivers = dict()
+      with self._slice_lock :
+         for vm in self._VMs :
+            slivers[vm.getSliverURN()] = vm
+         for link in self._links :
+            slivers[link.getSliverURN()] = link
+         return slivers
+
+   def getAllSlivers(self) :
+      """
+          Return a list of all sliver objects associated with this slice.  For
+          a list of slivers relevant to experiemnters (VM and network link 
+          slivers), use getSlivers().
+      """
       with self._slice_lock :
          return self._slivers
+
 
    def generateSubnetAddress(self) :
       with self._slice_lock :
@@ -261,47 +275,11 @@ class Slice:
          #### END TEMP CODE
          return '10.0.%s.0/24' % self._last_subnet_assigned
 
-   def generateControlNetAddress(self) :
-      with self._slice_lock :
-         self._last_subnet_assigned += 1
-         #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
-         if not os.path.isfile(config.subnet_numfile) :
-            # The file with the subnet numbers does not exist; create it
-            subnet_num_file = open(config.subnet_numfile, 'w')
-            subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
-                                           # arbitrary.  19 seems to be safe
-            subnet_num_file.close()
-         
-         # Read from file the number of the last subnet assigned
-         subnet_num_file = open(config.subnet_numfile, 'r')
-         last_subnet_assigned = int(subnet_num_file.readline().rstrip())
-         subnet_num_file.close()
-
-         # Increment the number in the file by 1.  Roll back to 19 if count
-         # is at 256
-         subnet_num_file = open(config.subnet_numfile, 'w')
-         last_subnet_assigned += 1
-         if last_subnet_assigned == 256 :
-            last_subnet_assigned = 19
-         subnet_num_file.write(str(last_subnet_assigned))
-         subnet_num_file.close()
-         return '10.10.%s.0/24' % last_subnet_assigned 
-         #### END TEMP CODE
-         return '10.0.%s.0/24' % self._last_subnet_assigned
-     
    def getVMNumber(self) :
       with self._slice_lock :
          self._next_vm_num += 1
          return self._next_vm_num
       
-   def setControlNetAddress(self, addr) :
-      with self._slice_lock :
-         self._control_net_addr = addr
-
-   def getControlNetAddress(self) :
-      with self._slice_lock :
-         return self._control_net_addr 
-
    def getSliceURN(self):  # String Slice URN
       with self._slice_lock :
          return self._slice_urn
@@ -462,7 +440,7 @@ class _ExecuteItem :
 # Note, we don't support bare-metal machines (yet).
 class VirtualMachine(Sliver): # 
    def __init__(self, my_slice, uuid=None) :
-      self._control_net_addr = None  # IP address of VM on the control net
+      self._mgmt_net_addr = None  # IP address of VM on the management net
       self._installs = []    # Items to be installed on the VM on startup
       self._executes = []    # Scripts to be extecuted on the VM on startup
       self._network_interfaces = []   # Associated network interfaces
@@ -485,13 +463,13 @@ class VirtualMachine(Sliver): #
       with self._slice.getLock() :
          self._network_interfaces.append(netInterface)
 
-   def setControlNetAddr(self, ip_addr) : 
+   def setMgmtNetAddr(self, ip_addr) : 
       with self._slice.getLock() :
-         self._control_net_addr = ip_addr
+         self._mgmt_net_addr = ip_addr
 
-   def getControlNetAddr(self): 
+   def getMgmtNetAddr(self): 
       with self._slice.getLock() :
-         return self._control_net_addr 
+         return self._mgmt_net_addr 
 
    def getInstalls(self): # List of files to install on VM
       with self._slice.getLock() :
@@ -575,7 +553,7 @@ class VirtualMachine(Sliver): #
  
 
 # A NIC (Network Interface Card) resource
-class NetworkInterface(Sliver):  # Was: NIC
+class NetworkInterface(Sliver):  
      def __init__(self, my_slice, myVM, uuid=None) :
          self._device_number = None
          self._mac_address = None  # string MAC address of NIC

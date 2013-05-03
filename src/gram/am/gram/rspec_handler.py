@@ -255,6 +255,7 @@ def parseRequestRspec(geni_slice, rspec) :
 
     return error_string, sliver_list, controller
 
+
 def generateManifestForSlivers(geni_slice, req_rspec, geni_slivers):
     request = parseString(req_rspec).childNodes[0]
 

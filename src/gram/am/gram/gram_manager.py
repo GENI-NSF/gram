@@ -70,8 +70,11 @@ class GramManager :
             self._snapshot_directory = \
                 config.gram_snapshot_directory + "/" + getpass.getuser()
 
-        # Set max lease renewal to 7 days
-        self._max_lease = datetime.timedelta(minutes=7*24*60) 
+        # Set max allocation and lease times
+        self._max_alloc_time = \
+            datetime.timedelta(minutes=config.allocation_expiration_minutes ) 
+        self._max_lease_time = \
+            datetime.timedelta(minutes=config.lease_expiration_minutes) 
 
         # Client interface to VMOC - update VMOC on current
         # State of all slices and their associated 
@@ -104,7 +107,6 @@ class GramManager :
         """
         config.logger.info('Allocate called for slice %r' % slice_urn)
 
-
         # Check if we already have slivers for this slice
         slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
         if slice_object == None :
@@ -129,7 +131,6 @@ class GramManager :
             code = {'geni_code': constants.REQUEST_PARSE_FAILED}
             return {'code': code, 'value': '', 'output': err_output}
 
-
         # If we're associating an OpenFlow controller to this slice, 
         # Each VM must go on its own host. If there are more nodes
         # than hosts, we fail
@@ -140,6 +141,11 @@ class GramManager :
                 if isinstance(sliver, VirtualMachine):
                     num_vms = num_vms + 1
             if len(hosts) < num_vms:
+                # Fail: More VMs requested than compute hosts on rack.
+                # Remove from ths slice the sliver objects created during
+                # this call to allocatex before returning an error struct
+                for sliver_object in slivers :
+                    slice_object.removeSliver(sliver_object)
                 code = {'geni_code': constants.REQUEST_PARSE_FAILED}
                 error_output = \
                     "For OpenFlow controlled slice, limit of " + \
@@ -150,18 +156,18 @@ class GramManager :
         slice_object.setControllerURL(controller_url)
 
         # Set expiration times on the allocated resources
-        utils.AllocationTimesSetter(slice_object, creds, \
-                                        ('geni_end_time' in options \
-                                             and \
-                                             options['geni_end_time']))
-
+        expiration = utils.min_expire(creds, self._max_alloc_time,
+                         'geni_end_time' in options and options['geni_end_time'])
+        for sliver in slivers :
+            sliver.setExpiration(expiration)
+        
         # Generate a manifest rpsec
         slice_object.setRequestRspec(rspec)
         manifest =  rspec_handler.generateManifest(slice_object, rspec)
         slice_object.setManifestRspec(manifest)
 
         # Persist aggregate state
-        self.persist_state()
+        # self.persist_state()
 
         # Create a sliver status list for the slivers allocated by this call
         sliver_status_list = \
@@ -187,12 +193,9 @@ class GramManager :
         else :
             users = list()
 
-        
         err_str = open_stack_interface.provisionResources(slice_object,
                                                           sliver_objects,
                                                           users)
-
-        #err_str = open_stack_interface.provisionResources(slice_object, users)
         if err_str != None :
             # We failed to provision this slice for some reason (described
             # in err_str)
@@ -200,46 +203,56 @@ class GramManager :
             return {'code': code, 'value': '', 'output': err_str}
             
         # Set expiration times on the provisioned resources
-        utils.ProvisionTimesSetter(slice_object, creds, \
-                                       ('geni_end_time' in options \
-                                            and options['geni_end_time']))
+        # Set expiration times on the allocated resources
+        expiration = utils.min_expire(creds, self._max_lease_time,
+                         'geni_end_time' in options and options['geni_end_time'])
+        for sliver in sliver_objects :
+            sliver.setExpiration(expiration)
 
         # Generate a manifest rpsec 
         req_rspec = slice_object.getRequestRspec()
-        manifest = rspec_handler.generateManifest(slice_object, req_rspec)
+        manifest = rspec_handler.generateManifestForSlivers(slice_object,
+                                                            req_rspec,
+                                                            sliver_objects) 
     
-        # Save the manifest in the slice object.  THIS IS TEMPORARY.  WE
-        # SHOULD BE GENERATING THE SLICE MANIFEST AS NEEDED
-        slice_object.setManifestRspec(manifest)
-
-        # Create a sliver status list for the slivers in this slice
-        sliver_status_list = utils.SliverList().getStatusAllSlivers(slice_object)
+        # Create a sliver status list for the slivers that were provisioned
+        sliver_status_list = \
+            utils.SliverList().getStatusOfSlivers(sliver_objects)
 
         # Persist new GramManager state
-        self.persist_state()
+        # self.persist_state()
 
         # Report the new slice to VMOC
         self.registerSliceToVMOC(slice_object)
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_rspec':manifest, 'geni_slivers':sliver_status_list}
+        result_struct = {'geni_rspec':manifest, \
+                             'geni_slivers':sliver_status_list}
         return {'code': code, 'value': result_struct, 'output': ''}
         
 
-    def describe(self, slice_urn, options) :
+    def status(self, slice_object, slivers, options) :
+        """
+            Return the status of the specified slivers
+        """
+        open_stack_interface.updateOperationalStatus(slice_object)
+
+        # Create a list with the status of the specified slivers
+        sliver_status_list = \
+            utils.SliverList().getStatusOfSlivers(slivers)
+        
+        # Generate the return stuct
+        code = {'geni_code': constants.SUCCESS}
+        result_struct = {'geni_urn':slice_object.getSliceURN(), \
+                             'geni_slivers':sliver_status_list}
+        return {'code': code, 'value': result_struct, 'output': ''}
+        
+
+    def describe(self, slice_object, slivers, options) :
         """
             Describe the status of the resources allocated to this slice.
         """
-
-        # Find the slice object
-        slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
-        if slice_object == None :
-            config.logger.error('Asked to describe unknown slice %s' % urns[0])
-            err_output = 'Search for slice %s failed' % slice_urn
-            code = {'geni_code': constants.UNKNOWN_SLICE}
-            return {'code': code, 'value': '', 'output': err_output}
-
         open_stack_interface.updateOperationalStatus(slice_object)
 
         sliver_stat_list = utils.SliverList()
@@ -255,36 +268,45 @@ class GramManager :
         return ret_val
 
 
-    def delete(self, urns, options) :
+    def delete(self, slice_object, sliver_objects, options) :
         """
-            Delete all resources held by a slice.  At this time we do 
-            not support deletion of individual slivers.
+            Delete the specified sliver_objects.  All sliver_objecs are
+            associated with the same slice_object.
         """
-        config.logger.info('Delete called for slice %r' % urns)
+        config.logger.info('Delete called for slice %r' % \
+                               slice_object.getSliceURN())
 
-        slice_object = SliceURNtoSliceObject.get_slice_object(urns[0])
-        if slice_object == None :
-            config.logger.error('Asked to delete unknown slice %s' % urns[0])
-            err_output = 'Search for slice %s failed' % slice_urn
-            code = {'geni_code': constants.UNKNOWN_SLICE}
-            return {'code': code, 'value': '', 'output': err_output}
+        success = \
+            open_stack_interface.deleteSlivers(slice_object, sliver_objects)
 
-        # We do have the slice.  Delete all resources held by the slice
         sliver_status_list = \
-            open_stack_interface.deleteAllResourcesForSlice(slice_object)
+            utils.SliverList().getStatusOfSlivers(sliver_objects)
 
-        # Remove slice from list of known slices
-        SliceURNtoSliceObject.remove_slice_object(urns[0])
+        # Remove deleted slivers from the slice
+        for sliver in sliver_objects :
+            slice_object.removeSliver(sliver)
+
+        ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
+        ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY
+        ### EXPIRE.  FOR NOW WE DELETE THEM WHEN ALL THEIR SLIVERS ARE 
+        ### DELETED.
+        if len(slice_object.getSlivers()) == 0 :
+            open_stack_interface.expireSlice(slice_object)
+            # Update VMOC
+            self.registerSliceToVMOC(slice_object, False)
 
         # Persist new GramManager state
-        self.persist_state()
-
-        # Update VMOC
-        self.registerSliceToVMOC(slice_object, False)
+        # self.persist_state()
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
-        return {'code': code, 'value': sliver_status_list,  'output': ''}
+        if success :
+            return {'code': code, 'value': sliver_status_list,  'output': ''}
+        else :
+            return {'code':code, 
+                    'value':sliver_status_list,
+                    'output': 'Failed to delete one or more slivers'}
+
 
     # Persist state to file based on current timestamp
     __persist_filename_format="%Y_%m_%d_%H_%M_%S"
@@ -322,16 +344,16 @@ class GramManager :
         vlan_configs = []
 
         # Register/unregister control network
-        control_network_info = slice.getControlNetInfo()
-        if not control_network_info or \
-                not control_network_info.has_key('control_net_vlan'):
-            return
+        # control_network_info = slice.getControlNetInfo()
+        # if not control_network_info or \
+        #         not control_network_info.has_key('control_net_vlan'):
+        #     return
 
-        control_network_vlan = control_network_info['control_net_vlan']
-        control_net_config = \
-            VMOCVLANConfiguration(vlan_tag=control_network_vlan, \
-                                      controller_url=None)
-        vlan_configs.append(control_net_config)
+        # control_network_vlan = control_network_info['control_net_vlan']
+        # control_net_config = \
+        #     VMOCVLANConfiguration(vlan_tag=control_network_vlan, \
+        #                               controller_url=None)
+        # vlan_configs.append(control_net_config)
 
         # Register/unregister data networks
         for link in slice.getNetworkLinks():
@@ -389,23 +411,25 @@ class GramManager :
                         slivers.append(sliver)
         return slice, slivers
 
+
     def expire_slivers(self):
         expired = list()
         now = datetime.datetime.utcnow()
         for slice in SliceURNtoSliceObject.get_slice_objects():
             slivers = slice.getSlivers()
             for sliver in slivers.values():
-                config.logger.debug('Checking sliver %s (expiration = %r) at %r', 
-                                   sliver.getSliverURN(), \
-                                        sliver.getExpiration(), now)
+                config.logger.debug('Checking sliver %s (expiration=%r) at %r', 
+                                   sliver.getSliverURN(), 
+                                   sliver.getExpiration(), now)
                 if sliver.getExpiration() < now:
                     config.logger.debug('Expiring sliver %s (expire=%r) at %r', 
-                                        sliver.getSliverURN(), \
-                                            sliver.getExpiration(), now)
+                                        sliver.getSliverURN(),
+                                        sliver.getExpiration(), now)
                     expired.append(sliver)
             config.logger.info('Expiring %d slivers', len(expired))
         for sliver in expired:
-            slice = sliver.getSlice()
+            slice_object = sliver.getSlice()
+            self.delete(slice_object, 
             slice_urn = slice.getSliceURN()
             slice.removeSliver(sliver)
 
@@ -417,7 +441,7 @@ class GramManager :
         
         now = datetime.datetime.utcnow()
         expires = [self._naiveUTC(c.expiration) for c in creds]
-        expires.append(now + self._max_lease)
+        expires.append(now + self._max_lease_time)
         print str(expires)
         expiration = min(expires)
         requested = dateutil.parser.parse(str(expiration_time))
