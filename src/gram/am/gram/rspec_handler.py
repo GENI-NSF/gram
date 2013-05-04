@@ -256,7 +256,8 @@ def parseRequestRspec(geni_slice, rspec) :
     return error_string, sliver_list, controller
 
 
-def generateManifestForSlivers(geni_slice, req_rspec, geni_slivers):
+def generateManifestForSlivers(geni_slice, geni_slivers):
+    req_rspec = geni_slice.getRequestRspec()
     request = parseString(req_rspec).childNodes[0]
 
     root = Document()
@@ -273,24 +274,34 @@ def generateManifestForSlivers(geni_slice, req_rspec, geni_slivers):
                                                       'manifest.xsd')
     manifest.setAttribute("xsi:schemaLocation", xsi_schema_location)
 
-    for sliver_request in request.childNodes:
-        if sliver_request.nodeType != Node.ELEMENT_NODE: continue
-        sliver = getSliverForRequest(sliver_request, geni_slivers)
-        sliver_manifest = generateManifestForSliver(geni_slice, sliver, root, \
-                                                    sliver_request)
+    for sliver in geni_slivers:
+        sliver_request_element = getRequestElementForSliver(sliver)
+        sliver_manifest = \
+            generateManifestForSliver(geni_slice, sliver, \
+                                          root, sliver_request_element)
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
 
     return cleanXML(root, "NewManifest")
 
-def getSliverForRequest(request, slivers):
-    client_id = request.attributes['client_id'].value
-    found = None
-    for sliver in slivers:
+def getRequestElementForSliver(sliver):
+    full_request_rspec = parseString(sliver.getRequestRspec()).childNodes[0]
+    for child in full_request_rspec.childNodes:
+        if child.attributes is None or not child.attributes.has_key('client_id'):
+            continue
+        client_id = child.attributes['client_id'].value;
         if sliver.getName() == client_id:
-            found = sliver
-            break
-    return found
+            return child
+    return None
+
+# def getSliverForRequest(request, slivers):
+#     client_id = request.attributes['client_id'].value
+#     found = None
+#     for sliver in slivers:
+#         if sliver.getName() == client_id:
+#             found = sliver
+#             break
+#     return found
 
 # def getSliverRequest(sliver, request):
 #     sliver_name = sliver.getName()

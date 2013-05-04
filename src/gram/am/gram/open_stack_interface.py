@@ -410,7 +410,7 @@ def deleteSlivers(geni_slice, slivers) :
             vm.setAllocationState(constants.unallocated)
             vm.setOperationalState(constants.stopping)
         else :
-            return_val = false
+            return_val = False
 
     # Delete the networks and subnets associated with the links to be deleted 
     for link in links_to_be_deleted :
@@ -419,7 +419,7 @@ def deleteSlivers(geni_slice, slivers) :
             link.setAllocationState(constants.unallocated)
             link.setOperationalState(constants.stopping)
         else :
-            return_val = false
+            return_val = False
 
     ### Delete tenant router.  This section is empty right now as we don't
     ### do per-tenant routers as yet.

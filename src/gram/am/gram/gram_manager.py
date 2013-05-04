@@ -163,6 +163,8 @@ class GramManager :
         
         # Generate a manifest rpsec
         slice_object.setRequestRspec(rspec)
+        for sliver in slivers:
+            sliver.setRequestRspec(rspec);
         manifest =  rspec_handler.generateManifest(slice_object, rspec)
         slice_object.setManifestRspec(manifest)
 
@@ -212,7 +214,6 @@ class GramManager :
         # Generate a manifest rpsec 
         req_rspec = slice_object.getRequestRspec()
         manifest = rspec_handler.generateManifestForSlivers(slice_object,
-                                                            req_rspec,
                                                             sliver_objects) 
     
         # Create a sliver status list for the slivers that were provisioned
@@ -259,10 +260,12 @@ class GramManager :
         sliver_status_list = \
             utils.SliverList().getStatusOfSlivers(slivers)
 
+        manifest = rspec_handler.generateManifestForSlivers(slice_object, slivers)
+
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_rspec': slice_object.getManifestRspec(), \
-                             'geni_slivers': sliver_list}
+        result_struct = {'geni_rspec': manifest, 
+                             'geni_slivers': sliver_status_list}
 
         ret_val = {'code': code, 'value': result_struct, 'output': ''}
 

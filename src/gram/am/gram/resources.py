@@ -92,7 +92,7 @@ class Slice:
       self._router_uuid = None    # UUID of router for this tenant (slice)
       self._user_urn = None
       self._expiration = None
-      self._request_rspec = None
+      self._request_rspec = None  # Most recent request rspec (may be > 1)
       self._manifest_rspec = None   ## TEMP: We should not be saving manifests
       self._slivers = {} # Map of sliverURNs to slivers
       self._VMs = []    # VirtualMachines that belong to this slice
@@ -333,6 +333,7 @@ class Sliver():
       self._uuid = uuid     # OpenStack UUID of resource
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
+      self._request_rspec = None # Rspec provided at allocation time
       self._allocation_state = constants.allocated  # API v3 allocation state
       self._operational_state = constants.notready  # Operational state
       my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
@@ -399,6 +400,14 @@ class Sliver():
       with self._slice.getLock() :
          return self._operational_state 
 
+   def setRequestRspec(self, rspec) :
+      with self._slice.getLock() :
+         self._request_rspec = rspec
+      
+   def getRequestRspec(self) :
+      with self._slice.getLock() :
+         return self._request_rspec
+      
    def status(self, geni_error=''):
         """Returns a status dict for this sliver. Used in numerous        
         return values for AM API v3 calls.                  
