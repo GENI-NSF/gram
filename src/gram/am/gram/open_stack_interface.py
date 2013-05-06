@@ -354,27 +354,27 @@ def provisionResources(geni_slice, slivers, users) :
 # Delete all ports associated with given slice/tenant
 # Allow some failures: there will be some that can't be deleted
 # Or are automatically deleted by deleting others
-def _deleteNetworkPorts(geni_slice):
-    tenant_uuid = geni_slice.getTenantUUID();
-
-    ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
-    ports_output = _execCommand(ports_cmd)
-    config.logger.info('ports output = %s' % ports_output)
-    port_lines = ports_output.split('\n')
-    for i in range(3, len(port_lines)-2):
-        port_columns = port_lines[i].split('|')
-        port_id = port_columns[1].strip()
-        try:
-            delete_port_cmd = 'quantum port-delete %s' % port_id
-            print delete_port_cmd
-            _execCommand(delete_port_cmd)
-        except Exception:
-            # Sometimes deleting one port automatically deletes another
-            # so it is no longer there
-            # Also some ports belong to the network:router_interface
-            # and can't be deleted by port API
-            print "Failed to delete port %s" % port_id
-            pass
+# def _deleteNetworkPorts(geni_slice):
+#     tenant_uuid = geni_slice.getTenantUUID();
+# 
+#     ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+#     ports_output = _execCommand(ports_cmd)
+#     config.logger.info('ports output = %s' % ports_output)
+#     port_lines = ports_output.split('\n')
+#     for i in range(3, len(port_lines)-2):
+#         port_columns = port_lines[i].split('|')
+#         port_id = port_columns[1].strip()
+#         try:
+#             delete_port_cmd = 'quantum port-delete %s' % port_id
+#             print delete_port_cmd
+#             _execCommand(delete_port_cmd)
+#         except Exception:
+#             # Sometimes deleting one port automatically deletes another
+#             # so it is no longer there
+#             # Also some ports belong to the network:router_interface
+#             # and can't be deleted by port API
+#             print "Failed to delete port %s" % port_id
+#             pass
 
 
 def deleteSlivers(geni_slice, slivers) :
