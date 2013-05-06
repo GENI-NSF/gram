@@ -187,6 +187,21 @@ class GramManager :
             Provision the slivers listed in sliver_objects, if they have
             not already been provisioned.
         """
+        if len(sliver_objects) == 0 :
+            # No slivers specified: Return error message
+            code = {'geni_code': constants.REQUEST_PARSE_FAILED}
+            err_str = 'No slivers to be provisioned.'
+            return {'code': code, 'value': '', 'output': err_str}
+            
+        # Make sure slivers have been allocated before we provision them.
+        # Return an error if even one of the slivers has not been allocated
+        for sliver in sliver_objects :
+            if sliver.getAllocationState() != constants.allocated :
+                # Found a sliver that has not been allocated.  Return with error.
+                code = {'geni_code': constants.REQUEST_PARSE_FAILED}
+                err_str = 'Slivers to be provisioned must have allocation state geni_allocated'
+                return {'code': code, 'value': '', 'output': err_str}
+                
         # See if the geni_users option has been set.  This option is used to
         # specify user accounts to be created on virtual machines that are
         # provisioned by this call
@@ -195,6 +210,8 @@ class GramManager :
         else :
             users = list()
 
+
+        
         err_str = open_stack_interface.provisionResources(slice_object,
                                                           sliver_objects,
                                                           users)
@@ -260,16 +277,27 @@ class GramManager :
         sliver_status_list = \
             utils.SliverList().getStatusOfSlivers(slivers)
 
-        manifest = rspec_handler.generateManifestForSlivers(slice_object, slivers)
+        # Generate the manifest to be returned
+        manifest = rspec_handler.generateManifestForSlivers(slice_object,
+                                                            slivers)
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
         result_struct = {'geni_rspec': manifest, 
-                             'geni_slivers': sliver_status_list}
+                         'geni_slivers': sliver_status_list}
 
         ret_val = {'code': code, 'value': result_struct, 'output': ''}
 
         return ret_val
+
+
+    def performOperationalAction(self, slice_object, slivers, action, options) :
+        """
+            This is not currently supported by GRAM.
+        """
+        code = {'geni_code': constants.UNSUPPORTED}
+        err_str = 'Unsupported API call: performOperationalAction'
+        return {'code': code, 'value': '', 'output': err_str}
 
 
     def delete(self, slice_object, sliver_objects, options) :
@@ -280,8 +308,23 @@ class GramManager :
         config.logger.info('Delete called for slice %r' % \
                                slice_object.getSliceURN())
 
+        # Delete any slivers that have been provisioned
+        # First find the sliver_objects that have been provisioned.  Provisioned
+        # slivers need their OpenStack resources deleted.  Other slivers just
+        # need their allocation and operational state changed.
+        provisioned_slivers = []
+        for sliver in sliver_objects :
+            if sliver.getAllocationState() == constants.provisioned :
+                provisioned_slivers.append(sliver)
+            else :
+                # Sliver has not been provisioned.  Just change its
+                # allocation and operational states
+                sliver.setAllocationState(constants.unallocated)
+                sliver.setOperationalState(constants.stopping)
+
+        # Delete provisioned slivers
         success = \
-            open_stack_interface.deleteSlivers(slice_object, sliver_objects)
+            open_stack_interface.deleteSlivers(slice_object, provisioned_slivers)
 
         sliver_status_list = \
             utils.SliverList().getStatusOfSlivers(sliver_objects)

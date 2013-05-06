@@ -146,7 +146,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         the_slice, slivers = self._gram_manager.decode_urns(urns)
 
         if not the_slice: 
-            self._no_slice_found(urns)
+            return self._no_slice_found(urns)
 
         # Note this list of privileges is really the name of an operation
         # from the privilege_table in sfa/trust/rights.py
@@ -206,6 +206,10 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         privileges = (PERFORM_ACTION_PRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
+
+        return self._gram_manager.performOperationalAction(the_slice, slivers,
+                                                           action, options)
+
 
         # A place to store errors on a per-sliver basis.
         # {sliverURN --> "error", sliverURN --> "error", etc.}
