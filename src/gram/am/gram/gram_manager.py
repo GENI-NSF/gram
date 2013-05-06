@@ -143,7 +143,7 @@ class GramManager :
             if len(hosts) < num_vms:
                 # Fail: More VMs requested than compute hosts on rack.
                 # Remove from ths slice the sliver objects created during
-                # this call to allocatex before returning an error struct
+                # this call to allocate before returning an error struct
                 for sliver_object in slivers :
                     slice_object.removeSliver(sliver_object)
                 code = {'geni_code': constants.REQUEST_PARSE_FAILED}
