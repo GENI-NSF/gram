@@ -83,6 +83,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "last_octet":o.getLastOctet(),
                     "os_image":o.getOSImageName(),
                     "request_rspec":o.getRequestRspec(),
+                    "manifest_rspec":o.getManifestRspec(),
                     "os_type":o.getOSType(),
                     "os_version":o.getOSVersion(),
                     "vm_flavor":o.getVMFlavor(),
@@ -107,6 +108,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "allocation_state":o.getAllocationState(),
                     "operational_state":o.getOperationalState(),
                     "request_rspec":o.getRequestRspec(),
+                    "manifest_rspec":o.getManifestRspec(),
                     "device_number":o.getDeviceNumber(),
                     "mac_address":o.getMACAddress(),
                     "ip_address":o.getIPAddress(),
@@ -126,6 +128,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "expiration":expiration_time,
                     "allocation_state":o.getAllocationState(),
                     "request_rspec":o.getRequestRspec(),
+                    "manifest_rspec":o.getManifestRspec(),
                     "operational_state":o.getOperationalState(),
                     "subnet":o.getSubnet(),
                     "endpoints":[ep.getSliverURN() for ep in o.getEndpoints()],
@@ -236,6 +239,7 @@ class GramJSONDecoder:
                 vm._os_version = json_object["os_version"]
                 vm._flavor = json_object["vm_flavor"]
                 vm.setRequestRspec(json_object["request_rspec"])
+                vm.setManifestRspec(json_object["manifest_rspec"])
                 vm.setHost(json_object['host'])
                 
                 # network_interfaces
@@ -270,6 +274,7 @@ class GramJSONDecoder:
                 nic.setIPAddress(json_object["ip_address"])
                 nic.setVLANTag(json_object["vlan_tag"])
                 nic.setRequestRspec(json_object["request_rspec"])
+                nic.setManifestRspec(json_object["manifest_rspec"])
 
                 # vm
                 self._virtual_machine_by_network_interface_urn[sliver_urn] = virtual_machine_urn
@@ -304,7 +309,7 @@ class GramJSONDecoder:
                 link.setSubnetUUID(json_object["subnet_uuid"])
                 link.setVLANTag(json_object['vlan_tag'])
                 link.setRequestRspec(json_object["request_rspec"])
-                
+                link.setManifestRspec(json_object["manifest_rspec"])                
                 self._network_links_by_urn[sliver_urn] = link
                 self._slivers_by_urn[sliver_urn] = link
                 

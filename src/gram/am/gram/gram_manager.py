@@ -164,11 +164,14 @@ class GramManager :
         # Set expiration time on the slice itself
         slice_object.setExpiration(expiration);
         
-        # Generate a manifest rpsec
+        # Generate a manifest rspec
         slice_object.setRequestRspec(rspec)
         for sliver in slivers:
             sliver.setRequestRspec(rspec);
-        manifest =  rspec_handler.generateManifest(slice_object, rspec)
+#        manifest =  rspec_handler.generateManifest(slice_object, rspec)
+        manifest = rspec_handler.generateManifestForSlivers(slice_object, \
+                                                                slivers, True);
+        
         slice_object.setManifestRspec(manifest)
 
         # Persist aggregate state
@@ -217,7 +220,8 @@ class GramManager :
         # Generate a manifest rpsec 
         req_rspec = slice_object.getRequestRspec()
         manifest = rspec_handler.generateManifestForSlivers(slice_object,
-                                                            sliver_objects) 
+                                                            sliver_objects,
+                                                            True) 
     
         # Create a sliver status list for the slivers that were provisioned
         sliver_status_list = \
@@ -263,7 +267,8 @@ class GramManager :
         sliver_status_list = \
             utils.SliverList().getStatusOfSlivers(slivers)
 
-        manifest = rspec_handler.generateManifestForSlivers(slice_object, slivers)
+        manifest = rspec_handler.generateManifestForSlivers(slice_object, 
+                                                            slivers, False)
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
