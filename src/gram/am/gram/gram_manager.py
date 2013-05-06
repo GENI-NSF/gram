@@ -160,6 +160,9 @@ class GramManager :
                          'geni_end_time' in options and options['geni_end_time'])
         for sliver in slivers :
             sliver.setExpiration(expiration)
+
+        # Set expiration time on the slice itself
+        slice_object.setExpiration(expiration);
         
         # Generate a manifest rpsec
         slice_object.setRequestRspec(rspec)
@@ -169,7 +172,7 @@ class GramManager :
         slice_object.setManifestRspec(manifest)
 
         # Persist aggregate state
-        # self.persist_state()
+        self.persist_state()
 
         # Create a sliver status list for the slivers allocated by this call
         sliver_status_list = \
@@ -221,7 +224,7 @@ class GramManager :
             utils.SliverList().getStatusOfSlivers(sliver_objects)
 
         # Persist new GramManager state
-        # self.persist_state()
+        self.persist_state()
 
         # Report the new slice to VMOC
         self.registerSliceToVMOC(slice_object)
@@ -300,7 +303,7 @@ class GramManager :
             self.registerSliceToVMOC(slice_object, False)
 
         # Persist new GramManager state
-        # self.persist_state()
+        self.persist_state()
 
         # Generate the return struct
         code = {'geni_code': constants.SUCCESS}
@@ -362,6 +365,7 @@ class GramManager :
         # Register/unregister data networks
         for link in slice.getNetworkLinks():
             data_network_vlan = link.getVLANTag()
+            if data_network_vlan is None: continue
             data_net_config = \
                 VMOCVLANConfiguration(vlan_tag=data_network_vlan, \
                                           controller_url=controller_url)

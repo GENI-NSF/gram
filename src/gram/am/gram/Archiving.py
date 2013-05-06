@@ -40,7 +40,9 @@ class GramJSONEncoder(json.JSONEncoder):
         if isinstance(o, Slice):
             tenant_admin_name, tenant_admin_pwd, tenant_admin_uuid = \
                 o.getTenantAdminInfo()
-            expiration_time = time.mktime(o.getExpiration().timetuple())
+            expiration_time = None
+            if o.getExpiration() is not None:
+                expiration_time = time.mktime(o.getExpiration().timetuple())
             return {
                 "__type__":"Slice", 
                 "tenant_uuid":o.getTenantUUID(),
@@ -48,10 +50,8 @@ class GramJSONEncoder(json.JSONEncoder):
                 "tenant_admin_name":tenant_admin_name,
                 "tenant_admin_pwd":tenant_admin_pwd,
                 "tenant_admin_uuid":tenant_admin_uuid,
-#                "control_net_info":o.getControlNetInfo(),
                 "tenant_router_name":o.getTenantRouterName(),
                 "tenant_router_uuid":o.getTenantRouterUUID(),
-#                "control_net_address":o.getControlNetAddress(),
                 "slice_urn":o.getSliceURN(),
                 "user_urn":o.getUserURN(),
                 "expiration":expiration_time,
@@ -65,7 +65,9 @@ class GramJSONEncoder(json.JSONEncoder):
                 }
 
         if isinstance(o, VirtualMachine):
-            expiration_time = time.mktime(o.getExpiration().timetuple())
+            expiration_time = None
+            if o.getExpiration() is not None:
+                expiration_time = time.mktime(o.getExpiration().timetuple())
             return {"__type__":"VirtualMachine",
                     "name":o.getName(),
                     "uuid":o.getUUID(),
@@ -89,7 +91,9 @@ class GramJSONEncoder(json.JSONEncoder):
         
 
         if isinstance(o, NetworkInterface):
-            expiration_time = time.mktime(o.getExpiration().timetuple())
+            expiration_time = None
+            if o.getExpiration() is not None:
+                expiration_time = time.mktime(o.getExpiration().timetuple())
             vm_urn = None
             if o.getVM(): vm_urn = o.getVM().getSliverURN();
             link_urn = None
@@ -183,14 +187,14 @@ class GramJSONDecoder:
                 tenant_admin_uuid = json_object['tenant_admin_uuid']
                 slice.setTenantAdminInfo(tenant_admin_name, tenant_admin_pwd, \
                                              tenant_admin_uuid)
-                slice.setControlNetInfo(json_object["control_net_info"])
                 slice.setTenantRouterName(json_object["tenant_router_name"])
                 slice.setTenantRouterUUID(json_object["tenant_router_uuid"])
-#                slice.setControlNetAddress(json_object["control_net_address"])
                 slice.setUserURN(json_object["user_urn"])
                 expiration_timestamp = json_object['expiration']
-                expiration_time = \
-                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                expiration_time = None
+                if expiration_timestamp is not None:
+                    expiration_time = \
+                        datetime.datetime.fromtimestamp(expiration_timestamp)
                 slice.setExpiration(expiration_time)
                 slice.setManifestRspec(json_object["manifest_rspec"])
                 slice.setRequestRspec(json_object["request_rspec"])
@@ -217,12 +221,13 @@ class GramJSONDecoder:
                 vm._sliver_urn = json_object["sliver_urn"]
                 sliver_urn = vm._sliver_urn
                 expiration_timestamp = json_object['expiration']
-                expiration_time = \
-                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                expiration_time = None
+                if expiration_timestamp is not None:
+                    expiration_time = \
+                        datetime.datetime.fromtimestamp(expiration_timestamp)
                 vm.setExpiration(expiration_time)
                 vm.setAllocationState(json_object["allocation_state"])
                 vm.setOperationalState(json_object["operational_state"])
-                vm.setControlNetAddr(json_object["control_net_addr"])
                 vm._installs = json_object["installs"]
                 vm._executes = json_object["executes"]
                 vm._ip_last_octet = json_object["last_octet"]
@@ -253,8 +258,10 @@ class GramJSONDecoder:
                 nic._sliver_urn = json_object["sliver_urn"]
                 sliver_urn = nic._sliver_urn
                 expiration_timestamp = json_object['expiration']
-                expiration_time = \
-                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                expiration_time = None
+                if expiration_timestamp is not None:
+                    expiration_time = \
+                        datetime.datetime.fromtimestamp(expiration_timestamp)
                 nic.setExpiration(expiration_time)
                 nic.setAllocationState(json_object["allocation_state"])
                 nic.setOperationalState(json_object["operational_state"])
@@ -285,8 +292,10 @@ class GramJSONDecoder:
                 link._sliver_urn = json_object["sliver_urn"]
                 sliver_urn = link._sliver_urn
                 expiration_timestamp = json_object['expiration']
-                expiration_time = \
-                    datetime.datetime.fromtimestamp(expiration_timestamp)
+                expiration_time = None
+                if expiration_timestamp is not None:
+                    expiration_time = \
+                        datetime.datetime.fromtimestamp(expiration_timestamp)
                 link.setExpiration(expiration_time)
                 link.setAllocationState(json_object["allocation_state"])
                 link.setOperationalState(json_object["operational_state"])
