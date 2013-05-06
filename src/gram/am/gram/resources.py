@@ -334,6 +334,7 @@ class Sliver():
       self._expiration = None # Sliver expiration time
       self._name = None    # Experimenter specified name of the sliver
       self._request_rspec = None # Rspec provided at allocation time
+      self._manifest_rspec = None # Rspec of current resource state
       self._allocation_state = constants.allocated  # API v3 allocation state
       self._operational_state = constants.notready  # Operational state
       my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
@@ -407,6 +408,14 @@ class Sliver():
    def getRequestRspec(self) :
       with self._slice.getLock() :
          return self._request_rspec
+      
+   def setManifestRspec(self, rspec) :
+      with self._slice.getLock() :
+         self._manifest_rspec = rspec
+      
+   def getManifestRspec(self) :
+      with self._slice.getLock() :
+         return self._manifest_rspec
       
    def status(self, geni_error=''):
         """Returns a status dict for this sliver. Used in numerous        

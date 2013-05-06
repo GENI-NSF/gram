@@ -256,7 +256,7 @@ def parseRequestRspec(geni_slice, rspec) :
     return error_string, sliver_list, controller
 
 
-def generateManifestForSlivers(geni_slice, geni_slivers):
+def generateManifestForSlivers(geni_slice, geni_slivers, recompute):
     req_rspec = geni_slice.getRequestRspec()
     request = parseString(req_rspec).childNodes[0]
 
@@ -276,13 +276,19 @@ def generateManifestForSlivers(geni_slice, geni_slivers):
 
     for sliver in geni_slivers:
         sliver_request_element = getRequestElementForSliver(sliver)
-        sliver_manifest = \
-            generateManifestForSliver(geni_slice, sliver, \
-                                          root, sliver_request_element)
+        sliver_manifest = None
+        sliver_manifest_raw = sliver.getManifestRspec()
+        if sliver_manifest_raw is not None: 
+            sliver_manifest = parseString(sliver_manifest_raw).childNodes[0]
+        if recompute:
+            sliver_manifest = \
+                generateManifestForSliver(geni_slice, sliver, \
+                                              root, sliver_request_element)
+            sliver.setManifestRspec(sliver_manifest.toxml())
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
 
-    return cleanXML(root, "NewManifest")
+    return cleanXML(root, "Manifest")
 
 def getRequestElementForSliver(sliver):
     full_request_rspec = parseString(sliver.getRequestRspec()).childNodes[0]
@@ -586,11 +592,11 @@ def generateManifest(geni_slice, req_rspec) :
                     break
             child.setAttribute('sliver_id', link_object.getSliverURN())
 
-    return cleanXML(manifest, "Manifest")
+    return cleanXML(manifest, "OldManifest")
 
 def cleanXML(doc, label):
     xml = doc.toprettyxml(indent = '    ')
-    config.logger.info("%s = %s" % (label, xml))
+#    config.logger.info("%s = %s" % (label, xml))
     clean_xml = ""
     for line in xml.split('\n'):
         if line.strip():
