@@ -13,7 +13,6 @@ fi
 service gram-am $SENSE
 service gram-amv2 $SENSE
 service gram-ch $SENSE
-service gram-cni $SENSE
 service gram-ctrl $SENSE
 service gram-vmoc $SENSE
 

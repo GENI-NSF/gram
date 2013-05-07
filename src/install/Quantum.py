@@ -136,19 +136,30 @@ class Quantum(GenericInstaller):
         self.add("service quantum-plugin-openvswitch-agent restart")
         self.add("service quantum-dhcp-agent restart")
         self.add("service quantum-l3-agent restart")
+        self.add("for i in `seq 1 30`; do")
+        self.add("  echo 'checking quantum status'")
+        self.add("  quantum net-list > /dev/null")
+        self.add("  if [ $? -eq 0 ]; then")
+        self.add("    break")
+        self.add("  fi") 
+        self.add("  sleep .5")
+        self.add("done")
+        self.add("echo 'Creating management network'")
 	self.add("quantum net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared=true")
+        self.add("echo 'Creating management subnet'")
 	self.add("quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr)
 	self.add('export MGMT_SUBNET_ID=`quantum net-list | grep ' + mgmt_net_name + ' | cut -d "|" -f 4`')
-
+        self.add("echo 'Creating external network'")
         self.add("quantum net-create public --router:external=True")
-
         self.add('export PUBLIC_NET_ID=`quantum net-list | grep public | cut -d " " -f 2`')
+        self.add("echo 'Creating external subnet'")
         self.add("quantum subnet-create --allocation_pool" + 
                  " start=" + public_subnet_start_ip + 
                  ",end=" + public_subnet_end_ip + 
                  " --gateway=" + public_gateway_ip + 
                  " $PUBLIC_NET_ID " + public_subnet_cidr + 
                  " -- --enable_dhcp=False")
+        self.add("echo 'Creating router'")
         self.add("quantum router-create externalRouter")
         self.add("quantum router-gateway-set externalRouter $PUBLIC_NET_ID")
 	self.add("quantum router-interface-add externalRouter $MGMT_SUBNET_ID")
