@@ -98,6 +98,8 @@ class GramManager :
 
     def allocate(self, slice_urn, creds, rspec, options) :
         """
+            AM API V3 method.
+
             Request reservation of GRAM resources.  We assume that by the 
             time we get here the caller's credentials have been verified 
             by the gcf framework (see am3.py).
@@ -190,6 +192,8 @@ class GramManager :
 
     def provision(self, slice_object, sliver_objects, creds, options) :
         """
+            AM API V3 method.
+
             Provision the slivers listed in sliver_objects, if they have
             not already been provisioned.
         """
@@ -215,8 +219,6 @@ class GramManager :
             users = options['geni_users']
         else :
             users = list()
-
-
         
         err_str = open_stack_interface.provisionResources(slice_object,
                                                           sliver_objects,
@@ -259,6 +261,8 @@ class GramManager :
 
     def status(self, slice_object, slivers, options) :
         """
+            AM API V3 method.
+
             Return the status of the specified slivers
         """
         open_stack_interface.updateOperationalStatus(slice_object)
@@ -276,6 +280,8 @@ class GramManager :
 
     def describe(self, slice_object, slivers, options) :
         """
+            AM API V3 method.
+
             Describe the status of the resources allocated to this slice.
         """
         open_stack_interface.updateOperationalStatus(slice_object)
@@ -300,6 +306,8 @@ class GramManager :
 
     def performOperationalAction(self, slice_object, slivers, action, options) :
         """
+            AM API V3 method.
+
             This is not currently supported by GRAM.
         """
         code = {'geni_code': constants.UNSUPPORTED}
@@ -309,6 +317,8 @@ class GramManager :
 
     def delete(self, slice_object, sliver_objects, options) :
         """
+            AM API V3 method.
+
             Delete the specified sliver_objects.  All sliver_objecs are
             associated with the same slice_object.
         """
@@ -360,6 +370,46 @@ class GramManager :
             return {'code':code, 
                     'value':sliver_status_list,
                     'output': 'Failed to delete one or more slivers'}
+
+
+    def renew_slivers(self, sliver_objects, creds, expiration_time):
+        """
+            AM API V3 method.
+
+            Set the expiration time of the specified slivers to the specified
+            value.  If the slice credentials expire before the specified
+            expiration time, set sliver expiration times to the slice 
+            credentials expiration time.
+        """
+        expiration = utils.min_expire(creds, self._max_lease_time,
+                                      expiration_time)
+        for sliver in sliver_objects :
+            sliver.setExpiration(expiration)
+
+        # Create a sliver status list for the slivers that were renewed
+        sliver_status_list = \
+            utils.SliverList().getStatusOfSlivers(sliver_objects)
+
+        code = {'geni_code': constants.SUCCESS}
+        return {'code': code, 'value': sliver_status_list, 'output':''}
+
+
+    def shutdown_slice(self, slice_urn):
+        """
+            AM API V3 method.
+            
+            Shutdown the slice.
+        """
+        # *** Ideally, we want shutdown to disable the slice by cutting off
+        # network access or saving a snapshot of the images of running VM's
+        # In the meantime, shutdown is just deleting the slice
+        urns = [slice_urn]
+        options = {}
+        ret_val =  self.delete(urns, options);
+        code = ret_val['code']
+        output = ret_val['output']
+        value = code == constants.SUCCESS
+        return {'code':code, 'value':value, 'output':output}
 
 
     # Persist state to file based on current timestamp
@@ -494,54 +544,6 @@ class GramManager :
                 self.delete(slice_object, expired_slivers, None)
 
 
-    def renew_slivers(self, slivers, creds, expiration_time):
-        urns = [sliver.getSliverURN() for sliver in slivers]
-        config.logger.info('Renew(%r, %r)' % (urns, expiration_time))
-        
-        
-        now = datetime.datetime.utcnow()
-        expires = [self._naiveUTC(c.expiration) for c in creds]
-        expires.append(now + self._max_lease_time)
-        print str(expires)
-        expiration = min(expires)
-        requested = dateutil.parser.parse(str(expiration_time))
-        requested = self._naiveUTC(requested)
-        if requested > expiration:
-            # Fail the call: the requested expiration exceeds the slice expir.
-            msg = ("Out of range: Expiration %s is out of range" + 
-                   " (past last credential expiration of %s).") % \
-            (expiration_time, expiration)
-            config.logger.info(msg)
-            return self.errorResult(constants.OUT_OF_RANGE, msg)
-
-        elif requested < now:
-            msg = (("Out of range: Expiration %s is out of range" + 
-                    " (prior to now %s)") % (expiration_time, now.isoformat()))
-            config.logger.error(msg)
-            return self.errorResult(constants.OUT_OF_RANGE, msg)
-
-        else:
-            for sliver in slivers:
-                sliver.setExpiration(requested)
-
-        code = {'geni_code':constants.SUCCESS}
-        sliver_status_list = utils.SliverList()
-        for sliver in slivers: sliver_status_list.addSliver(sliver)
-        return {'code':code, \
-                    'value':sliver_status_list.getSliverStatusList(), \
-                    'output':''}
-
-    def shutdown_slice(self, slice_urn):
-        # *** Ideally, we want shutdown to disable the slice by cutting off
-        # network access or saving a snapshot of the images of running VM's
-        # In the meantime, shutdown is just deleting the slice
-        urns = [slice_urn]
-        options = {}
-        ret_val =  self.delete(urns, options);
-        code = ret_val['code']
-        output = ret_val['output']
-        value = code == constants.SUCCESS
-        return {'code':code, 'value':value, 'output':output}
 
     def list_flavors(self):
         return open_stack_interface._listFlavors()
@@ -612,17 +614,3 @@ class GramManager :
         return dict(code=code_dict,
                     value="",
                     output=output)
-
-
-    def _naiveUTC(self, dt):
-        """Converts dt to a naive datetime in UTC.
-
-        if 'dt' has a timezone then
-        convert to UTC
-        strip off timezone (make it "naive" in Python parlance)
-        """
-        if dt.tzinfo:
-            tz_utc = dateutil.tz.tzutc()
-            dt = dt.astimezone(tz_utc)
-            dt = dt.replace(tzinfo=None)
-        return dt
