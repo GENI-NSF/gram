@@ -118,110 +118,93 @@ class Slice:
 
    # Called by slivers to add themselves to the slice
    def addSliver(self, sliver) :
-      with self._slice_lock :
-         sliver_urn = sliver.getSliverURN()
-         if sliver_urn != None :
-            self._slivers[sliver_urn] = sliver
-         else :
-            config.logger.error('Adding sliver to slice; sliver does not have a URN')
+      sliver_urn = sliver.getSliverURN()
+      if sliver_urn != None :
+         self._slivers[sliver_urn] = sliver
+      else :
+         config.logger.error('Adding sliver to slice; sliver does not have a URN')
 
-         if sliver.__class__.__name__ == 'VirtualMachine' :
-            self._VMs.append(sliver)
-            return True
-         elif sliver.__class__.__name__ == 'NetworkInterface' :
-            self._NICs.append(sliver)
-            return True
-         elif sliver.__class__.__name__ == 'NetworkLink' :
-            self._links.append(sliver)
-            return True
-         else :
-            config.logger.error('Unknown sliver type')
-            return False
+      if sliver.__class__.__name__ == 'VirtualMachine' :
+         self._VMs.append(sliver)
+         return True
+      elif sliver.__class__.__name__ == 'NetworkInterface' :
+         self._NICs.append(sliver)
+         return True
+      elif sliver.__class__.__name__ == 'NetworkLink' :
+         self._links.append(sliver)
+         return True
+      else :
+         config.logger.error('Unknown sliver type')
+         return False
 
    def removeSliver(self, sliver) :
-      with self._slice_lock :
-         sliver_urn = sliver.getSliverURN()
-         
-         # Remove sliver from list of slivers
-         if sliver_urn in self._slivers :
-            del self._slivers[sliver_urn]
+      sliver_urn = sliver.getSliverURN()
+      
+      # Remove sliver from list of slivers
+      if sliver_urn in self._slivers :
+         del self._slivers[sliver_urn]
 
-         # Remove sliver from appropriate list based on sliver type
-         if sliver.__class__.__name__ == 'VirtualMachine' :
-            # First remove from the slice all NICs associated with this VM
-            for nic in sliver.getNetworkInterfaces() :
-               self.removeSliver(nic)
-            self._VMs.remove(sliver)
-         elif sliver.__class__.__name__ == 'NetworkInterface' :
-            self._NICs.remove(sliver)
-         elif sliver.__class__.__name__ == 'NetworkLink' :
-            self._links.remove(sliver)
+      # Remove sliver from appropriate list based on sliver type
+      if sliver.__class__.__name__ == 'VirtualMachine' :
+         # First remove from the slice all NICs associated with this VM
+         for nic in sliver.getNetworkInterfaces() :
+            self.removeSliver(nic)
+         self._VMs.remove(sliver)
+      elif sliver.__class__.__name__ == 'NetworkInterface' :
+         self._NICs.remove(sliver)
+      elif sliver.__class__.__name__ == 'NetworkLink' :
+         self._links.remove(sliver)
          
    def setTenantUUID(self, tenant_id ): 
-      with self._slice_lock :
-         self._tenant_uuid = tenant_id
+      self._tenant_uuid = tenant_id
 
    def getTenantUUID(self): 
-      with self._slice_lock :
-         return self._tenant_uuid
+      return self._tenant_uuid
 
    def setTenantName(self, tenant_name) :
-      with self._slice_lock :
-         self._tenant_name = tenant_name
+      self._tenant_name = tenant_name
 
    def getTenantName(self) :
-      with self._slice_lock :
-         return self._tenant_name
+      return self._tenant_name
    
    def setTenantAdminInfo(self, name, password, uuid) :
-      with self._slice_lock :
-         self._tenant_admin_name = name
-         self._tenant_admin_pwd = password
-         self._tenant_admin_uuid = uuid
+      self._tenant_admin_name = name
+      self._tenant_admin_pwd = password
+      self._tenant_admin_uuid = uuid
 
    def getTenantAdminInfo(self) :
-      with self._slice_lock :
-         return self._tenant_admin_name, self._tenant_admin_pwd, \
-             self._tenant_admin_uuid
+      return self._tenant_admin_name, self._tenant_admin_pwd, \
+          self._tenant_admin_uuid
 
    def setSecurityGroup(self, sec_grp_name) :
-      with self._slice_lock :
-         self._tenant_security_grp = sec_grp_name
+      self._tenant_security_grp = sec_grp_name
 
    def getSecurityGroup(self) :
-      with self._slice_lock :
-         return self._tenant_security_grp 
+      return self._tenant_security_grp 
 
    def setTenantRouterName(self, name) :
-      with self._slice_lock :
-         self._router_name = name
+      self._router_name = name
 
    def getTenantRouterName(self) :
-      with self._slice_lock :
-         return self._router_name
+      return self._router_name
 
    def setTenantRouterUUID(self, uuid) :
-      with self._slice_lock :
-         self._router_uuid = uuid
+      self._router_uuid = uuid
 
    def getTenantRouterUUID(self) :
-      with self._slice_lock :
-         return self._router_uuid
+      return self._router_uuid
 
    def getNetworkInterfaceByName(self, name) :
-      with self._slice_lock :
-         for i in range(len(self._NICs)) :
-            if self._NICs[i].getName() == name :
-               return self._NICs[i]
-         return None
+      for i in range(len(self._NICs)) :
+         if self._NICs[i].getName() == name :
+            return self._NICs[i]
+      return None
 
    def getNetworkLinks(self) :
-      with self._slice_lock :
-         return self._links
+      return self._links
 
    def getVMs(self) :
-      with self._slice_lock :
-         return self._VMs
+      return self._VMs
 
    def getSlivers(self) :
       """
@@ -230,12 +213,11 @@ class Slice:
           this slice, use getAllSlivers().
       """
       slivers = dict()
-      with self._slice_lock :
-         for vm in self._VMs :
-            slivers[vm.getSliverURN()] = vm
-         for link in self._links :
-            slivers[link.getSliverURN()] = link
-         return slivers
+      for vm in self._VMs :
+         slivers[vm.getSliverURN()] = vm
+      for link in self._links :
+         slivers[link.getSliverURN()] = link
+      return slivers
 
    def getAllSlivers(self) :
       """
@@ -243,86 +225,72 @@ class Slice:
           a list of slivers relevant to experiemnters (VM and network link 
           slivers), use getSlivers().
       """
-      with self._slice_lock :
-         return self._slivers
+      return self._slivers
 
 
    def generateSubnetAddress(self) :
-      with self._slice_lock :
-         self._last_subnet_assigned += 1
-         #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
-         if not os.path.isfile(config.subnet_numfile) :
-            # The file with the subnet numbers does not exist; create it
-            subnet_num_file = open(config.subnet_numfile, 'w')
-            subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
-                                           # arbitrary.  19 seems to be safe
-            subnet_num_file.close()
-            
-         # Read from file the number of the last subnet assigned
-         subnet_num_file = open(config.subnet_numfile, 'r')
-         last_subnet_assigned = int(subnet_num_file.readline().rstrip())
-         subnet_num_file.close()
-
-         # Increment the number in the file by 1.  Roll back to 19 if count
-         # is at 256
+      self._last_subnet_assigned += 1
+      #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
+      if not os.path.isfile(config.subnet_numfile) :
+         # The file with the subnet numbers does not exist; create it
          subnet_num_file = open(config.subnet_numfile, 'w')
-         last_subnet_assigned += 1
-         if last_subnet_assigned == 256 :
-            last_subnet_assigned = 19
-         subnet_num_file.write(str(last_subnet_assigned))
+         subnet_num_file.write(str(19)) # start with subnet 19 -- somewhat
+                                        # arbitrary.  19 seems to be safe
          subnet_num_file.close()
-         return '10.0.%s.0/24' % last_subnet_assigned
-         #### END TEMP CODE
-         return '10.0.%s.0/24' % self._last_subnet_assigned
+            
+      # Read from file the number of the last subnet assigned
+      subnet_num_file = open(config.subnet_numfile, 'r')
+      last_subnet_assigned = int(subnet_num_file.readline().rstrip())
+      subnet_num_file.close()
+
+      # Increment the number in the file by 1.  Roll back to 19 if count
+      # is at 256
+      subnet_num_file = open(config.subnet_numfile, 'w')
+      last_subnet_assigned += 1
+      if last_subnet_assigned == 256 :
+         last_subnet_assigned = 19
+      subnet_num_file.write(str(last_subnet_assigned))
+      subnet_num_file.close()
+      return '10.0.%s.0/24' % last_subnet_assigned
+      #### END TEMP CODE
+      return '10.0.%s.0/24' % self._last_subnet_assigned
 
    def getVMNumber(self) :
-      with self._slice_lock :
-         self._next_vm_num += 1
-         return self._next_vm_num
+      self._next_vm_num += 1
+      return self._next_vm_num
       
    def getSliceURN(self):  # String Slice URN
-      with self._slice_lock :
-         return self._slice_urn
+      return self._slice_urn
 
    def getUserURN(self): # String User URN
-      with self._slice_lock :
-         return self._user_urn
+      return self._user_urn
 
    def setUserURN(self, user_urn):
-      with self._slice_lock :
-         self._user_urn = user_urn
+      self._user_urn = user_urn
 
    def getExpiration(self): # Date expiration of slice
-      with self._slice_lock :
-         return self._expiration
+      return self._expiration
 
    def setManifestRspec(self, manifest) :
-      with self._slice_lock :
-         self._manifest_rspec = manifest
+      self._manifest_rspec = manifest
 
    def getManifestRspec(self) : 
-      with self._slice_lock :
-         return self._manifest_rspec
+      return self._manifest_rspec
 
    def setExpiration(self, expiration): # Set expiration of slice
-      with self._slice_lock :
-         self._expiration = expiration;
+      self._expiration = expiration;
 
    def setRequestRspec(self, rspec) :
-      with self._slice_lock :
-         self._request_rspec = rspec
+      self._request_rspec = rspec
       
    def getRequestRspec(self) :
-      with self._slice_lock :
-         return self._request_rspec
+      return self._request_rspec
       
    def setControllerURL(self, controller_url):
-      with self._slice_lock:
-         self._controller_url = controller_url
+      self._controller_url = controller_url
 
    def getControllerURL(self):
-      with self._slice_lock:
-         return self._controller_url
+      return self._controller_url
       
 
 # Base class for resource slivers
@@ -354,84 +322,67 @@ class Sliver():
       return sliver_urn
       
    def setName(self, name) :
-      with self._slice.getLock() :
-         self._name = name
+      self._name = name
 
    def getName(self) :
-      with self._slice.getLock() :
-         return self._name
+      return self._name
 
    def setUUID(self, uuid) :
-      with self._slice.getLock() :
-         self._uuid = uuid
+      self._uuid = uuid
 
    def getUUID(self) : 
-      with self._slice.getLock() :
-         return self._uuid
+      return self._uuid
 
    def getSliverURN(self): 
-      with self._slice.getLock() :
-         return self._sliver_urn
+      return self._sliver_urn
 
    def getSlice(self): 
-      with self._slice.getLock() :
-         return self._slice;
+      return self._slice;
 
    def getExpiration(self):
-      with self._slice.getLock() :
-         return self._expiration;
+      return self._expiration;
 
    def setExpiration(self, expiration):
-      with self._slice.getLock() :
-         self._expiration = expiration
+      self._expiration = expiration
 
    def setAllocationState(self, state) :
-      with self._slice.getLock() :
-         self._allocation_state = state
+      self._allocation_state = state
 
    def getAllocationState(self) :
-      with self._slice.getLock() :
-         return self._allocation_state 
+      return self._allocation_state 
 
    def setOperationalState(self, state) :
-      with self._slice.getLock() :
-         self._operational_state = state
+      self._operational_state = state
       
    def getOperationalState(self) :
-      with self._slice.getLock() :
-         return self._operational_state 
+      return self._operational_state 
 
    def setRequestRspec(self, rspec) :
-      with self._slice.getLock() :
-         self._request_rspec = rspec
+      self._request_rspec = rspec
       
    def getRequestRspec(self) :
-      with self._slice.getLock() :
-         return self._request_rspec
+      return self._request_rspec
       
    def setManifestRspec(self, rspec) :
-      with self._slice.getLock() :
-         self._manifest_rspec = rspec
+      self._manifest_rspec = rspec
       
    def getManifestRspec(self) :
-      with self._slice.getLock() :
-         return self._manifest_rspec
+      return self._manifest_rspec
       
    def status(self, geni_error=''):
         """Returns a status dict for this sliver. Used in numerous        
-        return values for AM API v3 calls.                  
+           return values for AM API v3 calls.                  
         """
-        with self._slice.getLock() :
-           expire_string = "None"
-           if self.getExpiration() :
-              expire_with_tz = \
-                  self.getExpiration().replace(tzinfo=dateutil.tz.tzutc())
-              expire_string = expire_with_tz.isoformat()
-              return dict(geni_sliver_urn = self.getSliverURN(),
-                          geni_expires = expire_string,
-                          geni_allocation_status = self.getAllocationState(),
-                          geni_operational_status = self.getOperationalState(),
-                          geni_error = geni_error)
+        expire_string = "None"
+        if self.getExpiration() :
+           expire_with_tz = \
+               self.getExpiration().replace(tzinfo=dateutil.tz.tzutc())
+           expire_string = expire_with_tz.isoformat()
+           return dict(geni_sliver_urn = self.getSliverURN(),
+                       geni_expires = expire_string,
+                       geni_allocation_status = self.getAllocationState(),
+                       geni_operational_status = self.getOperationalState(),
+                       geni_error = geni_error)
            
 
 class _InstallItem :
@@ -478,96 +429,73 @@ class VirtualMachine(Sliver): #
       return resource_image(self, "VM") 
 
    def addNetworkInterface(self, netInterface) :
-      with self._slice.getLock() :
-         self._network_interfaces.append(netInterface)
+      self._network_interfaces.append(netInterface)
 
    def setMgmtNetAddr(self, ip_addr) : 
-      with self._slice.getLock() :
-         self._mgmt_net_addr = ip_addr
+      self._mgmt_net_addr = ip_addr
 
    def getMgmtNetAddr(self): 
-      with self._slice.getLock() :
-         return self._mgmt_net_addr 
+      return self._mgmt_net_addr 
 
    def getInstalls(self): # List of files to install on VM
-      with self._slice.getLock() :
-         return self._installs 
+      return self._installs 
 
    def getExecutes(self) : # List of commands to execute on VM startup
-      with self._slice.getLock() :
-         return self._executes 
+      return self._executes 
 
    def getNetworkInterfaces(self) :
-      with self._slice.getLock() :
-         return self._network_interfaces 
+      return self._network_interfaces 
 
    def getLastOctet(self) :
-      with self._slice.getLock() :
-         return str(self._ip_last_octet)
+      return str(self._ip_last_octet)
 
    def getOSImageName(self) :
-      with self._slice.getLock() :
-         return self._os_image
+      return self._os_image
 
    def setOSImageName(self, os_image) :
-      with self._slice.getLock() :
-         self._os_image = os_image
+      self._os_image = os_image
 
    def getOSType(self) :
-      with self._slice.getLock() :
-         return self._os_type
+      return self._os_type
 
    def setOSType(self, os_type) :
-      with self._slice.getLock() :
-         self._os_type = os_type
+      self._os_type = os_type
 
    def getOSVersion(self) :
-      with self._slice.getLock() :
-         return self._os_version
+      return self._os_version
 
    def setOSVersion(self, os_version) :
-      with self._slice.getLock() :
-         self._os_version = os_version
+      self._os_version = os_version
 
    def getVMFlavor(self) :
-      with self._slice.getLock() :
-         return self._flavor
+      return self._flavor
 
    def setVMFlavor(self, flavour) : # Set VirtualMachine flavor
-      with self._slice.getLock() :
-         self._flavor = flavour
+      self._flavor = flavour
 
    def addInstallItem(self, source, destination, file_type) :
-      with self._slice.getLock() :
-         self._installs.append(_InstallItem(source, destination, file_type))
+      self._installs.append(_InstallItem(source, destination, file_type))
 
    def addExecuteItem(self, command, shell) :
-      with self._slice.getLock() :
-         self._executes.append(_ExecuteItem(command, shell))
+      self._executes.append(_ExecuteItem(command, shell))
 
    def getHost(self):
-      with self._slice.getLock() :
-         return self._host
+      return self._host
 
    def setHost(self, host): # Name of compute node on which VM resides
-      with self._slice.getLock() :
-         self._host = host;
+      self._host = host;
 
    def setAuthorizedUsers(self, user_list) :
-      with self._slice.getLock() :
-         self._authorized_users = user_list
+      self._authorized_users = user_list
 
    def getAuthorizedUsers(self) :
-      with self._slice.getLock() :
-         return self._authorized_users 
+      return self._authorized_users 
 
    def setSSHProxyLoginPort(self, port_number) :
-      with self._slice.getLock() :
-          self._ssh_proxy_login_port = port_number
+      self._ssh_proxy_login_port = port_number
 
    def getSSHProxyLoginPort(self) :
-      with self._slice.getLock() :
-          return self._ssh_proxy_login_port
+      return self._ssh_proxy_login_port
  
 
 # A NIC (Network Interface Card) resource
@@ -586,56 +514,43 @@ class NetworkInterface(Sliver):
         return resource_image(self, "NIC");
 
      def getDeviceNumber(self): # int number of device (2 = eth2, etc.)
-        with self._slice.getLock() :
-           return self._device_number
+        return self._device_number
 
      def setMACAddress(self, mac_addr): 
-        with self._slice.getLock() :
-           self._mac_address = mac_addr
+        self._mac_address = mac_addr
 
      def getMACAddress(self): 
-        with self._slice.getLock() :
-           return self._mac_address
+        return self._mac_address
 
      def setIPAddress(self, ip_addr): 
-        with self._slice.getLock() :
-           self._ip_address = ip_addr
+        self._ip_address = ip_addr
 
      def getIPAddress(self): 
-        with self._slice.getLock() :
-           return self._ip_address
+        return self._ip_address
 
      def getVM(self): 
-        with self._slice.getLock() :
-           return self._vm
+        return self._vm
 
      def setVM(self, vm):
-        with self._slice.getLock() :
-           self._vm = vm
+        self._vm = vm
 
      def getLink(self): # NetworkLink associated with NIC
-        with self._slice.getLock() :
-           return self._link
+        return self._link
 
      def setLink(self, link) :
-        with self._slice.getLock() :
-           self._link = link;
+        self._link = link;
 
      def enable(self) :
-        with self._slice.getLock() :
-           self._enabled = True
+        self._enabled = True
         
      def isEnabled(self) :
-        with self._slice.getLock() :
-           return self._enabled
+        return self._enabled
 
      def getVLANTag(self): # Return vlan tag of traffic on this interface
-        with self._slice.getLock() :
-           return self._vlan_tag
+        return self._vlan_tag
 
      def setVLANTag(self, vlan_tag): # Set VLAN tag of traffic on this interface
-        with self._slice.getLock() :
-           self._vlan_tag = vlan_tag
+        self._vlan_tag = vlan_tag
 
 
 # A Network Link resource
@@ -652,42 +567,32 @@ class NetworkLink(Sliver): # was Link
         return resource_image(self, "Link")
 
      def setSubnet(self, subnetAddr) :
-        with self._slice.getLock() :
-           self._subnet = subnetAddr
+        self._subnet = subnetAddr
 
      def getSubnet(self) :
-        with self._slice.getLock() :
-           return self._subnet
+        return self._subnet
 
      def addEndpoint(self, end_point) :
-        with self._slice.getLock() :
-           self._endpoints.append(end_point)
+        self._endpoints.append(end_point)
 
      def getEndpoints(self) : 
-        with self._slice.getLock() :
-           return self._endpoints
+        return self._endpoints
 
      def setNetworkUUID(self, uuid): 
-        with self._slice.getLock() :
-           self._network_uuid = uuid
+        self._network_uuid = uuid
 
      def getNetworkUUID(self) : 
-        with self._slice.getLock() :
-           return self._network_uuid
+        return self._network_uuid
 
      def setSubnetUUID(self, uuid) :
-        with self._slice.getLock() :
-           self._subnet_uuid = uuid
+        self._subnet_uuid = uuid
 
      def getSubnetUUID(self) :
-        with self._slice.getLock() :
-           return self._subnet_uuid
+        return self._subnet_uuid
 
      def setVLANTag(self, vlan_tag) :
-        with self._slice.getLock() :
-           self._vlan_tag = vlan_tag
+        self._vlan_tag = vlan_tag
 
      def getVLANTag(self) :
-        with self._slice.getLock() :
-           return self._vlan_tag
+        return self._vlan_tag
      

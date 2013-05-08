@@ -117,77 +117,80 @@ class GramManager :
             slice_object = Slice(slice_urn)
             SliceURNtoSliceObject.set_slice_object(slice_urn, slice_object)
 
-        # Parse the request rspec.  Get back any error message from parsing
-        # the rspec and a list of slivers created while parsing
-        # Also OF controller, if any
-        err_output, slivers, controller_url = \
-            rspec_handler.parseRequestRspec(slice_object, rspec)
+        # Lock this slice so nobody else can mess with it during allocation
+        with slice_object.getLock() :
+            # Parse the request rspec.  Get back any error message from parsing
+            # the rspec and a list of slivers created while parsing
+            # Also OF controller, if any
+            err_output, slivers, controller_url = \
+                rspec_handler.parseRequestRspec(slice_object, rspec)
 
-        if err_output != None :
-            # Something went wrong.  First remove from the slice any sliver
-            # objects created while parsing the bad rspec
-            for sliver_object in slivers :
-                slice_object.removeSliver(sliver_object)
-                
-            # Return an error struct.
-            code = {'geni_code': constants.REQUEST_PARSE_FAILED}
-            return {'code': code, 'value': '', 'output': err_output}
-
-        # If we're associating an OpenFlow controller to this slice, 
-        # Each VM must go on its own host. If there are more nodes
-        # than hosts, we fail
-        if controller_url:
-            hosts = open_stack_interface._listHosts('compute')
-            num_vms = 0
-            for sliver in slivers:
-                if isinstance(sliver, VirtualMachine):
-                    num_vms = num_vms + 1
-            if len(hosts) < num_vms:
-                # Fail: More VMs requested than compute hosts on rack.
-                # Remove from ths slice the sliver objects created during
-                # this call to allocate before returning an error struct
+            if err_output != None :
+                # Something went wrong.  First remove from the slice any sliver
+                # objects created while parsing the bad rspec
                 for sliver_object in slivers :
                     slice_object.removeSliver(sliver_object)
+                
+                # Return an error struct.
                 code = {'geni_code': constants.REQUEST_PARSE_FAILED}
-                error_output = \
-                    "For OpenFlow controlled slice, limit of " + \
-                    str(len(hosts)) + " VM's"
-                return {'code': code, 'value':'', 'output':error_output}
-        
-        # Set the experimenter provider controller URL (if any)
-        slice_object.setControllerURL(controller_url)
+                return {'code': code, 'value': '', 'output': err_output}
 
-        # Set expiration times on the allocated resources
-        expiration = utils.min_expire(creds, self._max_alloc_time,
+            # If we're associating an OpenFlow controller to this slice, 
+            # Each VM must go on its own host. If there are more nodes
+            # than hosts, we fail
+            if controller_url:
+                hosts = open_stack_interface._listHosts('compute')
+                num_vms = 0
+                for sliver in slivers:
+                    if isinstance(sliver, VirtualMachine):
+                        num_vms = num_vms + 1
+                if len(hosts) < num_vms:
+                    # Fail: More VMs requested than compute hosts 
+                    # on rack.  Remove from this slice the sliver 
+                    # objects created during this call to allocate 
+                    # before returning an error struct
+                    for sliver_object in slivers :
+                        slice_object.removeSliver(sliver_object)
+                    code =  {'geni_code': constants.REQUEST_PARSE_FAILED}
+                    error_output = \
+                        "For OpenFlow controlled slice, limit of " + \
+                        str(len(hosts)) + " VM's"
+                    return {'code': code, 'value':'', 
+                                'output':error_output}
+        
+            # Set the experimenter provider controller URL (if any)
+            slice_object.setControllerURL(controller_url)
+
+            # Set expiration times on the allocated resources
+            expiration = utils.min_expire(creds, 
+                         self._max_alloc_time,
                          'geni_end_time' in options and options['geni_end_time'])
-        for sliver in slivers :
-            sliver.setExpiration(expiration)
+            for sliver in slivers :
+                sliver.setExpiration(expiration)
 
-        # Set expiration time on the slice itself
-        slice_object.setExpiration(expiration);
+            # Set expiration time on the slice itself
+                slice_object.setExpiration(expiration);
         
-        # Generate a manifest rspec
-        slice_object.setRequestRspec(rspec)
-        for sliver in slivers:
-            sliver.setRequestRspec(rspec);
-#        manifest =  rspec_handler.generateManifest(slice_object, rspec)
-        manifest = rspec_handler.generateManifestForSlivers(slice_object, \
-                                                                slivers, True);
-        
-        slice_object.setManifestRspec(manifest)
+            # Generate a manifest rspec
+            slice_object.setRequestRspec(rspec)
+            for sliver in slivers:
+                sliver.setRequestRspec(rspec);
+            manifest =  rspec_handler.generateManifestForSlivers(slice_object, 
+                                                                 slivers, True);
+            slice_object.setManifestRspec(manifest)
 
-        # Persist aggregate state
-        self.persist_state()
+            # Persist aggregate state
+            self.persist_state()
 
-        # Create a sliver status list for the slivers allocated by this call
-        sliver_status_list = \
-            utils.SliverList().getStatusOfSlivers(slivers)
+            # Create a sliver status list for the slivers allocated by this call
+            sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(slivers)
 
-        # Generate the return struct
-        code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_rspec':manifest,
-                         'geni_slivers':sliver_status_list}
-        return {'code': code, 'value': result_struct, 'output': ''}
+            # Generate the return struct
+            code = {'geni_code': constants.SUCCESS}
+            result_struct = {'geni_rspec':manifest,
+                             'geni_slivers':sliver_status_list}
+            return {'code': code, 'value': result_struct, 'output': ''}
         
 
     def provision(self, slice_object, sliver_objects, creds, options) :
@@ -220,43 +223,45 @@ class GramManager :
         else :
             users = list()
         
-        err_str = open_stack_interface.provisionResources(slice_object,
-                                                          sliver_objects,
-                                                          users)
-        if err_str != None :
-            # We failed to provision this slice for some reason (described
-            # in err_str)
-            code = {'geni_code': constants.OPENSTACK_ERROR}
-            return {'code': code, 'value': '', 'output': err_str}
+        # Lock this slice so nobody else can mess with it during provisioning
+        with slice_object.getLock() :
+            err_str = open_stack_interface.provisionResources(slice_object,
+                                                              sliver_objects,
+                                                              users)
+            if err_str != None :
+                # We failed to provision this slice for some reason (described
+                # in err_str)
+                code = {'geni_code': constants.OPENSTACK_ERROR}
+                return {'code': code, 'value': '', 'output': err_str}
             
-        # Set expiration times on the provisioned resources
-        # Set expiration times on the allocated resources
-        expiration = utils.min_expire(creds, self._max_lease_time,
+            # Set expiration times on the provisioned resources
+            # Set expiration times on the allocated resources
+            expiration = utils.min_expire(creds, self._max_lease_time,
                          'geni_end_time' in options and options['geni_end_time'])
-        for sliver in sliver_objects :
-            sliver.setExpiration(expiration)
+            for sliver in sliver_objects :
+                sliver.setExpiration(expiration)
 
-        # Generate a manifest rpsec 
-        req_rspec = slice_object.getRequestRspec()
-        manifest = rspec_handler.generateManifestForSlivers(slice_object,
-                                                            sliver_objects,
-                                                            True) 
+            # Generate a manifest rpsec 
+            req_rspec = slice_object.getRequestRspec()
+            manifest = rspec_handler.generateManifestForSlivers(slice_object,
+                                                                sliver_objects,
+                                                                True) 
     
-        # Create a sliver status list for the slivers that were provisioned
-        sliver_status_list = \
-            utils.SliverList().getStatusOfSlivers(sliver_objects)
+            # Create a sliver status list for the slivers that were provisioned
+            sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(sliver_objects)
 
-        # Persist new GramManager state
-        self.persist_state()
+            # Persist new GramManager state
+            self.persist_state()
 
-        # Report the new slice to VMOC
-        self.registerSliceToVMOC(slice_object)
+            # Report the new slice to VMOC
+            self.registerSliceToVMOC(slice_object)
 
-        # Generate the return struct
-        code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_rspec':manifest, \
-                             'geni_slivers':sliver_status_list}
-        return {'code': code, 'value': result_struct, 'output': ''}
+            # Generate the return struct
+            code = {'geni_code': constants.SUCCESS}
+            result_struct = {'geni_rspec':manifest, \
+                                 'geni_slivers':sliver_status_list}
+            return {'code': code, 'value': result_struct, 'output': ''}
         
 
     def status(self, slice_object, slivers, options) :
@@ -265,17 +270,19 @@ class GramManager :
 
             Return the status of the specified slivers
         """
-        open_stack_interface.updateOperationalStatus(slice_object)
+        # Lock this slice so nobody else can mess with it while we get status
+        with slice_object.getLock() :
+            open_stack_interface.updateOperationalStatus(slice_object)
 
-        # Create a list with the status of the specified slivers
-        sliver_status_list = \
-            utils.SliverList().getStatusOfSlivers(slivers)
+            # Create a list with the status of the specified slivers
+            sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(slivers)
         
-        # Generate the return stuct
-        code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_urn':slice_object.getSliceURN(), \
-                             'geni_slivers':sliver_status_list}
-        return {'code': code, 'value': result_struct, 'output': ''}
+            # Generate the return stuct
+            code = {'geni_code': constants.SUCCESS}
+            result_struct = {'geni_urn':slice_object.getSliceURN(), \
+                                 'geni_slivers':sliver_status_list}
+            return {'code': code, 'value': result_struct, 'output': ''}
         
 
     def describe(self, slice_object, slivers, options) :
@@ -284,24 +291,25 @@ class GramManager :
 
             Describe the status of the resources allocated to this slice.
         """
-        open_stack_interface.updateOperationalStatus(slice_object)
+        # Lock this slice so nobody else can mess with it while we get status
+        with slice_object.getLock() :
+            open_stack_interface.updateOperationalStatus(slice_object)
 
-        # Get the status of the slivers
-        sliver_status_list = \
-            utils.SliverList().getStatusOfSlivers(slivers)
+            # Get the status of the slivers
+            sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(slivers)
 
-        # Generate the manifest to be returned
-        manifest = rspec_handler.generateManifestForSlivers(slice_object, 
-                                                            slivers, False)
+            # Generate the manifest to be returned
+            manifest = rspec_handler.generateManifestForSlivers(slice_object, 
+                                                                slivers, False)
 
-        # Generate the return struct
-        code = {'geni_code': constants.SUCCESS}
-        result_struct = {'geni_rspec': manifest, 
-                         'geni_slivers': sliver_status_list}
+            # Generate the return struct
+            code = {'geni_code': constants.SUCCESS}
+            result_struct = {'geni_rspec': manifest, 
+                             'geni_slivers': sliver_status_list}
 
-        ret_val = {'code': code, 'value': result_struct, 'output': ''}
-
-        return ret_val
+            ret_val = {'code': code, 'value': result_struct, 'output': ''}
+            return ret_val
 
 
     def performOperationalAction(self, slice_object, slivers, action, options) :
@@ -325,51 +333,54 @@ class GramManager :
         config.logger.info('Delete called for slice %r' % \
                                slice_object.getSliceURN())
 
-        # Delete any slivers that have been provisioned
-        # First find the sliver_objects that have been provisioned.  Provisioned
-        # slivers need their OpenStack resources deleted.  Other slivers just
-        # need their allocation and operational state changed.
-        provisioned_slivers = []
-        for sliver in sliver_objects :
-            if sliver.getAllocationState() == constants.provisioned :
-                provisioned_slivers.append(sliver)
+        # Lock this slice so nobody else can mess with it while we do the deletes
+        with slice_object.getLock() :
+            # Delete any slivers that have been provisioned
+            # First find the sliver_objects that have been provisioned.
+            # Provisioned slivers need their OpenStack resources deleted.  
+            # Other slivers just need their allocation and operational states
+            # changed.
+            provisioned_slivers = []
+            for sliver in sliver_objects :
+                if sliver.getAllocationState() == constants.provisioned :
+                    provisioned_slivers.append(sliver)
+                else :
+                    # Sliver has not been provisioned.  Just change its
+                    # allocation and operational states
+                    sliver.setAllocationState(constants.unallocated)
+                    sliver.setOperationalState(constants.stopping)
+
+            # Delete provisioned slivers
+            success =  open_stack_interface.deleteSlivers(slice_object, 
+                                                          provisioned_slivers)
+
+            sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(sliver_objects)
+
+            # Remove deleted slivers from the slice
+            for sliver in sliver_objects :
+                slice_object.removeSliver(sliver)
+
+            ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
+            ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY
+            ### EXPIRE.  FOR NOW WE DELETE THEM WHEN ALL THEIR SLIVERS ARE 
+            ### DELETED.
+            if len(slice_object.getSlivers()) == 0 :
+                open_stack_interface.expireSlice(slice_object)
+                # Update VMOC
+                self.registerSliceToVMOC(slice_object, False)
+
+            # Persist new GramManager state
+            self.persist_state()
+
+            # Generate the return struct
+            code = {'geni_code': constants.SUCCESS}
+            if success :
+                return {'code': code, 'value': sliver_status_list,  'output': ''}
             else :
-                # Sliver has not been provisioned.  Just change its
-                # allocation and operational states
-                sliver.setAllocationState(constants.unallocated)
-                sliver.setOperationalState(constants.stopping)
-
-        # Delete provisioned slivers
-        success = \
-            open_stack_interface.deleteSlivers(slice_object, provisioned_slivers)
-
-        sliver_status_list = \
-            utils.SliverList().getStatusOfSlivers(sliver_objects)
-
-        # Remove deleted slivers from the slice
-        for sliver in sliver_objects :
-            slice_object.removeSliver(sliver)
-
-        ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
-        ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY
-        ### EXPIRE.  FOR NOW WE DELETE THEM WHEN ALL THEIR SLIVERS ARE 
-        ### DELETED.
-        if len(slice_object.getSlivers()) == 0 :
-            open_stack_interface.expireSlice(slice_object)
-            # Update VMOC
-            self.registerSliceToVMOC(slice_object, False)
-
-        # Persist new GramManager state
-        self.persist_state()
-
-        # Generate the return struct
-        code = {'geni_code': constants.SUCCESS}
-        if success :
-            return {'code': code, 'value': sliver_status_list,  'output': ''}
-        else :
-            return {'code':code, 
-                    'value':sliver_status_list,
-                    'output': 'Failed to delete one or more slivers'}
+                return {'code':code, 
+                        'value':sliver_status_list,
+                        'output': 'Failed to delete one or more slivers'}
 
 
     def renew_slivers(self, sliver_objects, creds, expiration_time):
@@ -383,15 +394,18 @@ class GramManager :
         """
         expiration = utils.min_expire(creds, self._max_lease_time,
                                       expiration_time)
-        for sliver in sliver_objects :
-            sliver.setExpiration(expiration)
 
-        # Create a sliver status list for the slivers that were renewed
-        sliver_status_list = \
-            utils.SliverList().getStatusOfSlivers(sliver_objects)
+        # Lock this slice so nobody else can mess with it while we renew
+        with slice_object.getLock() :
+            for sliver in sliver_objects :
+                sliver.setExpiration(expiration)
 
-        code = {'geni_code': constants.SUCCESS}
-        return {'code': code, 'value': sliver_status_list, 'output':''}
+            # Create a sliver status list for the slivers that were renewed
+            sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(sliver_objects)
+
+            code = {'geni_code': constants.SUCCESS}
+            return {'code': code, 'value': sliver_status_list, 'output':''}
 
 
     def shutdown_slice(self, slice_urn):
@@ -526,23 +540,16 @@ class GramManager :
         # have expired, we use the self.delete method to delete these slivers
         now = datetime.datetime.utcnow()
         for slice_object in SliceURNtoSliceObject.get_slice_objects():
-            slivers = slice_object.getSlivers()
-            expired_slivers = list()
-            for sliver in slivers.values():
-                config.logger.debug('Checking sliver %s (expiration=%r) at %r', 
-                                   sliver.getSliverURN(), 
-                                   sliver.getExpiration(), now)
-                if sliver.getExpiration() < now:
-                    config.logger.debug('Expiring sliver %s (expire=%r) at %r', 
-                                        sliver.getSliverURN(),
-                                        sliver.getExpiration(), now)
-                    expired_slivers.append(sliver)
-            if len(expired_slivers) != 0 :
-                config.logger.info('Expiring %d slivers for slice %s' % \
-                                       (len(expired_slivers),
-                                        slice_object.getSliceURN()))
-                self.delete(slice_object, expired_slivers, None)
-
+            # Lock this slice so nobody else can mess with it while we expire
+            # its slivers
+            with slice_object.getLock() :
+                slivers = slice_object.getSlivers()
+                expired_slivers = list()
+                for sliver in slivers.values():
+                    if sliver.getExpiration() < now:
+                        expired_slivers.append(sliver)
+                if len(expired_slivers) != 0 :
+                    self.delete(slice_object, expired_slivers, None)
 
 
     def list_flavors(self):
