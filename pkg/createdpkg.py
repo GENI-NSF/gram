@@ -94,18 +94,17 @@ class CreateDpkg:
         self._execCommand("mkdir -p " + self.opts.deb_location + "/opt")
         self._execCommand("mkdir -p " + self.opts.deb_location + "/etc")
         self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram")
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram/.gcf")
 
         # Copy source and data files into their package locations
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + \
                               self.opts.deb_location + "/home/gram")
-        self._execCommand("cp -Rf " + self.opts.gram_root + "/.gcf " + \
-                              self.opts.deb_location + "/home/gram")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/gcf_config " \
+                              + self.opts.deb_location + "/home/gram/.gcf")
         self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
                               self.opts.deb_location + "/opt")
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
                               + self.opts.deb_location + "/etc")
-#        self._execCommand("cp -Rf /etc/gram " + \
-#                              self.opts.deb_location + "/etc")
         self._execCommand("cp " + self.opts.gram_root + \
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")

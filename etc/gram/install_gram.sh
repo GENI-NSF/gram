@@ -15,10 +15,16 @@ chown -R gram.gram ~gram /etc/gram
 # This seems not to get set early enough in some circumstances...
 mkdir -p /etc/quantum
 
+# Set up certificates
+mkdir /etc/gram/certs
+/opt/gcf/src/gen-certs.py --notAll --ch --am --directory=/etc/gram/certs
+chown -R gram.gram /etc/gram/certs
+
+
 # Set up the install shell scripts based on the parameters specified
 # in /etc/gram/config.json
 cd ~gram/gram/src/install
-export PYTHONPATH=$PYTHONPATH:~gram/gram/src
+export PYTHONPATH=~gram/gram/src:$PYTHONPATH
 python OpenStack.py
 cd /tmp/install
 chmod a+x *.sh
