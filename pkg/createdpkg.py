@@ -104,8 +104,8 @@ class CreateDpkg:
                               self.opts.deb_location + "/opt")
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
                               + self.opts.deb_location + "/etc")
-        self._execCommand("cp -Rf /etc/gram " + \
-                              self.opts.deb_location + "/etc")
+#        self._execCommand("cp -Rf /etc/gram " + \
+#                              self.opts.deb_location + "/etc")
         self._execCommand("cp " + self.opts.gram_root + \
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")
