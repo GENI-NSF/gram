@@ -97,6 +97,7 @@ class GramManager :
 
 
     def allocate(self, slice_urn, creds, rspec, options) :
+
         """
             AM API V3 method.
 
@@ -108,6 +109,11 @@ class GramManager :
             Returns an error string on failure.
         """
         config.logger.info('Allocate called for slice %r' % slice_urn)
+
+        # Grab user urn out of slice credentail
+        user_urn  = None
+        if len(creds) == 1:
+            user_urn = creds[0].gidCaller.urn
 
         # Check if we already have slivers for this slice
         slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
@@ -179,12 +185,20 @@ class GramManager :
                                                                  slivers, True);
             slice_object.setManifestRspec(manifest)
 
+            # Set the user urn for all new slivers
+            all_slice_slivers = slice_object.getAllSlivers()
+            for sliver_urn in all_slice_slivers:
+                sliver = all_slice_slivers[sliver_urn]
+                if not sliver.getUserURN():
+                    sliver.setUserURN(user_urn)
+
             # Persist aggregate state
             self.persist_state()
 
             # Create a sliver status list for the slivers allocated by this call
             sliver_status_list = \
                 utils.SliverList().getStatusOfSlivers(slivers)
+
 
             # Generate the return struct
             code = {'geni_code': constants.SUCCESS}
@@ -205,7 +219,7 @@ class GramManager :
             code = {'geni_code': constants.REQUEST_PARSE_FAILED}
             err_str = 'No slivers to be provisioned.'
             return {'code': code, 'value': '', 'output': err_str}
-            
+
         # Make sure slivers have been allocated before we provision them.
         # Return an error if even one of the slivers has not been allocated
         for sliver in sliver_objects :

@@ -72,6 +72,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "name":o.getName(),
                     "uuid":o.getUUID(),
                     "sliver_urn":o.getSliverURN(),
+                    "user_urn":o.getUserURN(),
                     "slice":o.getSlice().getTenantUUID(),
                     "expiration":expiration_time,
                     "allocation_state":o.getAllocationState(),
@@ -103,6 +104,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "name":o.getName(),
                     "uuid":o.getUUID(),
                     "sliver_urn":o.getSliverURN(),
+                    "user_urn":o.getUserURN(),
                     "slice":o.getSlice().getTenantUUID(),
                     "expiration":expiration_time,
                     "allocation_state":o.getAllocationState(),
@@ -124,6 +126,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "name":o.getName(),
                     "uuid":o.getUUID(),
                     "sliver_urn":o.getSliverURN(),
+                    "user_urn":o.getUserURN(),
                     "slice":o.getSlice().getTenantUUID(),
                     "expiration":expiration_time,
                     "allocation_state":o.getAllocationState(),
@@ -228,6 +231,7 @@ class GramJSONDecoder:
                 if expiration_timestamp is not None:
                     expiration_time = \
                         datetime.datetime.fromtimestamp(expiration_timestamp)
+                vm.setUserURN(json_object["user_urn"])
                 vm.setExpiration(expiration_time)
                 vm.setAllocationState(json_object["allocation_state"])
                 vm.setOperationalState(json_object["operational_state"])
@@ -268,6 +272,7 @@ class GramJSONDecoder:
                         datetime.datetime.fromtimestamp(expiration_timestamp)
                 nic.setExpiration(expiration_time)
                 nic.setAllocationState(json_object["allocation_state"])
+                nic.setUserURN(json_object["user_urn"])
                 nic.setOperationalState(json_object["operational_state"])
                 nic._device_number = json_object["device_number"]
                 nic.setMACAddress(json_object["mac_address"])
@@ -304,6 +309,7 @@ class GramJSONDecoder:
                 link.setExpiration(expiration_time)
                 link.setAllocationState(json_object["allocation_state"])
                 link.setOperationalState(json_object["operational_state"])
+                link.setUserURN(json_object["user_urn"])
                 link.setSubnet(json_object["subnet"])
                 link.setNetworkUUID(json_object["network_uuid"])
                 link.setSubnetUUID(json_object["subnet_uuid"])
