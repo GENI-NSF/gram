@@ -38,7 +38,8 @@ then
 
     # Install gram_ssh_proxy
     cd ~gram/gram/src/gram/am/gram
-    make gram_ssh_proxy
+    # Force rebuild and reinstall in case there's an already built version around
+    make -B gram_ssh_proxy
 
     # Install and start up gram on the control node
     /etc/gram/install_gram_services.sh
