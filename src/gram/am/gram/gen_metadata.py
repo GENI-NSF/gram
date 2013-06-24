@@ -227,6 +227,11 @@ def _generateAccount(user) :
         scriptFile.write('chmod 644 ~%s/.ssh/authorized_keys \n' % userName)
         scriptFile.write('chown -R %s\\:%s ~%s/.ssh \n' % (userName, userName, userName))
 
+        # Add users to sudoers list
+        #import pdb; pdb.set_trace()
+        scriptFile.write('echo "%s  ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers' % userName)
+
+
         scriptFile.close()
 
     return scriptFilename
