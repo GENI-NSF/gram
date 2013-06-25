@@ -296,6 +296,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         Return a dict of sliver urn, status, and a list of dicts resource
         statuses.'''
         # Loop over the resources in a sliver gathering status.
+        #import pdb; pdb.set_trace()
+        self.logger.info('got here')
         self.logger.info('Status(%r)' % (urns))
         self._gram_manager.expire_slivers()
         the_slice, slivers = self._gram_manager.decode_urns(urns)
@@ -343,7 +345,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        gram_ret = self._gram_manager.renew_slivers(slivers, creds, expiration_time)
+        gram_ret = self._gram_manager.renew_slivers(the_slice,slivers, creds, expiration_time)
         
         return gram_ret
 

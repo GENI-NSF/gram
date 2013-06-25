@@ -296,6 +296,8 @@ class GramManager :
             code = {'geni_code': constants.SUCCESS}
             result_struct = {'geni_urn':slice_object.getSliceURN(), \
                                  'geni_slivers':sliver_status_list}
+
+
             return {'code': code, 'value': result_struct, 'output': ''}
         
 
@@ -397,7 +399,7 @@ class GramManager :
                         'output': 'Failed to delete one or more slivers'}
 
 
-    def renew_slivers(self, sliver_objects, creds, expiration_time):
+    def renew_slivers(self,slice_object, sliver_objects, creds, expiration_time):
         """
             AM API V3 method.
 
@@ -408,14 +410,6 @@ class GramManager :
         """
         expiration = utils.min_expire(creds, self._max_lease_time,
                                       expiration_time)
-        slice_object = SliceURNtoSliceObject.get_slice_object(slice_urn)
-        if slice_object == None :
-            # This is a new slice at this aggregate.  Create Slice object 
-            # and add it the list of slices at this AM
-            slice_object = Slice(slice_urn)
-            SliceURNtoSliceObject.set_slice_object(slice_urn, slice_object)
-
-
 
         # Lock this slice so nobody else can mess with it while we renew
         with slice_object.getLock() :
