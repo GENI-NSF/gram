@@ -51,7 +51,7 @@ class PackageCreator:
             sys.exit(0)
 
         # Generate the two deb files
-        template = "createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s.deb --version=%s"
+        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s.deb --version=%s"
         control_command = template % \
             ("False", self.opts.gcf_root, self.opts.output_directory, \
                  "control", self.opts.version)
