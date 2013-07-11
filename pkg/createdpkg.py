@@ -127,8 +127,10 @@ class CreateDpkg:
 
         #  Only install POX and GCF on control node
         if not self._compute_node:
-            self._execCommand("cp -Rf /opt/pox " + \
-                                  self.opts.deb_location + "/opt")
+            self._execCommand("git clone -b betta http://github.com/noxrepo/pox")
+            self._execCommand("mv pox " + self.opts.deb_location + "/opt")
+            #self._execCommand("cp -Rf /opt/pox " + \
+            #                      self.opts.deb_location + "/opt")
 
             simple_gcf_root = os.path.basename(self.opts.gcf_root)
             if simple_gcf_root != 'gcf':
