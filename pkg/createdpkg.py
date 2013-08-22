@@ -67,6 +67,11 @@ class CreateDpkg:
         parser.add_option("--version", \
                               help="Version of this GRAM deb release", \
                               default=None, dest="version")
+        parser.add_option("--os_version",type='choice', action='store', \
+                              dest='os_version', \
+                              choices=['folsom', 'grizzly'], \
+                              default='grizzly', \
+                              help='OpenStack version')       
 
         [self.opts, args] = parser.parse_args()
 
@@ -109,11 +114,11 @@ class CreateDpkg:
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")
 
-        debian_source = "DEBIAN_control"
-        if self._compute_node: debian_source = "DEBIAN_compute"
+        debian_source = "/DEBIAN_control"
+        if self._compute_node: debian_source = "/DEBIAN_compute"
         self._execCommand("cp -Rf " + \
                               self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
-                              debian_source + " " + self.opts.deb_location)
+                              self.opts.os_version + debian_source + " " + self.opts.deb_location)
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
                               " " + self.opts.deb_location + "/DEBIAN")
@@ -125,16 +130,20 @@ class CreateDpkg:
         sed_command = ['sed', '-i', 's/Version.*/Version: ' + self.opts.version + '/', self.opts.deb_location + "/DEBIAN/control"]
         res  = subprocess.check_output(sed_command)
 
-        #  Only install POX and GCF on control node
-        if not self._compute_node:
-            self._execCommand("cp -Rf /opt/pox " + \
-                                  self.opts.deb_location + "/opt")
+        #  Install GCF on all nodes
+        simple_gcf_root = os.path.basename(self.opts.gcf_root)
+        if simple_gcf_root != 'gcf':
+             self._execCommand("mv " + self.opts.deb_location + "/opt/" + \
+                                simple_gcf_root + " " + \
+                                self.opts.deb_location + "/opt/gcf")
 
-            simple_gcf_root = os.path.basename(self.opts.gcf_root)
-            if simple_gcf_root != 'gcf':
-                self._execCommand("mv " + self.opts.deb_location + "/opt/" + \
-                                      simple_gcf_root + " " + \
-                                      self.opts.deb_location + "/opt/gcf")
+        #  Only install POX on control node
+        if not self._compute_node:
+            self._execCommand("git clone -b betta http://github.com/noxrepo/pox")
+            self._execCommand("mv pox " + self.opts.deb_location + "/opt")
+            #self._execCommand("cp -Rf /opt/pox " + \
+            #                      self.opts.deb_location + "/opt")
+
 
         # Cleaup up some junk before creating archive
         self._execCommand("rm -rf " + \

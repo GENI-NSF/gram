@@ -230,6 +230,8 @@ class Slice:
 
    def generateSubnetAddress(self) :
       self._last_subnet_assigned += 1
+
+      # can kill temo code if there is namespace
       #### START TEMP CODE.  REMOVE WHEN WE HAVE NAMESPACES WORKING
       if not os.path.isfile(config.subnet_numfile) :
          # The file with the subnet numbers does not exist; create it

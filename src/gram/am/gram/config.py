@@ -130,6 +130,9 @@ control_address = None
 # This network is controlled by quantum and flows through
 # The OF switch
 data_interface = None
+data_address = None
+
+public_dns_nameservers = None
 
 # Interface for 'management' network
 # This is the network over which experimenters can SSH into VM's
@@ -175,6 +178,7 @@ metadata_port = 8775
 
 # Hostname of control node
 control_host = None
+control_host_addr = None
 
 # List of compute node names and addresses
 compute_hosts = None

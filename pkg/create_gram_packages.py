@@ -38,6 +38,11 @@ class PackageCreator:
         parser.add_option("--gcf_root", \
                               help="Location of local GCF root", \
                               default="/opt/gcf-2.2", dest="gcf_root")
+        parser.add_option("--os_version",type='choice', action='store', \
+                              dest='os_version', \
+                              choices=['folsom', 'grizzly'], \
+                              default='grizzly', \
+                              help='OpenStack version')
 
         [self.opts, args] = parser.parse_args()
 
@@ -51,15 +56,14 @@ class PackageCreator:
             sys.exit(0)
 
         # Generate the two deb files
-        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s.deb --version=%s"
+        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s_%s.deb --version=%s"
         control_command = template % \
             ("False", self.opts.gcf_root, self.opts.output_directory, \
-                 "control", self.opts.version)
+                 self.opts.os_version,"control", self.opts.version)
         compute_command = template % \
             ("True", self.opts.gcf_root, self.opts.output_directory, \
-                 "compute",  self.opts.version)
+                 self.opts.os_version,"compute",  self.opts.version)
         self._execCommand(control_command)
-        print "done"
         self._execCommand(compute_command)
         
 

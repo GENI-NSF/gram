@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # Install GRAM on either compute or control node
+# usage: install_gram <compute/control> <grizzly/folsom>
 
 export SENSE="control"
 
-if [ $# -gt 0 ]
+if [ $# -gt 1 ]
 then
     export SENSE=$1
+    export VERSION=$2
 fi
 
 # Align the owner id of gram for the packages we've read in
@@ -23,12 +25,12 @@ chown -R gram.gram /etc/gram/certs
 
 # Set up the install shell scripts based on the parameters specified
 # in /etc/gram/config.json
-cd ~gram/gram/src/install
+cd ~gram/gram/src/install$VERSION
 export PYTHONPATH=~gram/gram/src:$PYTHONPATH
 python OpenStack.py
 cd /tmp/install
 chmod a+x *.sh
-./install_$SENSE.sh
+#./install_$SENSE.sh
 
 # Control-node specific logic 
 if [ $SENSE = "control" ]

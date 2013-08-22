@@ -686,6 +686,11 @@ def _createNetworkForLink(link_object) :
     # Determine the ip address of the gateway for this subnet.  If the
     # subnet is 10.0.x.0/24, the gateway will be 10.0.x.1
     gateway_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '1'
+#SD    
+    start_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '95'
+    end_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '254'
+#SD
+
 
     cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
         (tenant_uuid, gateway_addr, network_uuid, subnet_addr)
@@ -828,7 +833,7 @@ def _createVM(vm_object, users, placement_hint) :
             nic_ip_addr = nic.getIPAddress()
             if nic_ip_addr != None :
                 subnet_uuid = link_object.getSubnetUUID()
-                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
+                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
                 output = _execCommand(cmd_string) 
                 nic.setUUID(_getValueByPropertyName(output, 'id'))
 
@@ -855,7 +860,7 @@ def _createVM(vm_object, users, placement_hint) :
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
-    zipped_userdata_filename = userdata_filename + ".gz"
+    zipped_userdata_filename = userdata_filename # SD+ ".gz"
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
     total_nic_count = len(vm_net_infs) + 1
