@@ -113,7 +113,7 @@ class Quantum(GenericInstaller):
         self.sed("s/^admin_tenant_name.*/admin_tenant_name = service/", self.quantum_directory + "/" + self.quantum_conf_filename)
         self.sed("s/^admin_user.*/admin_user = " + quantum_user + "/", self.quantum_directory + "/" + self.quantum_conf_filename)
         self.sed("s/^admin_password.*/admin_pass = service_pass/", self.quantum_directory + "/" + self.quantum_conf_filename)
-
+        self.sed("s/^\# allow_overlapping_ips .*/allow_overlapping_ips = True/",self.quantum_directory + "/" + self.quantum_conf_filename)
 
         self.writeToFile("[DEFAULT]",self.quantum_metadata_file)
         self.appendToFile("# The Quantum user information for accessing the Quantum API.",self.quantum_metadata_file)
@@ -175,9 +175,12 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/\# router_id.*/router_id=$EXTERNAL_ROUTER_ID/",
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
-
+        self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.add("service quantum-l3-agent restart")
+       
+
         
+        self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):

@@ -123,6 +123,7 @@ class OpenVSwitch(GenericInstaller):
         self.sed("s/^admin_user.*/admin_user = " + quantum_user + "/", self.quantum_conf)
         self.sed("s/^admin_password.*/admin_pass = service_pass/", self.quantum_conf)
 	self.sed("s/^# rabbit_host .*/rabbit_host = " + config.control_host_addr + "/" , self.quantum_conf)
+        self.sed("s/^\# allow_overlapping_ips .*/allow_overlapping_ips = True/",self.quantum_conf)
 
         self.comment("edit ovs_quantum_plugin.ini")
         self.backup(self.quantum_plugin_directory, backup_directory, \
