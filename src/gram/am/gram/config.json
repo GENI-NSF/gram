@@ -20,7 +20,7 @@
    "external_interface": null,
    "external_address": null,
    "external_netmask": null,
-   "
+
    "control_address": "10.10.8.100",
    "control_interface": null,
    "data_interface": null,
