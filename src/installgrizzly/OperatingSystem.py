@@ -113,10 +113,10 @@ class OperatingSystem(GenericInstaller):
         # configure ~/.gcf/gcf_config
         self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.service_token + "\/\/gcf/","/home/gram/.gcf/gcf_config")
         self.sed("s/host=.*/host=" + config.control_host + "/","/home/gram/.gcf/gcf_config")
-        self.appendToFile(config.control_host + " " + config.control_host_addr, "/etc/hosts")
+        self.appendToFile(config.control_host_addr + " " + config.control_host, "/etc/hosts")
         nodes = config.compute_hosts
         for node in nodes:
-            self.appendToFile(node + " " + nodes[node],"/etc/hosts")
+            self.appendToFile(nodes[node] + " " + node,"/etc/hosts")
 
         self.writeToFile("Defaults:quantum !requiretty", "/etc/sudoers.d/quantum_sudoers")
         self.appendToFile("quantum ALL=NOPASSWD: ALL","/etc/sudoers.d/quantum_sudoers")

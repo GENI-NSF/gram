@@ -94,12 +94,13 @@ class OpenVSwitch(GenericInstaller):
 
 
         #SD: compied this from folsom config
-        self.comment("Configure virtual bridging")
-        self.add("ovs-vsctl add-br br-int")
-        self.add("ovs-vsctl add-br br-" + data_if)
-        self.add("ovs-vsctl add-port br-" + data_if + " " + data_if)
-        self.add("ovs-vsctl add-br br-" + mgmt_if)
-        self.add("ovs-vsctl add-port br-" + mgmt_if + " " + mgmt_if)
+        # this happens in operating system now
+        #self.comment("Configure virtual bridging")
+        #self.add("ovs-vsctl add-br br-int")
+        #self.add("ovs-vsctl add-br br-" + data_if)
+        #self.add("ovs-vsctl add-port br-" + data_if + " " + data_if)
+        #self.add("ovs-vsctl add-br br-" + mgmt_if)
+        #self.add("ovs-vsctl add-port br-" + mgmt_if + " " + mgmt_if)
 
         backup_directory = config.backup_directory
         control_host = config.control_host
