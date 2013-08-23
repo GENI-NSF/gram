@@ -118,6 +118,8 @@ class OperatingSystem(GenericInstaller):
         for node in nodes:
             self.appendToFile(node + " " + nodes[node],"/etc/hosts")
 
+        self.writeToFile("Defaults:quantum !requiretty", "/etc/sudoers.d/quantum_sudoers")
+        self.appendToFile("quantum ALL=NOPASSWD: ALL","/etc/sudoers.d/quantum_sudoers")
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):
