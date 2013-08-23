@@ -111,8 +111,8 @@ class OperatingSystem(GenericInstaller):
         self.add('service networking restart')
 
         # configure ~/.gcf/gcf_config
-        self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.service_token + "\/\/gcf","/home/gram/.gcf/gcf_config")
-        self.sed("s/host=.*/host=" + config.control_host + "/","\/\/gcf","/home/gram/.gcf/gcf_config")
+        self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.service_token + "\/\/gcf/","/home/gram/.gcf/gcf_config")
+        self.sed("s/host=.*/host=" + config.control_host + "/","/home/gram/.gcf/gcf_config")
         self.appendToFile(config.control_host + " " + config.control_host_addr, "/etc/hosts")
         nodes = config.compute_hosts
         for node in nodes:
