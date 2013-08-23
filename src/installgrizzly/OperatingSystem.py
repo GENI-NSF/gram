@@ -110,6 +110,11 @@ class OperatingSystem(GenericInstaller):
         self.add("sysctl net.ipv4.ip_forward=1")
         self.add('service networking restart')
 
+        # configure ~/.gcf/gcf_config
+        self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.service_token + "\/\/gcf","/home/gram/.gcf/gcf_config")
+        self.sed("s/host=.*/host=" + config.control_host + "/","\/\/gcf","/home/gram/.gcf/gcf_config")
+
+
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):
         self.comment("*** OperatingSystem Uninstall ***")
