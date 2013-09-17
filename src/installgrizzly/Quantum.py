@@ -180,7 +180,7 @@ class Quantum(GenericInstaller):
        
 
         
-        self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
+        self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_dhcp_conf_filename)
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):
