@@ -118,6 +118,11 @@ class OperatingSystem(GenericInstaller):
         for node in nodes:
             self.appendToFile(nodes[node] + " " + node,"/etc/hosts")
 
+        #add these entries to satisfy omni/portal
+        nodes = config.host_file_entries
+        for node in nodes:
+            self.appendToFile(nodes[node] + "\t" + node,"/etc/hosts")
+
         self.writeToFile("Defaults:quantum !requiretty", "/etc/sudoers.d/quantum_sudoers")
         self.appendToFile("quantum ALL=NOPASSWD: ALL","/etc/sudoers.d/quantum_sudoers")
 

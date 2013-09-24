@@ -58,6 +58,7 @@
    "control_host" : null,
    "control_host_addr" : null,
    "compute_hosts": null,
+   "host_file_entries": null,
    "glance_images" : [] 
 
 }

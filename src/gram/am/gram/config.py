@@ -183,6 +183,9 @@ control_host_addr = None
 # List of compute node names and addresses
 compute_hosts = None
 
+# List of host names and addresses to put in /etc/hosts file
+host_file_entries = None
+
 glance_images = None
 
 import json
