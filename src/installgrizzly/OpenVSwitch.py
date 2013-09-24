@@ -79,7 +79,7 @@ class OpenVSwitch(GenericInstaller):
     def installCommandsCompute(self):
 
         self.comment("*** OpenVSwitch Install (compute) ***")
-        self.add("module-assistant auto-install openvswitch-datapath")
+        #self.add("module-assistant auto-install openvswitch-datapath")
 
         control_address = config.control_address
         backup_directory = config.backup_directory
