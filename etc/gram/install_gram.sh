@@ -11,6 +11,8 @@ then
     export VERSION=$2
 fi
 
+mkdir /home/gram/.backup
+
 # Align the owner id of gram for the packages we've read in
 chown -R gram.gram ~gram /etc/gram
 
