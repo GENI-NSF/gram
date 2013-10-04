@@ -39,42 +39,14 @@ class OpenVSwitch(GenericInstaller):
         external_if = config.external_interface
         external_bridge = "br-ex"
         data_if = config.data_interface
-
+        self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
+        self.backup(self.quantum_plugin_directory, backup_directory, self.quantum_plugin_filename)
         self.comment("Install OVS package")
-        #self.add("module-assistant auto-install openvswitch-datapath")
-        #self.add("/etc/init.d/openvswitch-switch start")
-
-        #self.comment("Configure virtual bridging")
-        #self.add("ovs-vsctl add-br br-int")
-        #self.add("ovs-vsctl add-br br-ex")
-
-        #self.add("ovs-vsctl br-set-external-id br-ex bridge-id br-ex")
-#        self.add("ovs-vsctl add-port br-ex " + external_if)
-
-        # SD: needed for VLANs??
-#        self.add("ovs-vsctl add-br br-" + data_if)
-#        self.add("ovs-vsctl add-port br-" + data_if + " " + data_if)
-#        self.add("ovs-vsctl add-br br-" + mgmt_if)
-#        self.add("ovs-vsctl add-port br-" + mgmt_if + " " + mgmt_if)
 
         self.comment("Modify /etc/network/interfaces to reflect the new configuration")
         # Replace references to management interface with references to br-ex
         #self.backup(self.networking_directory, backup_directory, self.interfaces_filename)
         interfaces = self.networking_directory + "/" + self.interfaces_filename
-        # Add new manual configuration for external interface
-#        self.sed("s/" + external_interface + "/" + external_bridge + "/", interfaces)
-#        self.appendToFile("", interfaces)
-#        self.appendToFile("auto " + external_interface,  interfaces)
-#        self.appendToFile("iface " + external_interface + " inet manual", interfaces)
-#        self.appendToFile("up ifconfig $IFACE 0.0.0.0 up", interfaces)
-#        self.appendToFile("up ip link set $IFACE promisc on", interfaces)
-#        self.appendToFile("down ip link set $IFACE promisc off", interfaces)
-#        self.appendToFile("down ifconfig $IFACE down",  interfaces)
-#        self.add("service networking restart")
-#        self.add("ifdown --force " + external_interface)
-#        self.add("ifup --force " + external_interface)
-#        self.add("ifdown --force br-ex")
-#        self.add("ifup --force br-ex")
 
     def installCommandsCompute(self):
 
