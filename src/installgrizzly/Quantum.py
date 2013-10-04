@@ -38,8 +38,8 @@ class Quantum(GenericInstaller):
         self.comment("Install packages")
 
         self.comment("Configure quantum services")
-        self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
-        self.backup(self.quantum_plugin_directory, backup_directory, self.quantum_plugin_conf_filename)
+        #self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
+        #self.backup(self.quantum_plugin_directory, backup_directory, self.quantum_plugin_conf_filename)
         self.backup(self.quantum_directory, backup_directory, self.quantum_api_conf_filename) 
  
         self.sed("s/sql_connection.*/" + connection + "/",
@@ -112,7 +112,7 @@ class Quantum(GenericInstaller):
         self.sed("s/^signing_dir.*/signing_dir = \/var\/lib\/quantum\/keystone-signing/", self.quantum_directory + "/" + self.quantum_conf_filename)
         self.sed("s/^admin_tenant_name.*/admin_tenant_name = service/", self.quantum_directory + "/" + self.quantum_conf_filename)
         self.sed("s/^admin_user.*/admin_user = " + quantum_user + "/", self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/^admin_password.*/admin_pass = service_pass/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^admin_password.*/admin_password = service_pass/", self.quantum_directory + "/" + self.quantum_conf_filename)
         self.sed("s/^\# allow_overlapping_ips .*/allow_overlapping_ips = True/",self.quantum_directory + "/" + self.quantum_conf_filename)
 
         self.writeToFile("[DEFAULT]",self.quantum_metadata_file)
