@@ -38,7 +38,7 @@ class Keystone(GenericInstaller):
         self.add("rm -f " + data_script_filename)
         self.add("wget " + data_script_url)
         self.sed("s/HOST_IP=.*/HOST_IP=" + config.control_host_addr +  "/",data_script_filename)
-        #self.sed("s/ADMIN_PASSWORD.*/ADMIN_PASSWORD=" + keystone_password + "/",data_script_filename)
+        self.sed("s/ADMIN_PASSWORD.*/ADMIN_PASSWORD=" + config.os_password + "/",data_script_filename)
         #self.sed("s/SERVICE_PASSWORD.*/SERVICE_PASSWORD=" + keystone_password + "/",data_script_filename)
         #self.sed("s/SERVICE_TOKEN.*/SERVICE_TOKEN=" + service_token + "/",data_script_filename)
         #self.sed("s/SERVICE_TENANT_NAME.*/SERVICE_TENANT_NAME=" + config.os_tenant_name + "/",data_script_filename) 
@@ -64,7 +64,7 @@ class Keystone(GenericInstaller):
         self.writeToFile("export OS_TENANT_NAME=admin", novarc_file)
 
         self.appendToFile("export OS_USERNAME=admin", novarc_file)
-        self.appendToFile("export OS_PASSWORD=admin_pass", novarc_file)
+        self.appendToFile("export OS_PASSWORD=" + config.os_password , novarc_file)
         self.appendToFile("export OS_AUTH_URL=http://localhost:5000/v2.0/", novarc_file)
         #self.appendToFile("export OS_NO_CACHE=" + str(config.os_no_cache), novarc_file)
         #self.appendToFile("export OS_REGION_NAME=" + config.os_region_name, novarc_file)
