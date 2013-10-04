@@ -113,7 +113,6 @@ class Nova(GenericInstaller):
 
         self.comment("Configure NOVA")
         self.backup(self.nova_directory, self.backup_directory, self.config_filename)
-                        self.config_filename)
         nova_conf = self.nova_directory + "/" + self.config_filename
 
         self.writeToFile("[DEFAULT]",nova_conf)
