@@ -212,7 +212,7 @@ def provisionResources(geni_slice, slivers, users) :
                 #    - delete tenant admin
                 #    - delete tenant
                 for i in range(0, len(links_created_this_call)) :
-                    _deleteNetworkLink(links_created_this_call)
+                    _deleteNetworkLink(geni_slice, links_created_this_call)
                 _deleteUserByUUID(admin_user_info['admin_uuid'])
                 _deleteTenantByUUID(tenant_uuid)
                 return 'GRAM internal error: Failed to create a quantum network for link %s' % link.getName()
@@ -235,7 +235,7 @@ def provisionResources(geni_slice, slivers, users) :
         #    - delete tenant admin
         #    - delete tenant
         for i in range(0, len(links_created_this_call)) :
-            _deleteNetworkLink(links_created_this_call)
+            _deleteNetworkLink(geni_slice, links_created_this_call)
         _deleteUserByUUID(admin_user_info['admin_uuid'])
         _deleteTenantByUUID(tenant_uuid)
         return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
@@ -337,7 +337,7 @@ def provisionResources(geni_slice, slivers, users) :
                 for i in range (0, len(vms_created_this_call)) :
                     _deleteVM(vms_created_this_call[i])
                     for i in range(0, len(links_created_this_call)) :
-                        _deleteNetworkLink(links_created_this_call)
+                        _deleteNetworkLink(geni_slice, links_created_this_call)
                     _deleteUserByUUID(admin_user_info['admin_uuid'])
                     _deleteTenantByUUID(tenant_uuid)
                 config.logger.error('Failed to create vm for node %s' % \
@@ -416,7 +416,7 @@ def deleteSlivers(geni_slice, slivers) :
 
     # Delete the networks and subnets associated with the links to be deleted 
     for link in links_to_be_deleted :
-        success = _deleteNetworkLink(link.getNetworkUUID())
+        success = _deleteNetworkLink(geni_slice,  link.getNetworkUUID())
         if success :
             link.setAllocationState(constants.unallocated)
             link.setOperationalState(constants.stopping)
@@ -706,7 +706,7 @@ def _createNetworkForLink(link_object) :
     except :
         # Failed to create a subnet.  Cleanup actions:
         #    - Delete the network that was created
-        _deleteNetworkLink(network_uuid)
+        _deleteNetworkLink(slice_object, network_uuid)
         return None
     else :
         subnet_uuid = _getValueByPropertyName(output, 'id')
@@ -721,7 +721,7 @@ def _createNetworkForLink(link_object) :
         # Failed to create interface.  Cleanup actions:
         #    - Delete the network created.  The subnet will be 
         #      deleted automatically
-        _deleteNetworkLink(network_uuid)
+        _deleteNetworkLink(slice_object, network_uuid)
         return None
         
     # Set operational status
@@ -730,11 +730,34 @@ def _createNetworkForLink(link_object) :
     return {'network_uuid':network_uuid, 'subnet_uuid': subnet_uuid}
 
 
-def _deleteNetworkLink(net_uuid) :
+def _deleteNetworkLink(slice_object, net_uuid) :
     """
        Delete network and subnet associated with specified network
     """
     if net_uuid :
+
+        # Delete the router interface before deleting the net/subnet"
+        subnet_uuid = None
+        for link in slice_object.getNetworkLinks():
+            if link.getNetworkUUID() == net_uuid:
+                subnet_uuid = link.getSubnetUUID()
+        router_name = slice_object.getTenantRouterName()
+        cmd_string = 'quantum router-interface-delete %s %s' % (router_name, subnet_uuid)
+        try:
+            _execCommand(cmd_string)
+        except:
+            config.logger.error("Failed to delete router interface %s %s" % (router_name, subnet_uuid))
+
+        # Delete the router before deleting the net/subnet
+        router_uuid = slice_object.getTenantRouterUUID()
+        cmd_string = 'quantum router-delete %s' % router_uuid
+        try:
+            _execCommand(cmd_string)
+        except:
+            config.logger.error("Failed to delete router %s" % router_uuid)
+        
+
+
         cmd_string = 'quantum net-delete %s' % net_uuid
         try :
             _execCommand(cmd_string)
