@@ -67,7 +67,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         ReferenceAggregateManager.__init__(self, root_cert, \
                                                urn_authority, url)
         # Startup the GRAM Manager
-        self._gram_manager = GramManager()
+        self._gram_manager = GramManager(certfile)
 
     def GetVersion(self, options):
         self._gram_manager.expire_slivers()
