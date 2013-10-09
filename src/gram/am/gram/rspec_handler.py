@@ -256,7 +256,7 @@ def parseRequestRspec(geni_slice, rspec) :
     return error_string, sliver_list, controller
 
 
-def generateManifestForSlivers(geni_slice, geni_slivers, recompute):
+def generateManifestForSlivers(geni_slice, geni_slivers, recompute, aggregate_urn):
     req_rspec = geni_slice.getRequestRspec()
     request = parseString(req_rspec).childNodes[0]
 
@@ -283,7 +283,7 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute):
         if recompute:
             sliver_manifest = \
                 generateManifestForSliver(geni_slice, sliver, \
-                                              root, sliver_request_element)
+                                              root, sliver_request_element, aggregate_urn)
             sliver.setManifestRspec(sliver_manifest.toxml())
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
@@ -320,7 +320,7 @@ def getRequestElementForSliver(sliver):
 #             break
 #     return sliver_request
 
-def generateManifestForSliver(geni_slice, geni_sliver, root, request):
+def generateManifestForSliver(geni_slice, geni_sliver, root, request, aggregate_urn):
     node_name = "node"
     if geni_sliver.__class__ == NetworkLink: node_name = "link"
     node = root.createElement(node_name)
@@ -355,7 +355,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
             component_id = config.urn_prefix + "node+" + hostname
             node.setAttribute("component_id", component_id)
 
-        component_manager_id = config.urn_prefix + "authority+cm"
+        component_manager_id = aggregate_urn
         node.setAttribute("component_manager_id", component_manager_id)
 
         node.setAttribute('exclusive', 'false')
@@ -421,7 +421,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
     return node
 
 
-def generateManifest(geni_slice, req_rspec) :
+def generateManifest(geni_slice, req_rspec, aggregate_urn) :
 
     """
         Returns a manifets rspec that corresponds to the given request rspec
@@ -482,7 +482,7 @@ def generateManifest(geni_slice, req_rspec) :
             child.setAttribute('component_id', vm_object.getSliverURN())
 
             # Set the component_manager_id (this AM's URN) for the node element
-            component_manager_id = config.gram_am_urn
+            component_manager_id = aggregate_urn
             child.setAttribute('component_manager_id', component_manager_id)
             
             # For each child element of node, set appropriate attrbutes.

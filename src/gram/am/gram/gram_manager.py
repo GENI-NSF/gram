@@ -8,6 +8,7 @@ import time
 
 import config
 import constants
+from sfa.trust.certificate import Certificate
 from resources import Slice, VirtualMachine
 import rspec_handler
 import open_stack_interface
@@ -59,7 +60,17 @@ class GramManager :
     """
         Only one instances of this class is created.
     """
-    def __init__(self) :
+    def __init__(self, certfile) :
+
+        # Grab the certfile and extract the aggregate URN
+        self._certfile = certfile
+        self._cert = Certificate(filename=certfile)
+        cert_data = self._cert.get_data()
+        cert_data_parts = cert_data.split(',')
+        for part in cert_data_parts:
+            if part.find('URI:urn:publicid')>=0:
+                self._aggregate_urn = part[4:]
+
         open_stack_interface.init() # OpenStack related initialization
 
         # Set up a signal handler to clean up on a control-c
@@ -182,7 +193,7 @@ class GramManager :
             for sliver in slivers:
                 sliver.setRequestRspec(rspec);
             manifest =  rspec_handler.generateManifestForSlivers(slice_object, 
-                                                                 slivers, True);
+                                                                 slivers, True, self._aggregate_urn);
             slice_object.setManifestRspec(manifest)
 
             # Set the user urn for all new slivers
@@ -259,7 +270,7 @@ class GramManager :
             req_rspec = slice_object.getRequestRspec()
             manifest = rspec_handler.generateManifestForSlivers(slice_object,
                                                                 sliver_objects,
-                                                                True) 
+                                                                True, self._aggregate_urn) 
     
             # Create a sliver status list for the slivers that were provisioned
             sliver_status_list = \
@@ -317,7 +328,7 @@ class GramManager :
 
             # Generate the manifest to be returned
             manifest = rspec_handler.generateManifestForSlivers(slice_object, 
-                                                                slivers, False)
+                                                                slivers, False, self._aggregate_urn)
 
             # Generate the return struct
             code = {'geni_code': constants.SUCCESS}
