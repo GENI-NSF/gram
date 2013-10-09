@@ -7,7 +7,7 @@ class RabbitMQ(GenericInstaller):
     def installCommands(self):
         self.comment("*** RabbitMQ Install ***")
         rabbit_pwd = config.rabbit_password
-        self.add("rabbitmqctl change_password guest " + rabbit_pwd)
+        #self.add("rabbitmqctl change_password guest " + rabbit_pwd)
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):

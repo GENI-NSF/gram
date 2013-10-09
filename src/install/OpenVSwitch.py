@@ -45,10 +45,7 @@ class OpenVSwitch(GenericInstaller):
         self.add("/etc/init.d/openvswitch-switch start")
 
         self.comment("Configure virtual bridging")
-        self.add("ovs-vsctl add-br br-int")
-        self.add("ovs-vsctl add-br br-ex")
         self.add("ovs-vsctl br-set-external-id br-ex bridge-id br-ex")
-        self.add("ovs-vsctl add-port br-ex " + external_if)
         self.add("ovs-vsctl add-br br-" + data_if)
         self.add("ovs-vsctl add-port br-" + data_if + " " + data_if)
         self.add("ovs-vsctl add-br br-" + mgmt_if)
@@ -95,10 +92,10 @@ class OpenVSwitch(GenericInstaller):
                  self.quantum_conf)
         self.sed("s/^\# auth_strategy.*/auth_strategy = keystone/", self.quantum_conf)
         self.sed("s/^\# fake_rabbit.*/fake_rabbit = False/", self.quantum_conf)
-        self.sed("s/^\# rabbit_host.*/rabbit_host = " + control_host + "/", \
+        self.sed("s/^\# rabbit_host .*/rabbit_host = " + control_host + "/", \
                      self.quantum_conf)
-        self.sed("s/^\# rabbit_password.*/rabbit_password = " + rabbit_password + "/", \
-                     self.quantum_conf)
+        #self.sed("s/^\# rabbit_password.*/rabbit_password = " + rabbit_password + "/", \
+        #             self.quantum_conf)
 
         self.backup(self.quantum_directory, backup_directory, self.api_paste_filename)
         self.sed("s/admin_tenant_name.*/admin_tenant_name = service/", self.api_paste)
@@ -148,6 +145,7 @@ class OpenVSwitch(GenericInstaller):
                  self.quantum_plugin_conf)
         self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-" + data_if + ",physnet2:br-" + mgmt_if + "/",
                  self.quantum_plugin_conf)
+        self.sed("s/firewall_driver .*/\# firewall_dirver/",self.quantum_plugin_conf)
 
         self.comment("Start the agent")
         self.add("service quantum-plugin-openvswitch-agent restart")

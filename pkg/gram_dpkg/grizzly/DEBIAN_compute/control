@@ -1,0 +1,7 @@
+Package: gram
+Version: 0.1
+Priority: optional
+Architecture: all
+Depends: git,module-assistant, ntp, vlan, bridge-utils, cpu-checker, kvm, libvirt-bin, pm-utils, openvswitch-switch, openvswitch-datapath-dkms, quantum-plugin-openvswitch-agent, nova-compute-kvm 
+Maintainer: GRAM Developers <gram-dev@bbn.com>
+Description: GRAM installation package

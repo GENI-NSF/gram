@@ -12,11 +12,11 @@ class OpenStack:
         pass
 
     _CONTROL_INSTALLERS = [
-        {
-            "name": "operating_system_control", 
-            "installer" : OperatingSystem.OperatingSystem(control_node=True) 
-        },
-
+#        {
+#            "name": "operating_system_control", 
+#            "installer" : OperatingSystem.OperatingSystem(control_node=True) 
+#        },
+#
         {
             "name": "mysql", 
             "installer": MySQL.MySQL()

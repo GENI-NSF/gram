@@ -459,8 +459,8 @@ def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics
     if cmd_count > 0 : 
         open_stack_interface._execCommand(cmd)
 
-        cmd = 'gzip -f %s ' % scriptFilename
-        open_stack_interface._execCommand(cmd)
+#SD        cmd = 'gzip -f %s ' % scriptFilename
+#SD        open_stack_interface._execCommand(cmd)
 
         # Delete the temporary files
         for item in rmcmd :

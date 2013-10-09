@@ -91,6 +91,7 @@ def provisionResources(geni_slice, slivers, users) :
     # Create a new tenant for this slice if we don't already have one.  We
     # will not have a tenant_id associated with this slice if this is the
     # first time allocate is called for this slice.
+    #import pdb; pdb.set_trace()
     if geni_slice.getTenantUUID() == None :
         # Create a tenant_name out of the slice_urn.  Slice urn is of the form
         # urn:publicid:IDN+geni:gpo:gcf+slice+sliceName.  Tenant_name is 
@@ -152,22 +153,23 @@ def provisionResources(geni_slice, slivers, users) :
         ### have namespaces working and can do per slice/tenant routers
         # Create a router for this tenant.  The name of this router is 
         # R-tenant_name.
-        # router_name = 'R-%s' % tenant_name
-        # geni_slice.setTenantRouterName(router_name)
-        # router_uuid = _createRouter(tenant_uuid, router_name)
-        # if router_uuid != None :
-        #     geni_slice.setTenantRouterUUID(router_uuid)
-        #      config.logger.info('Created tenant router %s with uuid = %s' %
-        #                    (router_name, geni_slice.getRouterUUID()))
-        # else :
-        #     INSERT ERROR HANDLING CODE
+        router_name = 'R-%s' % tenant_name
+        geni_slice.setTenantRouterName(router_name)
+        router_uuid = _createRouter(tenant_uuid, router_name)
+        if router_uuid != None :
+            geni_slice.setTenantRouterUUID(router_uuid)
+            config.logger.info('Created tenant router %s with uuid = %s' %
+                            (router_name, router_uuid))
+        else:
+            print "Not your lucky day!"
+            #INSERT ERROR HANDLING CODE
 
 
         ### This section of code should be commented out when we have
         ### namespaces working.
-        router_name = config.external_router_name
-        geni_slice.setTenantRouterName(router_name)
-        geni_slice.setTenantRouterUUID(_getRouterUUID(router_name))
+        #router_name = config.external_router_name
+        #geni_slice.setTenantRouterName(router_name)
+        #geni_slice.setTenantRouterUUID(_getRouterUUID(router_name))
     else :
         # Tenant, tenant admin, tenant_router already exist.  Set variables
         # that are used be code below
@@ -210,7 +212,7 @@ def provisionResources(geni_slice, slivers, users) :
                 #    - delete tenant admin
                 #    - delete tenant
                 for i in range(0, len(links_created_this_call)) :
-                    _deleteNetworkLink(links_created_this_call)
+                    _deleteNetworkLink(geni_slice, links_created_this_call)
                 _deleteUserByUUID(admin_user_info['admin_uuid'])
                 _deleteTenantByUUID(tenant_uuid)
                 return 'GRAM internal error: Failed to create a quantum network for link %s' % link.getName()
@@ -233,7 +235,7 @@ def provisionResources(geni_slice, slivers, users) :
         #    - delete tenant admin
         #    - delete tenant
         for i in range(0, len(links_created_this_call)) :
-            _deleteNetworkLink(links_created_this_call)
+            _deleteNetworkLink(geni_slice, links_created_this_call)
         _deleteUserByUUID(admin_user_info['admin_uuid'])
         _deleteTenantByUUID(tenant_uuid)
         return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
@@ -335,7 +337,7 @@ def provisionResources(geni_slice, slivers, users) :
                 for i in range (0, len(vms_created_this_call)) :
                     _deleteVM(vms_created_this_call[i])
                     for i in range(0, len(links_created_this_call)) :
-                        _deleteNetworkLink(links_created_this_call)
+                        _deleteNetworkLink(geni_slice, links_created_this_call)
                     _deleteUserByUUID(admin_user_info['admin_uuid'])
                     _deleteTenantByUUID(tenant_uuid)
                 config.logger.error('Failed to create vm for node %s' % \
@@ -414,7 +416,7 @@ def deleteSlivers(geni_slice, slivers) :
 
     # Delete the networks and subnets associated with the links to be deleted 
     for link in links_to_be_deleted :
-        success = _deleteNetworkLink(link.getNetworkUUID())
+        success = _deleteNetworkLink(geni_slice,  link.getNetworkUUID())
         if success :
             link.setAllocationState(constants.unallocated)
             link.setOperationalState(constants.stopping)
@@ -639,7 +641,7 @@ def _createRouter(tenant_name, router_name) :
         Create an OpenStack router and return the uuid of this new router.
     """
     cmd_string = 'quantum router-create --tenant-id %s %s' % \
-        (tenant_uuid, router_name)
+        (tenant_name, router_name)
 
     try :
         output = _execCommand(cmd_string) 
@@ -663,11 +665,13 @@ def _createNetworkForLink(link_object) :
     """
     slice_object = link_object.getSlice()
 
+
     # Create a network with the exprimenter specified name for the link
     tenant_uuid = slice_object.getTenantUUID()
     network_name = link_object.getName()
     cmd_string = 'quantum net-create --tenant-id %s %s' % (tenant_uuid,
                                                            network_name)
+
                                                            
     try :
         output = _execCommand(cmd_string) 
@@ -682,11 +686,19 @@ def _createNetworkForLink(link_object) :
     # First, get a subnet address of the form 10.0.x.0/24
     subnet_addr = slice_object.generateSubnetAddress()
     link_object.setSubnet(subnet_addr)
+    print subnet_addr
 
+    #test
+    #subnet_addr = '10.0.20.0/24'
+    # end test
+ 
     # Determine the ip address of the gateway for this subnet.  If the
     # subnet is 10.0.x.0/24, the gateway will be 10.0.x.1
     gateway_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '1'
-
+#SD    
+    start_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '95'
+    end_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '254'
+#SD
     cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
         (tenant_uuid, gateway_addr, network_uuid, subnet_addr)
     try :
@@ -694,7 +706,7 @@ def _createNetworkForLink(link_object) :
     except :
         # Failed to create a subnet.  Cleanup actions:
         #    - Delete the network that was created
-        _deleteNetworkLink(network_uuid)
+        _deleteNetworkLink(slice_object, network_uuid)
         return None
     else :
         subnet_uuid = _getValueByPropertyName(output, 'id')
@@ -709,7 +721,7 @@ def _createNetworkForLink(link_object) :
         # Failed to create interface.  Cleanup actions:
         #    - Delete the network created.  The subnet will be 
         #      deleted automatically
-        _deleteNetworkLink(network_uuid)
+        _deleteNetworkLink(slice_object, network_uuid)
         return None
         
     # Set operational status
@@ -718,11 +730,34 @@ def _createNetworkForLink(link_object) :
     return {'network_uuid':network_uuid, 'subnet_uuid': subnet_uuid}
 
 
-def _deleteNetworkLink(net_uuid) :
+def _deleteNetworkLink(slice_object, net_uuid) :
     """
        Delete network and subnet associated with specified network
     """
     if net_uuid :
+
+        # Delete the router interface before deleting the net/subnet"
+        subnet_uuid = None
+        for link in slice_object.getNetworkLinks():
+            if link.getNetworkUUID() == net_uuid:
+                subnet_uuid = link.getSubnetUUID()
+        router_name = slice_object.getTenantRouterName()
+        cmd_string = 'quantum router-interface-delete %s %s' % (router_name, subnet_uuid)
+        try:
+            _execCommand(cmd_string)
+        except:
+            config.logger.error("Failed to delete router interface %s %s" % (router_name, subnet_uuid))
+
+        # Delete the router before deleting the net/subnet
+        router_uuid = slice_object.getTenantRouterUUID()
+        cmd_string = 'quantum router-delete %s' % router_uuid
+        try:
+            _execCommand(cmd_string)
+        except:
+            config.logger.error("Failed to delete router %s" % router_uuid)
+        
+
+
         cmd_string = 'quantum net-delete %s' % net_uuid
         try :
             _execCommand(cmd_string)
@@ -828,7 +863,7 @@ def _createVM(vm_object, users, placement_hint) :
             nic_ip_addr = nic.getIPAddress()
             if nic_ip_addr != None :
                 subnet_uuid = link_object.getSubnetUUID()
-                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid, nic_ip_addr, net_uuid)
+                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (tenant_uuid, subnet_uuid, net_uuid)
                 output = _execCommand(cmd_string) 
                 nic.setUUID(_getValueByPropertyName(output, 'id'))
 
@@ -855,7 +890,7 @@ def _createVM(vm_object, users, placement_hint) :
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
     userdata_filename = userdata_file.name
-    zipped_userdata_filename = userdata_filename + ".gz"
+    zipped_userdata_filename = userdata_filename #SD + ".gz"
     vm_installs = vm_object.getInstalls()
     vm_executes = vm_object.getExecutes()
     total_nic_count = len(vm_net_infs) + 1
