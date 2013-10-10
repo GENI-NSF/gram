@@ -29,6 +29,7 @@ import tempfile
 import os
 import time
 import sys
+import string
 
 import resources
 import config
@@ -815,8 +816,11 @@ def _getNetsForTenant(tenant_uuid):
 
 # Return dictionary of 'id' => {'mac_address'=>mac_address, , 'fixed_ips'=>fixed_ips}
 #  for each port associated ith a given tenant
-def _getPortsForTenant(tenant_uuid):
-    cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+def _getPortsForTenant(tenant_uuid,device_id=None):
+    if device_id != None:
+        cmd_string = 'quantum port-list -- --tenant_id=%s --device_id=%s' % (tenant_uuid,device_id)
+    else:
+        cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
     try :
         output = _execCommand(cmd_string)
     except :
@@ -942,6 +946,25 @@ def _createVM(vm_object, users, placement_hint) :
     # Set the operational state of the VM to configuring
     vm_object.setOperationalState(constants.configuring)
 
+    # Create the floating IPs for the VM
+    ports_info = _getPortsForTenant(tenant_uuid,vm_uuid)
+    if ports_info != None :
+        for port in ports_info.keys():
+            mgmt_ip = eval(ports_info[port]['fixed_ips'])['ip_address']
+            found = string.find(mgmt_ip,mgmt_net_prefix)
+            if found != -1:
+                fip_cmd = "quantum floatingip-create --tenant-id " + tenant_uuid + " public"
+                output = _execCommand(fip_cmd)
+                config.logger.info(output)
+                fip_id = _getValueByPropertyName(output,'id')
+                config.logger.info(fip_id)
+                fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
+                output = _execCommand(fip_cmd)
+                config.logger.info(output)
+            else:
+                config.logger.info(" --- did not find mgmt port")
+
+
     # Set up the SSH proxy for the new VM
     # Find the IP address for this VM on the management network.  To do this
     # we do a 'nova show vm_uuid' to list properties of the VM and then
@@ -985,6 +1008,18 @@ def _deleteVM(vm_object) :
             except :
                 config.logger.error('Failed to delete port %s for VM %s' % \
                                         (port_uuid, vm_object.getName()))
+
+    # Delete floating IPs
+    vm_uuid = vm_object.getUUID()
+    fip_ids = _getFloatingIpByVM(vm_uuid)
+    for fip_id in fip_ids:
+        cmd_string = 'quantum floatingip-delete ' + fip_id
+        try :
+            _execCommand(cmd_string)
+        except :
+            config.logger.error('Failed to delete floating ip %s for VN %s' % \
+                                        (fip_id,vm_object.getName()))
+
 
     # Delete the VM
     vm_uuid = vm_object.getUUID()
@@ -1219,6 +1254,43 @@ def _lookup_vlan_for_port(port, port_map):
                 vlan_id = tag
                 break
     return vlan_id
+
+def _getFloatingIpByVM(vm_uuid):
+    """ Helper function to get the floating ip assigned to a specified VM
+        It uses Quantum to get the ports associated with the VM, then checks
+        if there is any floating IP associated with each port. It returns
+        a list of IDs of floating IPs of the VM.
+    """
+
+    fip_ids = []
+    # Get a list of ports on the VM
+    cmd = 'quantum port-list --device_id=' + vm_uuid
+    output = _execCommand(cmd)
+    output_lines = output.split('\n')
+    config.logger.info(output_lines)
+    name = 'subnet'
+    for line in output_lines:
+        config.logger.info('line: ' + line)
+        if re.search(name, line) :
+            columns = line.split('|')
+            port_id = columns[1].strip()
+            # for each port get a list of associated floating IPs
+            output2 = _execCommand("quantum floatingip-list -- --port_id=" + port_id)
+            config.logger.info(output2)
+            port = re.escape(port_id)
+            output_lines2 = output2.split('\n')
+            # Find the row in the output table that has the desired port
+            for i in range(len(output_lines2)) :
+                if re.search(r'\b' + port + r'\b', output_lines2[i]) :
+                    # Found the table row for router_name.  Split this row into 
+                    # individual columns and pick out column 1
+                    columns = output_lines2[i].split('|')
+                    config.logger.info("getting floating ip: " + columns[1].strip())
+                    fip_ids.append(columns[1].strip())
+
+    return fip_ids
+
+
 
 
 def _execCommand(cmd_string) :
