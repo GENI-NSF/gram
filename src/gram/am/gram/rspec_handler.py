@@ -260,17 +260,19 @@ def parseRequestRspec(geni_slice, rspec) :
 
             # Associate this end point (NetworkInterface) with this link
             link_object.addEndpoint(interface_object)
-            config.logger.info(" Adding interface with ip : " + interface_object.getIPAddress())
-            config.logger.info(" Adding interface with nm : " + interface_object.getNetmask())
-            cidr = netaddr.IPNetwork( '%s/%s' %  (interface_object.getIPAddress(),interface_object.getNetmask()))
-            subnet = cidr.network
-            if not link_object.getSubnet():
-                link_object.setSubnet(str(subnet))
-                config.logger.info(" Subnet: " + link_object.getSubnet())
-            else:
-                if link_object.getSubnet() != subnet:
-                    config.logger.warn(" Link on multiple subnets: " + str(subnet) + " and " + link_object.getSubnet())
-                    config.logger.warn(" Using subnet " + link_object.getSubnet())
+
+            if interface_object.getIPAddress() and interface_object.getNetmask():
+                config.logger.info(" Adding interface with ip : " + interface_object.getIPAddress())
+                config.logger.info(" Adding interface with nm : " + interface_object.getNetmask())
+                subnet = netaddr.IPAddress(interface_object.getIPAddress()).__and__(netaddr.IPAddress(interface_object.getNetmask())) 
+                cidr = netaddr.IPNetwork( '%s/%s' %  (subnet,interface_object.getNetmask()))
+                if not link_object.getSubnet():
+                    link_object.setSubnet(str(cidr))
+                    config.logger.info(" Subnet: " + link_object.getSubnet())
+                else:
+                    if netaddr.IPNetwork(link_object.getSubnet()).network != cidr.network:
+                        config.logger.warn(" Link on multiple subnets: " + str(cidr) + " and " + link_object.getSubnet())
+                        config.logger.warn(" Using subnet " + link_object.getSubnet())
 
     controllers = rspec_dom.getElementsByTagName('openflow:controller')
     if len(controllers) > 0:
