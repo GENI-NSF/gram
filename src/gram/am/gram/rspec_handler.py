@@ -433,8 +433,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request):
                 login.setAttribute("authentication", "ssh-keys")
                 my_host_name = \
                     socket.gethostbyaddr(socket.gethostname())[0]
-                login.setAttribute("hostname", my_host_name)
-                login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
+                login.setAttribute("externally-routable-ip", geni_sliver.getExternalIp())
                 login.setAttribute("username", user)
                 services.appendChild(login)
             node.appendChild(services)

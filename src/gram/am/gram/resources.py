@@ -432,10 +432,18 @@ class VirtualMachine(Sliver): #
       self._authorized_users =  None # List of User names with accts on the VM
       self._ssh_proxy_login_port = None # Port number assigned for remote 
                                         # SSH proxy login
+      self._external_ip = None  # floating ip assigned to the VM
       Sliver.__init__(self, my_slice, uuid)
 
    def __str__(self):
       return resource_image(self, "VM") 
+
+   def getExternalIp(self):
+      return self._external_ip
+
+   def setExternalIp(self,ip):
+      self._external_ip = ip
+
 
    def addNetworkInterface(self, netInterface) :
       self._network_interfaces.append(netInterface)

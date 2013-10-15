@@ -1019,6 +1019,8 @@ def _createVM(vm_object, users, placement_hint) :
                 config.logger.info(output)
                 fip_id = _getValueByPropertyName(output,'id')
                 config.logger.info(fip_id)
+                fip = _getValueByPropertyName(output,'floating_ip_address')
+                vm_object.setExternalIp(fip)
                 fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
                 output = _execCommand(fip_cmd)
                 config.logger.info(output)
