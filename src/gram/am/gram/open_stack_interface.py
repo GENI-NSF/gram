@@ -198,6 +198,10 @@ def provisionResources(geni_slice, slivers, users) :
                            (len(links_to_be_provisioned), 
                             len(vms_to_be_provisioned))) 
 
+    subnets_used = []
+    for link in links_to_be_provisioned:
+        if link.getSubnet() != None:
+            subnets_used.append(link.getSubnet)
 
     used_ips = []
     for vm in vms_to_be_provisioned :
@@ -216,6 +220,8 @@ def provisionResources(geni_slice, slivers, users) :
                 subnet = link.getSubnet()
                 if not subnet:
                     subnet = geni_slice.generateSubnetAddress()
+                    while subnet in subnets_used:
+                        subnet = geni_slice.generateSubnetAddress()
                     link.setSubnet(subnet)
                 subnet_addr = netaddr.IPNetwork(subnet)
                 for i in range(1,len(subnet_addr)):
