@@ -28,6 +28,7 @@ import uuid
 import open_stack_interface
 import config
 import tempfile
+import pdb
 
 nicInterfaceTempFilePath = '/tmp/tmp_net_inf'
 targetVMlocalTempPath = '/tmp/tmpfile'
@@ -207,7 +208,7 @@ def _generateAccount(user) :
         scriptFile.write('#!/bin/sh \n')
 
         # Create account with default shell
-        scriptFile.write('useradd -c "%s user" -s /bin/bash -m %s \n' % (userName, userName))
+        scriptFile.write('useradd -c "%s user" -s /bin/bash -m %s\n' % (userName, userName))
 
         # Create a random default password for user
 #        scriptFile.write(' - openssl rand -base64 6 | tee -a ~%s/.password | passwd -stdin %s \n' % (userName, userName))
@@ -228,7 +229,7 @@ def _generateAccount(user) :
         scriptFile.write('chown -R %s\\:%s ~%s/.ssh \n' % (userName, userName, userName))
 
         # Add users to sudoers list
-        #import pdb; pdb.set_trace()
+        #pdb.set_trace()
         scriptFile.write('echo "%s  ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers' % userName)
 
 
@@ -316,7 +317,7 @@ def _generateDefaultGatewaySupport(control_nic_prefix, scriptFile) :
     scriptFile.write('fi\n')
 
 
-def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
+def _generateNicInterfaceScriptFedora(num_nics, control_nic_prefix, indent, scriptFile) :
     """ Generate the network interface configuration content specific to a Fedora image
     """
 
@@ -334,6 +335,7 @@ def _generateNicInterfaceScriptFedora(num_nics, indent, scriptFile) :
         nic_count = nic_count + 1
 
     # Complete the script with commands to restart the network
+    scriptFile.write('%secho \'GATEWAY=%s1\' >> /etc/sysconfig/network \n' % (indent, control_nic_prefix))
     scriptFile.write('%s/etc/init.d/network restart \n' % indent)
 
 
@@ -388,11 +390,11 @@ def _generateNicInterfaceScript(slice_object, num_nics, control_nic_prefix) :
 
     # Next generate portion of script that determines the version of Linux
     scriptFile.write('if [ -f /etc/issue ]; then\n')
-    scriptFile.write('    grep -iq fedora /etc/issue\n')
+    scriptFile.write('    grep -iq \'centos\\|fedora\' /etc/issue\n')
     scriptFile.write('    if [ $? -eq 0 ]; then \n')
 
     # If image is Fedora, then use the default config
-    _generateNicInterfaceScriptFedora(num_nics, "        ", scriptFile)
+    _generateNicInterfaceScriptFedora(num_nics, control_nic_prefix, "        ", scriptFile)
 
     # If image is not Fedora, then use the Fedora specific content
     scriptFile.write('    else\n')
@@ -427,6 +429,7 @@ def configMetadataSvcs(slice_object, users, install_list, execute_list, num_nics
     # Generate script files for network configuration support, file installs, boot executable
     # invocations, and user accounts.
     # When all files are generated, then combine them into a single gzipped mime file
+    #pdb.set_trace()
     cmd_count = 0
     cmd = 'write-mime-multipart --output=%s ' % scriptFilename
     rmcmd = []
