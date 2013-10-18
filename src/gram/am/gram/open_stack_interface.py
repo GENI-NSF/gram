@@ -30,6 +30,7 @@ import os
 import time
 import sys
 import string
+import netaddr
 
 import resources
 import config
@@ -197,6 +198,40 @@ def provisionResources(geni_slice, slivers, users) :
                            (len(links_to_be_provisioned), 
                             len(vms_to_be_provisioned))) 
 
+    subnets_used = []
+    for link in links_to_be_provisioned:
+        if link.getSubnet() != None:
+            subnets_used.append(link.getSubnet)
+
+    used_ips = []
+    for vm in vms_to_be_provisioned :
+        for nic in vm.getNetworkInterfaces() :
+            nic.enable()
+            if nic.getIPAddress():
+               used_ips.append(netaddr.IPAddress(nic.getIPAddress())) 
+
+        for nic in vm.getNetworkInterfaces() :
+            if not nic.getIPAddress():
+                link = nic.getLink()
+                if link == None :
+                   # NIC is not connected to a link.  Go to next NIC
+                    break
+
+                subnet = link.getSubnet()
+                if not subnet:
+                    subnet = geni_slice.generateSubnetAddress()
+                    while subnet in subnets_used:
+                        subnet = geni_slice.generateSubnetAddress()
+                    link.setSubnet(subnet)
+                subnet_addr = netaddr.IPNetwork(subnet)
+                for i in range(1,len(subnet_addr)):
+                    if not subnet_addr[i] in used_ips:
+                        nic.setIPAddress(str(subnet_addr[i]))
+                        used_ips.append(subnet_addr[i])
+                        break
+                
+    # For each VirtualMachine object in the slice, create an  
+            
     # For each link to be provisioned, set up a quantum network and subnet if
     # it does not already have one.  (It will have a quantum network and 
     # subnet if it was provisioned by a previous call to provision.)
@@ -204,7 +239,7 @@ def provisionResources(geni_slice, slivers, users) :
     for link in links_to_be_provisioned :
         if link.getUUID() == None :
             # This network link has not been set up
-            uuids = _createNetworkForLink(link)
+            uuids = _createNetworkForLink(link,used_ips)
             if uuids == None :
                 # Failed to create this network link.  Cleanup actions before
                 # we return:
@@ -258,28 +293,28 @@ def provisionResources(geni_slice, slivers, users) :
     # connected to a network link
     for vm in vms_to_be_provisioned :
         for nic in vm.getNetworkInterfaces() :
-            if nic.getIPAddress() == None :
+            nic.enable()
+            #if nic.getIPAddress() == None :
                 # NIC needs an IP, if it is connected to a link
-                link = nic.getLink()
-                if link == None :
+            #    link = nic.getLink()
+            #    if link == None :
                     # NIC is not connected to a link.  Go to next NIC
-                    break
+            #        break
                 
                 # NIC is connected to a link.  We assign an IP address to the
                 # NIC only if the link it is connected to has been created
-                if link.getUUID() == None :
+           #     if link.getUUID() == None :
                     # NIC is not connected to a link that not been 
                     # provisioned.  Go to next NIC
-                    break
+           #         break
 
                 # NIC is connected to a link that has been provisioned. Give
                 # it an IP address.  If IP addresses are from the 
                 # 10.0.x.0/24 subnet, this interface gets the
                 # ip address 10.0.x.nnn where nnn is the last octet for this vm
-                subnet_addr = link.getSubnet()
-                subnet_prefix = subnet_addr[0 : subnet_addr.rfind('0/24')]
-                nic.setIPAddress(subnet_prefix + vm.getLastOctet())
-                nic.enable()
+          #      subnet_addr = link.getSubnet()
+          #      subnet_prefix = subnet_addr[0 : subnet_addr.rfind('0/24')]
+          #      nic.setIPAddress(str(netaddr.IPNetwork(subnet_addr)[vm.getLastOctet()]))
 
     # For each VirtualMachine object in the slice, create an OpenStack
     # VM if such a VM has not already been created.
@@ -655,7 +690,7 @@ def _createRouter(tenant_name, router_name) :
         return _getValueByPropertyName(output, 'id')
 
 
-def _createNetworkForLink(link_object) :
+def _createNetworkForLink(link_object,used_ips=None) :
     """
         Creates a network (L2) and subnet (L3) for the link.
         Creates an interface on the slice router for this link.
@@ -685,23 +720,45 @@ def _createNetworkForLink(link_object) :
 
     # Now create a subnet for this network.
     # First, get a subnet address of the form 10.0.x.0/24
-    subnet_addr = slice_object.generateSubnetAddress()
-    link_object.setSubnet(subnet_addr)
-    print subnet_addr
+    config.logger.info(" +++ creating link +++")
+    config.logger.info(link_object.getSubnet())
+    config.logger.info(link_object.getSubnet())
+
+    if not link_object.getSubnet():
+        subnet_addr = slice_object.generateSubnetAddress()
+        link_object.setSubnet(subnet_addr)
+        config.logger.info("No subnet provided, using: " + subnet_addr)
+    else:
+        subnet_addr = link_object.getSubnet()
+        #subnet_addr = slice_object.generateSubnetAddress()
 
     #test
-    #subnet_addr = '10.0.20.0/24'
+    #subnet_addr = '10.0.5.0/24'
     # end test
  
     # Determine the ip address of the gateway for this subnet.  If the
     # subnet is 10.0.x.0/24, the gateway will be 10.0.x.1
-    gateway_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '1'
-#SD    
-    start_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '95'
-    end_addr = subnet_addr[0 : subnet_addr.rfind('0/24')] + '254'
-#SD
-    cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s %s %s' % \
-        (tenant_uuid, gateway_addr, network_uuid, subnet_addr)
+
+    subnet_ip = netaddr.IPNetwork(subnet_addr)
+    gateway_addr = str(subnet_ip[-2])
+
+    free = None
+    for i in range(1,len(subnet_ip)):
+        if subnet_ip[i] not in used_ips:
+            free = str(subnet_ip[i])
+            break
+
+    if not free:
+        config.logger.error("No ip left for dhcp agent on subnet " + str(subnet_ip))
+
+
+    #start_ip =  free
+    start_ip = str(subnet_ip[-4])
+    end_ip = str(subnet_ip[-3])
+
+
+    cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s  --allocation-pool start=%s,end=%s  %s %s' % \
+        (tenant_uuid, gateway_addr, start_ip,end_ip,network_uuid, subnet_addr)
     try :
         output = _execCommand(cmd_string) 
     except :
@@ -711,6 +768,14 @@ def _createNetworkForLink(link_object) :
         return None
     else :
         subnet_uuid = _getValueByPropertyName(output, 'id')
+
+    # create and delete a port on the subnet to create dhcp at a desired address
+    #cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid,str(subnet_ip[-4]), network_uuid)
+    #output = _execCommand(cmd_string)
+    #port_uuid = _getValueByPropertyName(output, 'id')
+    #cmd_string = 'quantum port-delete %s' % (port_uuid)
+    #output = _execCommand(cmd_string)
+
 
     # Add an interface for this link to the tenant router 
     router_name = slice_object.getTenantRouterName()
@@ -865,11 +930,13 @@ def _createVM(vm_object, users, placement_hint) :
             link_object = nic.getLink()
             net_uuid = link_object.getNetworkUUID()
             nic_ip_addr = nic.getIPAddress()
-            if nic_ip_addr != None :
-                subnet_uuid = link_object.getSubnetUUID()
+            subnet_uuid = link_object.getSubnetUUID()
+            if nic.getIPAddress():
+                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid,nic.getIPAddress(), net_uuid)
+            else:
                 cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (tenant_uuid, subnet_uuid, net_uuid)
-                output = _execCommand(cmd_string) 
-                nic.setUUID(_getValueByPropertyName(output, 'id'))
+            output = _execCommand(cmd_string) 
+            nic.setUUID(_getValueByPropertyName(output, 'id'))
 
     # Now grab and set the mac addresses from the port list
     ports_info = _getPortsForTenant(tenant_uuid)
@@ -958,6 +1025,8 @@ def _createVM(vm_object, users, placement_hint) :
                 config.logger.info(output)
                 fip_id = _getValueByPropertyName(output,'id')
                 config.logger.info(fip_id)
+                fip = _getValueByPropertyName(output,'floating_ip_address')
+                vm_object.setExternalIp(fip)
                 fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
                 output = _execCommand(fip_cmd)
                 config.logger.info(output)

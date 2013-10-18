@@ -29,6 +29,7 @@ import open_stack_interface
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import uuid
 import utils
+import netaddr
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec and creates the sliver objects for
@@ -151,6 +152,17 @@ def parseRequestRspec(geni_slice, rspec) :
                 error_string = 'Malformed rspec: Interface name not specified'
                 config.logger.error(error_string)
                 return error_string, sliver_list, None
+            ip_list = interface.getElementsByTagName('ip')
+            if len(ip_list) > 1:
+                error_string = 'Malformed rspec: Interface can have only one ip'
+                config.logger.error(error_string)
+                return error_string, sliver_list, None
+            for ip in ip_list:
+                if ip.attributes.has_key('address'):
+                    interface_object.setIPAddress(ip.attributes['address'].value)
+                if ip.attributes.has_key('netmask'):
+                    interface_object.setNetmask(ip.attributes['netmask'].value)
+                
 
         # Get the list of services for this node (install and execute services)
         service_list = node.getElementsByTagName('services')
@@ -227,6 +239,7 @@ def parseRequestRspec(geni_slice, rspec) :
         # Get the end-points for this link.  Each end_point is a network
         # interface
         end_points = link.getElementsByTagName('interface_ref')
+        subnet = None
         for i in range(len(end_points)) :
             end_point_attributes = end_points[i].attributes
             
@@ -248,6 +261,19 @@ def parseRequestRspec(geni_slice, rspec) :
             # Associate this end point (NetworkInterface) with this link
             link_object.addEndpoint(interface_object)
 
+            if interface_object.getIPAddress() and interface_object.getNetmask():
+                config.logger.info(" Adding interface with ip : " + interface_object.getIPAddress())
+                config.logger.info(" Adding interface with nm : " + interface_object.getNetmask())
+                subnet = netaddr.IPAddress(interface_object.getIPAddress()).__and__(netaddr.IPAddress(interface_object.getNetmask())) 
+                cidr = netaddr.IPNetwork( '%s/%s' %  (subnet,interface_object.getNetmask()))
+                if not link_object.getSubnet():
+                    link_object.setSubnet(str(cidr))
+                    config.logger.info(" Subnet: " + link_object.getSubnet())
+                else:
+                    if netaddr.IPNetwork(link_object.getSubnet()).network != cidr.network:
+                        config.logger.warn(" Link on multiple subnets: " + str(cidr) + " and " + link_object.getSubnet())
+                        config.logger.warn(" Using subnet " + link_object.getSubnet())
+
     controllers = rspec_dom.getElementsByTagName('openflow:controller')
     if len(controllers) > 0:
         controller_node = controllers[0]
@@ -256,7 +282,7 @@ def parseRequestRspec(geni_slice, rspec) :
     return error_string, sliver_list, controller
 
 
-def generateManifestForSlivers(geni_slice, geni_slivers, recompute, aggregate_urn):
+def generateManifestForSlivers(geni_slice, geni_slivers, recompute):
     req_rspec = geni_slice.getRequestRspec()
     request = parseString(req_rspec).childNodes[0]
 
@@ -283,7 +309,7 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, aggregate_ur
         if recompute:
             sliver_manifest = \
                 generateManifestForSliver(geni_slice, sliver, \
-                                              root, sliver_request_element, aggregate_urn)
+                                              root, sliver_request_element)
             sliver.setManifestRspec(sliver_manifest.toxml())
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
@@ -320,7 +346,7 @@ def getRequestElementForSliver(sliver):
 #             break
 #     return sliver_request
 
-def generateManifestForSliver(geni_slice, geni_sliver, root, request, aggregate_urn):
+def generateManifestForSliver(geni_slice, geni_sliver, root, request):
     node_name = "node"
     if geni_sliver.__class__ == NetworkLink: node_name = "link"
     node = root.createElement(node_name)
@@ -355,7 +381,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request, aggregate_
             component_id = config.urn_prefix + "node+" + hostname
             node.setAttribute("component_id", component_id)
 
-        component_manager_id = aggregate_urn
+        component_manager_id = config.urn_prefix + "authority+cm"
         node.setAttribute("component_manager_id", component_manager_id)
 
         node.setAttribute('exclusive', 'false')
@@ -407,8 +433,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request, aggregate_
                 login.setAttribute("authentication", "ssh-keys")
                 my_host_name = \
                     socket.gethostbyaddr(socket.gethostname())[0]
-                login.setAttribute("hostname", my_host_name)
-                login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
+                login.setAttribute("externally-routable-ip", geni_sliver.getExternalIp())
                 login.setAttribute("username", user)
                 services.appendChild(login)
             node.appendChild(services)
@@ -421,7 +446,7 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request, aggregate_
     return node
 
 
-def generateManifest(geni_slice, req_rspec, aggregate_urn) :
+def generateManifest(geni_slice, req_rspec) :
 
     """
         Returns a manifets rspec that corresponds to the given request rspec
@@ -482,7 +507,7 @@ def generateManifest(geni_slice, req_rspec, aggregate_urn) :
             child.setAttribute('component_id', vm_object.getSliverURN())
 
             # Set the component_manager_id (this AM's URN) for the node element
-            component_manager_id = aggregate_urn
+            component_manager_id = config.gram_am_urn
             child.setAttribute('component_manager_id', component_manager_id)
             
             # For each child element of node, set appropriate attrbutes.
