@@ -31,6 +31,8 @@ Run with "-h" flag to see usage and command line options.
 
 import pdb
 import sys
+import subprocess
+import time
 
 # Check python version. Requires 2.6 or greater, but less than 3.
 if sys.version_info < (2, 6):
@@ -147,6 +149,19 @@ def main(argv=None):
     
     if not os.path.exists(keyfile):
         sys.exit("Aggregate keyfile %s doesn't exist" % keyfile)
+
+    # Check if quantum is running, if not, then take a nap
+    command_str = 'quantum net-list'
+    command = command_str.split()
+    ready = 0
+    while(not ready):
+        try :
+            subprocess.check_output(command)
+            ready = 1
+            logging.getLogger('gram-am').info(' Ready to start GRAM')
+        except :
+            logging.getLogger('gram-am').error('Error executing command %s' % command)
+            time.sleep(15)
 
     gram.am.gram.config.snapshot_dir = opts.snapshot_dir
     gram.am.gram.config.recover_from_snapshot = opts.recover_from_snapshot
