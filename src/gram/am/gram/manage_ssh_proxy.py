@@ -247,7 +247,6 @@ def _addNewProxy(addr) :
     """
     Access the GRAM SSH proxy daemon and create a new proxy with the given address
     """
-
     portNumber = _updatePortTable(addr)
     if portNumber == 0 :
         return 0
@@ -255,6 +254,10 @@ def _addNewProxy(addr) :
     cmd_string = '%s ' % config.ssh_proxy_exe
     cmd_string = cmd_string + '-m C -a %s ' % addr
     cmd_string = cmd_string + ' -p %d ' % portNumber
+    cmd_string = cmd_string + ' -n %s ' % open_stack_interface._getConfigParam('/etc/gram/config.json','mgmt_ns')
+
+    config.logger.info("Setting up ssh proxy: " + cmd_string)
+
 
     try :
         open_stack_interface._execCommand(cmd_string)
@@ -274,7 +277,8 @@ def _removeProxy(addr) :
     if portNumber > 0 :
         cmd_string = '%s ' % config.ssh_proxy_exe
         cmd_string = cmd_string + '-m D -a %s ' % addr
-        cmd_string = cmd_string + '-p %d ' % portNumber
+        cmd_string = cmd_string + ' -p %d ' % portNumber
+        cmd_string = cmd_string + ' -n %s ' % open_stack_interface._getConfigParam('/etc/gram/config.json','mgmt_ns')
 
         try:
             open_stack_interface._execCommand(cmd_string)

@@ -33,13 +33,14 @@
 #define IPTABLES_LOCATION_STR "/sbin/iptables"
 #define PORT_TABLE_LOCATION "/etc/gram/gram-ssh-port-table.txt"
 #define PORT_TABLE_LOCKFILE "/etc/gram/gram-ssh-port-table.lock"
-#define PORT_NUMBER_START 3000
+#define PORT_NUMBER_START 3100
 #define PORT_MIN_NUMBER 1024
 
 #define MAX_PORT_TABLE_ENTRIES 1000
 #define MAX_ADDR_STRING_LENGTH 21
 #define MAX_PORT_STRING_LENGTH 6
 #define MAX_IPTABLES_CMD_STR_LEN 200
+#define MAX_NAMESPACE_STRING_LENGTH 100
 
 #define ENABLE_FCNTL
 
@@ -55,7 +56,7 @@
 
 typedef char *entryType;
 
-void add_proxy_cmd(char *addr, int portNumber)
+void add_proxy_cmd(char *addr, int portNumber, char *namespace)
 {
   int cmdlen;
   char *cmd;
@@ -68,20 +69,20 @@ void add_proxy_cmd(char *addr, int portNumber)
      the openstack rules- if the SSH proxy rules come after the openstack NAT rules, then the proxy
      will not work */
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -t nat -I PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
-                   IPTABLES_LOCATION_STR, portNumber, addr);
+  cmdlen = sprintf(cmd, "ip netns exec %s %s -t nat -I PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
+                   namespace, IPTABLES_LOCATION_STR, portNumber, addr);
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
 
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -I FORWARD -p tcp -s %s -j ACCEPT ",
-                   IPTABLES_LOCATION_STR, addr);
+  cmdlen = sprintf(cmd, "ip netns exec %s %s -I FORWARD -p tcp -s %s -j ACCEPT ",
+                   namespace, IPTABLES_LOCATION_STR, addr);
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
 
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -t nat -I POSTROUTING -p tcp -s %s -j MASQUERADE ",
-                   IPTABLES_LOCATION_STR, addr);  
+  cmdlen = sprintf(cmd, "ip netns exec %s %s -t nat -I POSTROUTING -p tcp -s %s -j MASQUERADE ",
+                   namespace, IPTABLES_LOCATION_STR, addr);  
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
 
@@ -89,7 +90,7 @@ void add_proxy_cmd(char *addr, int portNumber)
 }
 
 
-void delete_proxy_cmd(char *addr, int portNumber)
+void delete_proxy_cmd(char *addr, int portNumber, char *namespace)
 {
   int cmdlen;
   char *cmd;
@@ -97,20 +98,20 @@ void delete_proxy_cmd(char *addr, int portNumber)
   cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
 
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -t nat -D PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
-                   IPTABLES_LOCATION_STR, portNumber, addr);  
+  cmdlen = sprintf(cmd, "ip netns exec %s %s -t nat -D PREROUTING -p tcp --dport %d -j DNAT --to-destination %s:22 ",
+                   namespace, IPTABLES_LOCATION_STR, portNumber, addr);  
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
 
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -D FORWARD -p tcp -s %s -j ACCEPT ",
-                   IPTABLES_LOCATION_STR, addr);
+  cmdlen = sprintf(cmd, "ip netns exec %s %s -D FORWARD -p tcp -s %s -j ACCEPT ",
+                   namespace, IPTABLES_LOCATION_STR, addr);
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
 
   memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
-  cmdlen = sprintf(cmd, "%s -t nat -D POSTROUTING -p tcp -s %s -j MASQUERADE ",
-                   IPTABLES_LOCATION_STR, addr);  
+  cmdlen = sprintf(cmd, "ip netns exec %s %s -t nat -D POSTROUTING -p tcp -s %s -j MASQUERADE ",
+                   namespace, IPTABLES_LOCATION_STR, addr);  
   fprintf(stdout, "%s\n", cmd);
   system(cmd);
 
@@ -619,7 +620,7 @@ int delete_proxy(char *addr)
 }
 
 
-int clear_all_proxies()
+int clear_all_proxies(char *namespace)
 {
   FILE *pRead;
   int lockfile;
@@ -657,7 +658,7 @@ int clear_all_proxies()
       addr = (char *)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
       memset(addr, (int)'\0', MAX_ADDR_STRING_LENGTH);
       sprintf(addr, "%d.%d.%d.%d", addr0, addr1, addr2, addr3);
-      delete_proxy_cmd(addr, portNumber);
+      delete_proxy_cmd(addr, portNumber, namespace);
       free(addr);
     } /* if strlength == 5 */
   } /* eof */
@@ -681,15 +682,18 @@ int main(int argc, char *argv[])
   int opt;
   char *addr;
   char *prt;
+  char *namespace;
   int mode;
   int portNumber;
   int addr_not_found = TRUE;
   int port_not_found = TRUE;
+  int namespace_not_found = TRUE;
 
   mode = MODE_NONE;
   addr = (char *)malloc(sizeof(char) * MAX_ADDR_STRING_LENGTH);
   prt = (char *)malloc(sizeof(char) * MAX_PORT_STRING_LENGTH);
-  while ((opt = getopt(argc, argv, "m:a:p:")) != -1)
+  namespace = (char *)malloc(sizeof(char) * MAX_NAMESPACE_STRING_LENGTH);
+  while ((opt = getopt(argc, argv, "m:a:p:n:")) != -1)
   {
     /*fprintf(stdout, "Option %c\n", opt); */
     switch (opt)
@@ -718,6 +722,10 @@ int main(int argc, char *argv[])
       strncpy(addr, optarg, MAX_ADDR_STRING_LENGTH);
       addr_not_found = FALSE;
       break;
+    case 'n':
+      strncpy(namespace, optarg, MAX_NAMESPACE_STRING_LENGTH);
+      namespace_not_found = FALSE;      
+      break; 
     default:
       fprintf(stderr, USAGE_STRING, argv[0]);
       exit(EXIT_FAILURE);
@@ -744,7 +752,7 @@ int main(int argc, char *argv[])
       fprintf(stdout, "Done.\n");
    }
 
-    add_proxy_cmd(addr, portNumber);
+    add_proxy_cmd(addr, portNumber,namespace);
 
   } else if (mode == MODE_DELETE) {
     if (port_not_found)
@@ -756,10 +764,10 @@ int main(int argc, char *argv[])
       portNumber = atoi(prt);
     }
 
-    delete_proxy_cmd(addr, portNumber);
+    delete_proxy_cmd(addr, portNumber,namespace);
   } else {
     fprintf(stdout, "Clearing all SSH Proxy addresses %s\n", addr);
-    clear_all_proxies();
+    clear_all_proxies(namespace);
   }
 
   free(addr);

@@ -1360,6 +1360,26 @@ def _getFloatingIpByVM(vm_uuid):
     return fip_ids
 
 
+def _getConfigParam(config_file,param):
+    """
+       Function to parse the gram config file and return the value of the specified parameter
+    """
+
+    data = None
+    try:
+        f = open(config_file, 'r')
+        data = f.read()
+        f.close()
+    except Exception, e:
+        print "Failed to read GRAM config file: " + config_file + str(e)
+        logger.info("Failed to read GRAM config file: " + config_file)
+        return
+
+    data_json = json.loads(data)
+
+    return data_json[param]
+
+
 
 
 def _execCommand(cmd_string) :
