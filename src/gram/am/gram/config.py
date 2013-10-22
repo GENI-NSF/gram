@@ -143,6 +143,7 @@ management_address = None
 management_network_name = 'GRAM-mgmt-net'
 management_network_cidr = '192.168.10.0/24' # GRAM AM assumes this is a /24 network
 management_network_vlan = '2500'
+mgmt_ns = None
 
 # Parameters for establishing the 'public' Quantum network
 public_gateway_ip = None
