@@ -27,17 +27,16 @@ import fileinput
 import sys
 import config
 import netaddr
-from open_stack_interface import _execCommand
-
+from open_stack_interface import _execCommand, _getConfigParam
 
 def _getMgmtNamespace() :
     """
        Looks at the namespaces on the machine and finds one that has the management
        network and the external network:
     """
-    config.initialize('/etc/gram/config.json')
-    mgmt_addr = (netaddr.IPNetwork(config.management_network_cidr)).broadcast  # first ip on the mgmt cidr
-    public_addr = config.public_subnet_start_ip
+    # config.initialize('/etc/gram/config.json')
+    mgmt_addr = (netaddr.IPNetwork(_getConfigParam('/etc/gram/config.json','management_network_cidr'))).broadcast  # first ip on the mgmt cidr
+    public_addr = _getConfigParam('/etc/gram/config.json','public_subnet_start_ip')
 
     # get a list of the namespaces
     command = 'ip netns list'
@@ -50,10 +49,10 @@ def _getMgmtNamespace() :
     for line in output_lines:
         try:
             command = 'ip netns exec ' + line + ' ifconfig'
-        except CalledProcessError as e:
-            config.logger.info(e.returncode)
+            ifconfig = _execCommand(command)
+        except subprocess.CalledProcessError as e:
+            print e.returncode
 
-        ifconfig = _execCommand(command)
         ifconfig_lines = ifconfig.split('\n')
         for ifconfig_line in ifconfig_lines:
             if str(mgmt_addr) in ifconfig_line:
@@ -71,12 +70,14 @@ if __name__ == "__main__":
 
    # Get the namespace name
    ns = _getMgmtNamespace()
-
+   
    # edit config.json to update the namespace
    if ns:
      for line in fileinput.input('/etc/gram/config.json', inplace=1):
         if 'mgmt_ns' in line:
             line = line.replace(line,'   "mgmt_ns": "' + ns + '"\n' )
-        sys.stdout.write(line)
+        sys.stdout.write(line) 
+
+
 
 

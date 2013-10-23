@@ -1373,7 +1373,7 @@ def _getConfigParam(config_file,param):
         f.close()
     except Exception, e:
         print "Failed to read GRAM config file: " + config_file + str(e)
-        logger.info("Failed to read GRAM config file: " + config_file)
+        config.logger.info("Failed to read GRAM config file: " + config_file)
         return
 
     data_json = json.loads(data)
