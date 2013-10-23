@@ -280,6 +280,9 @@ def parseRequestRspec(geni_slice, rspec) :
         controller_node = controllers[0]
         controller = controller_node.attributes['url'].value
 
+    stitching_rspec_handler = stitching_rspecs.Stitching()
+    stitching_rspec_handler.parseRequestRSpec(rspec_dom)
+
     return error_string, sliver_list, controller
 
 
@@ -314,6 +317,11 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute):
             sliver.setManifestRspec(sliver_manifest.toxml())
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
+
+    stitching_rspec_handler = stitching_rspecs.Stitching()
+    stitching_manifest = stitching_rspec_handler.generateManifest(req_rspec)
+    if stitching_manifest:
+        manifest.appendChild(stitching_manifest)
 
     return cleanXML(root, "Manifest")
 
