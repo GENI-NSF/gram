@@ -189,6 +189,17 @@ host_file_entries = None
 
 glance_images = None
 
+# Stitching information for this aggregate. A JSON structure
+# containing
+# aggregate_id : The URN of this AM
+# aggregate_url : The URL of this AM
+# edge_points: a list of dictionaries
+#    local_switch : URN of local switch
+#    port : URN port on local switch leading to remote switch
+#    remote_switch: URN of remote switch
+#    vlans : VLAN tags configured on this port 
+stitching_info = None
+
 import json
 import sys
 # Read in configuration file

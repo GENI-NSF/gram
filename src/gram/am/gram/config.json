@@ -60,6 +60,7 @@
    "compute_hosts": null,
    "host_file_entries": null,
    "glance_images" : [],
-   "mgmt_addr" : null 
+   "mgmt_addr" : null,
+   "stitching_info" : null
 
 }

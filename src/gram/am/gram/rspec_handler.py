@@ -30,6 +30,7 @@ from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import uuid
 import utils
 import netaddr
+import stitching_rspecs
 
 def parseRequestRspec(geni_slice, rspec) :
     """ This function parses a request rspec and creates the sliver objects for
@@ -628,8 +629,7 @@ def cleanXML(doc, label):
             clean_xml += line + '\n'
     config.logger.info("Clean %s = %s" % (label, clean_xml))
     return clean_xml
-    
-    
+
 
 # Generate advertisement RSPEC for aggeregate based on 
 # flavors and disk images registered with open stack
@@ -665,13 +665,16 @@ def generateAdvertisement(am_urn):
         image_types = image_types + disk_image + "\n"
 
     available = True
+
     tmpl = '''  <node component_manager_id="%s"
         client_id="%s"
         component_name="%s"
         component_id="%s"
         exclusive="%s">%s%s<sliver_type name="%s"/>
     <available now="%s"/>
-  </node></rspec>
+  </node>
+  %s
+  </rspec>
   '''
 
     schema_locs = ["http://www.geni.net/resources/rspec/3",
@@ -682,9 +685,12 @@ def generateAdvertisement(am_urn):
          <rspec xmlns="http://www.geni.net/resources/rspec/3"                 
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
        xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
+
+    stitching = stitching_rspecs.Stitching()
+    stitching_advertisement = stitching.generateAdvertisement().toxml()
     result = advert_header + \
         (tmpl % (component_manager_id, client_id, component_name, \
                      component_id, exclusive, node_types, \
                      image_types, \
-                     sliver_type, available)) 
+                     sliver_type, available, stitching_advertisement)) 
     return result
