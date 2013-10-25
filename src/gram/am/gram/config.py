@@ -163,6 +163,8 @@ keystone_user = "keystone"
 keystone_password = None
 quantum_user = "quantum"
 quantum_password = None
+gmoc_user = "gram"
+gmoc_password = None
 
 # OpenStack user configuration 
 os_tenant_name = None
@@ -186,6 +188,17 @@ compute_hosts = None
 
 # List of host names and addresses to put in /etc/hosts file
 host_file_entries = None
+
+# GMOC configuration variables
+gmoc_url = None
+gmoc_site_name = None
+gmoc_org_name = None
+gmoc_pop_name = None
+gmoc_am_type = 'gram'
+gmoc_debug_level = gmoc.GMOC_DEBUG_OFF
+
+
+
 
 glance_images = None
 
