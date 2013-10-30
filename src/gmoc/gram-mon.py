@@ -4,6 +4,7 @@ import config
 import gmoc
 import os
 import getpass
+import time
 
 # all these variables should be in config.json  +++++
 # submission staging server
@@ -24,41 +25,42 @@ MONPASSWORD='gramMonitoring'
 MONDEBUGLEVEL= gmoc.GMOC_DEBUG_VERBOSE  
 # all these variables should be in config.json  +++++
 
-#import pdb; pdb.set_trace()
-organization = gmoc.Organization( ORGNAME )
-pop = gmoc.POP( POPNAME )
-aggregate = gmoc.Aggregate('shouldbeurn', type='gram', version='3', pop = pop, operator=organization)
 
-#get vmresources
-vmresources = open_stack_interface._getConfigParam('/etc/gram/config.json', 'compute_hosts')
+def monitor():
+ organization = gmoc.Organization( ORGNAME )
+ pop = gmoc.POP( POPNAME )
+ aggregate = gmoc.Aggregate('shouldbeurn', type='gram', version='3', pop = pop, operator=organization)
 
-resources={}
-for k in vmresources:
+ #get vmresources
+ vmresources = open_stack_interface._getConfigParam('/etc/gram/config.json', 'compute_hosts')
+
+ resources={}
+ for k in vmresources:
   print k
   #weird - if you don't use str - component_id comes back as type unicode
   component_id = str(config.urn_prefix + "node+" + k)
   print component_id
   #import pdb; pdb.set_trace()
   resources[k] = gmoc.Resource(component_id, type = 'vmserver', pop = pop, operator = organization)     
-aggregate.resources = resources.values()
+ aggregate.resources = resources.values()
 
-snapshot_dir = config.gram_snapshot_directory + "/" + getpass.getuser()
+ snapshot_dir = config.gram_snapshot_directory + "/" + getpass.getuser()
 
-allF = []
-files = os.listdir(snapshot_dir)
-for f in files:
+ allF = []
+ files = os.listdir(snapshot_dir)
+ for f in files:
   filename = os.path.join(snapshot_dir, f)
   if(os.path.isfile(filename)):
     print filename
     allF.append(filename)
 
-nfiles = sorted(allF, key=os.path.getctime)
-oldest = nfiles[0]
-newest = nfiles[-1]
+ nfiles = sorted(allF, key=os.path.getctime)
+ oldest = nfiles[0]
+ newest = nfiles[-1]
 
-myslices = Archiving.read_slices(newest)
+ myslices = Archiving.read_slices(newest)
 
-for i, slice in myslices.iteritems():
+ for i, slice in myslices.iteritems():
   gmoc.Slice(str(slice.getSliceURN()))
   slivers = slice.getAllSlivers()
   for k, v in slivers.iteritems():
@@ -82,8 +84,8 @@ for i, slice in myslices.iteritems():
 
 
 
-# Now actually setup and report stuff
-client = gmoc.GMOCClient(                                                                         
+ # Now actually setup and report stuff
+ client = gmoc.GMOCClient(                                                                         
            serviceURL = 'https://gmoc-db.grnoc.iu.edu/',                                          
            username = MONUSERNAME,
            password = MONPASSWORD,
@@ -91,9 +93,14 @@ client = gmoc.GMOCClient(
 #if DEBUG:  # assuming you set an optional debugging flag, which is a good idea                    
 #  client.debugLevel = gmoc.GMOC_DEBUG_VERBOSE                                                      
 
-result = client.store(pop)                                                                      
-if result != 0:                                                                                   
+ result = client.store(pop)                                                                      
+ if result != 0:                                                                                   
   print "Attempted to submit relational data, but received: %s" % result
   print "HTTP status code was: %d" % data.resultStatus                                            
   print "Error message was: %s" % data.errorMessage                     
-         
+
+if __name__ == "__main__":
+
+    while True:
+        time.sleep(100)
+    monitor() 
