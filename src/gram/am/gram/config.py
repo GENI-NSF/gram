@@ -35,6 +35,7 @@
 import logging
 import socket
 import sys
+import gmoc.gmoc
 
 # GRAM aggregate manager ports for V2 and V3
 gram_am_port = 5001
