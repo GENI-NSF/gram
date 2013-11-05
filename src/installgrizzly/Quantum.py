@@ -177,7 +177,7 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.add("service quantum-l3-agent restart")
-       
+        self.add("python home/gram/gram/src/gram/am/gram/set_namespace.py") 
 
         
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_dhcp_conf_filename)

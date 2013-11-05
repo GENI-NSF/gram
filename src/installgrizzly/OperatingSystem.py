@@ -8,6 +8,7 @@ class OperatingSystem(GenericInstaller):
 
     def __init__(self, control_node):
         self._control_node = control_node
+        self.omni_config = "/home/gram/.gcf/omni_config" 
 
     # Return a list of command strings for installing this component
     def installCommands(self):
@@ -121,7 +122,29 @@ class OperatingSystem(GenericInstaller):
         for node in nodes:
             self.appendToFile(nodes[node] + " " + node,"/etc/hosts")
 
-        #add these entries to satisfy omni/portal
+
+
+        # create an omni config file
+        self.append("[omni]",self.omni_config)
+        self.append("users = gramuser", self.omni_config)
+        self.append("default_cf = my_gcf", self.omni_config)
+        self.append("[my_gcf]",self.omni_config)
+        self.append("type=gcf",self.omni_config)
+        self.append("authority=geni:" + config.service_token + ":gcf",self.omni_config)
+        self.append("cert=~/.gcf/gramuser-cert.pem", self.omni_config)
+        self.append("key=~/.gcf/gramuser-key.pem", self.omni_config)
+        self.append("ch = https://" + config.external_address + ":8000", self.omni_config)
+        self.append("sa = https://" + config.external_address + ":8000", self.omni_config)
+        self.append("[gramuser]", self.omni_config)
+        self.append("urn=urn:publicid:IDN+geni:dell:gcf+user+gramuser", self.omni_config)
+        self.append("keys=~/.ssh/id_rsa.pub", self.omni_config)
+        self.append("[aggregate_nicknames]", self.omni_config)
+        self.append("gram=,https://" + config.external_address, self.omni_config)
+        
+        # generate  credentials for this user
+        self.add("/opt/gcf/src/gen-certs.py --exp -u gramuser") 
+
+        # add these entries to satisfy omni/portal
         nodes = config.host_file_entries
         for node in nodes:
             self.appendToFile(nodes[node] + "\t" + node,"/etc/hosts")
