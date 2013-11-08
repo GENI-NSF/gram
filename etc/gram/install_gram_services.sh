@@ -14,7 +14,7 @@ do
 done
 
 # Then copy the modified file into /etc/init and make the link in /etc/init.d
-for service in gram-am gram-amv2 gram-ch gram-ctrl gram-vmoc
+for service in gram-am gram-amv2 gram-ch gram-ctrl gram-vmoc gram-mon
 do
     echo "Installing service $service"
     cp /home/gram/gram/src/services/$service.conf /etc/init

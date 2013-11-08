@@ -35,6 +35,7 @@
 import logging
 import socket
 import sys
+import gmoc.gmoc
 
 # GRAM aggregate manager ports for V2 and V3
 gram_am_port = 5001
@@ -143,7 +144,7 @@ management_address = None
 management_network_name = 'GRAM-mgmt-net'
 management_network_cidr = '192.168.10.0/24' # GRAM AM assumes this is a /24 network
 management_network_vlan = '2500'
-mgmt_ns = None
+mgmt_ns = ' '
 
 # Parameters for establishing the 'public' Quantum network
 public_gateway_ip = None
@@ -163,6 +164,8 @@ keystone_user = "keystone"
 keystone_password = None
 quantum_user = "quantum"
 quantum_password = None
+gmoc_user = "gram"
+gmoc_password = ' '
 
 # OpenStack user configuration 
 os_tenant_name = None
@@ -186,6 +189,17 @@ compute_hosts = None
 
 # List of host names and addresses to put in /etc/hosts file
 host_file_entries = None
+
+# GMOC configuration variables
+gmoc_url = ' '
+gmoc_site_name = ' '
+gmoc_org_name = ' '
+gmoc_pop_name = ' '
+gmoc_am_type = 'gram'
+gmoc_debug_level = gmoc.GMOC_DEBUG_OFF
+
+
+
 
 glance_images = None
 

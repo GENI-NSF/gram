@@ -302,6 +302,8 @@ class Sliver():
       self._sliver_urn = self._generateURN()    # URN of this sliver
       self._uuid = uuid     # OpenStack UUID of resource
       self._expiration = None # Sliver expiration time
+      now = datetime.datetime.utcnow()
+      self._creation = now # Sliver creation time
       self._name = None    # Experimenter specified name of the sliver
       self._request_rspec = None # Rspec provided at allocation time
       self._manifest_rspec = None # Rspec of current resource state
@@ -347,6 +349,12 @@ class Sliver():
 
    def setExpiration(self, expiration):
       self._expiration = expiration
+
+   def getCreation(self):
+      return self._creation;
+
+   def setCreation(self, creation):
+      self._creation = creation
 
    def setAllocationState(self, state) :
       self._allocation_state = state
@@ -443,7 +451,6 @@ class VirtualMachine(Sliver): #
 
    def setExternalIp(self,ip):
       self._external_ip = ip
-
 
    def addNetworkInterface(self, netInterface) :
       self._network_interfaces.append(netInterface)
@@ -548,10 +555,9 @@ class NetworkInterface(Sliver):
 
      def setNetmask(self,netmask):
         self._netmask = netmask
- 
+
      def getNetmask(self):
         return self._netmask
-
 
      def getVM(self): 
         return self._vm

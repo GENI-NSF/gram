@@ -144,7 +144,7 @@ class Quantum(GenericInstaller):
         self.add("echo 'Creating management network'")
 	self.add("quantum net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared")
         self.add("echo 'Creating management subnet'")
-	self.add("quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr + "--dns-nameservers " + config.public_dns_nameservers)
+	self.add("quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr + " --dns-nameservers " + config.public_dns_nameservers)
 	self.add('export MGMT_SUBNET_ID=`quantum net-list | grep ' + mgmt_net_name + ' | cut -d "|" -f 4`')
         self.add("echo 'Creating external network'")
         self.add("quantum net-create public --router:external=True")
@@ -177,7 +177,7 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.add("service quantum-l3-agent restart")
-       
+        self.add("python home/gram/gram/src/gram/am/gram/set_namespace.py") 
 
         
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_dhcp_conf_filename)

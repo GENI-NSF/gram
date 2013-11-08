@@ -54,13 +54,20 @@
 
    "metadata_port" : "8775",
 
+   "gmoc_url" : null,
+   "gmoc_site_name" : null,
+   "gmoc_org_name" : null,
+   "gmoc_pop_name" : null,
+   "gmoc_password" : null,
+   "gmoc_user" : null,
+
    "backup_directory" : "/home/gram/.backup",
    "control_host" : null,
    "control_host_addr" : null,
    "compute_hosts": null,
    "host_file_entries": null,
    "glance_images" : [],
-   "mgmt_addr" : null,
-   "stitching_info" : null
+   "stitching_info" : null,
+   "mgmt_ns" : null 
 
 }

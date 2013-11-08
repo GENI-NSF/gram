@@ -192,8 +192,12 @@ class GramManager :
             slice_object.setRequestRspec(rspec)
             for sliver in slivers:
                 sliver.setRequestRspec(rspec);
-            manifest =  rspec_handler.generateManifestForSlivers(slice_object, 
-                                                                 slivers, True, self._aggregate_urn);
+            agg_urn = self._aggregate_urn
+            manifest =  \
+                rspec_handler.generateManifestForSlivers(slice_object, \
+                                                             slivers, True, \
+                                                             agg_urn)
+
             slice_object.setManifestRspec(manifest)
 
             # Set the user urn for all new slivers

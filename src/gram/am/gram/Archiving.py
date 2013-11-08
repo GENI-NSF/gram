@@ -68,6 +68,9 @@ class GramJSONEncoder(json.JSONEncoder):
             expiration_time = None
             if o.getExpiration() is not None:
                 expiration_time = time.mktime(o.getExpiration().timetuple())
+            creation_time = None
+            if o.getCreation() is not None:
+                creation_time = time.mktime(o.getCreation().timetuple())
             return {"__type__":"VirtualMachine",
                     "name":o.getName(),
                     "uuid":o.getUUID(),
@@ -75,6 +78,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "user_urn":o.getUserURN(),
                     "slice":o.getSlice().getTenantUUID(),
                     "expiration":expiration_time,
+                    "creation":creation_time,
                     "allocation_state":o.getAllocationState(),
                     "operational_state":o.getOperationalState(),
                     "mgmt_net_addr":o.getMgmtNetAddr(),
@@ -96,6 +100,9 @@ class GramJSONEncoder(json.JSONEncoder):
             expiration_time = None
             if o.getExpiration() is not None:
                 expiration_time = time.mktime(o.getExpiration().timetuple())
+            creation_time = None
+            if o.getCreation() is not None:
+                creation_time = time.mktime(o.getCreation().timetuple())
             vm_urn = None
             if o.getVM(): vm_urn = o.getVM().getSliverURN();
             link_urn = None
@@ -107,6 +114,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "user_urn":o.getUserURN(),
                     "slice":o.getSlice().getTenantUUID(),
                     "expiration":expiration_time,
+                    "creation":creation_time,
                     "allocation_state":o.getAllocationState(),
                     "operational_state":o.getOperationalState(),
                     "request_rspec":o.getRequestRspec(),
@@ -121,7 +129,12 @@ class GramJSONEncoder(json.JSONEncoder):
 
 
         if isinstance(o, NetworkLink):
-            expiration_time = time.mktime(o.getExpiration().timetuple())
+            expiration_time = None
+            if o.getExpiration() is not None:
+                expiration_time = time.mktime(o.getExpiration().timetuple())
+            creation_time = None
+            if o.getCreation() is not None:
+                creation_time = time.mktime(o.getCreation().timetuple())
             return {"__type__":"NetworkLink",
                     "name":o.getName(),
                     "uuid":o.getUUID(),
@@ -129,6 +142,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "user_urn":o.getUserURN(),
                     "slice":o.getSlice().getTenantUUID(),
                     "expiration":expiration_time,
+                    "creation":creation_time,
                     "allocation_state":o.getAllocationState(),
                     "request_rspec":o.getRequestRspec(),
                     "manifest_rspec":o.getManifestRspec(),
@@ -231,8 +245,14 @@ class GramJSONDecoder:
                 if expiration_timestamp is not None:
                     expiration_time = \
                         datetime.datetime.fromtimestamp(expiration_timestamp)
+                creation_timestamp = json_object['creation']
+                creation_time = None
+                if creation_timestamp is not None:
+                    creation_time = \
+                        datetime.datetime.fromtimestamp(creation_timestamp)
                 vm.setUserURN(json_object["user_urn"])
                 vm.setExpiration(expiration_time)
+                vm.setCreation(creation_time)
                 vm.setAllocationState(json_object["allocation_state"])
                 vm.setOperationalState(json_object["operational_state"])
                 vm._installs = json_object["installs"]
@@ -271,6 +291,12 @@ class GramJSONDecoder:
                     expiration_time = \
                         datetime.datetime.fromtimestamp(expiration_timestamp)
                 nic.setExpiration(expiration_time)
+                creation_timestamp = json_object['creation']
+                creation_time = None
+                if creation_timestamp is not None:
+                    creation_time = \
+                        datetime.datetime.fromtimestamp(creation_timestamp)
+                nic.setCreation(creation_time)
                 nic.setAllocationState(json_object["allocation_state"])
                 nic.setUserURN(json_object["user_urn"])
                 nic.setOperationalState(json_object["operational_state"])
@@ -307,6 +333,12 @@ class GramJSONDecoder:
                     expiration_time = \
                         datetime.datetime.fromtimestamp(expiration_timestamp)
                 link.setExpiration(expiration_time)
+                creation_timestamp = json_object['creation']
+                creation_time = None
+                if creation_timestamp is not None:
+                    creation_time = \
+                        datetime.datetime.fromtimestamp(creation_timestamp)
+                link.setCreation(creation_time)
                 link.setAllocationState(json_object["allocation_state"])
                 link.setOperationalState(json_object["operational_state"])
                 link.setUserURN(json_object["user_urn"])
