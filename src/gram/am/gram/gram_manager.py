@@ -12,6 +12,7 @@ from sfa.trust.certificate import Certificate
 from resources import Slice, VirtualMachine
 import rspec_handler
 import open_stack_interface
+import stitching
 import utils
 import Archiving
 import threading
@@ -87,6 +88,8 @@ class GramManager :
         self._max_lease_time = \
             datetime.timedelta(minutes=config.lease_expiration_minutes) 
 
+        self._stitching = stitching.Stitching()
+
         # Client interface to VMOC - update VMOC on current
         # State of all slices and their associated 
         # network VLAN's and controllers
@@ -105,6 +108,8 @@ class GramManager :
         
         # Remove extraneous snapshots
         self.prune_snapshots()
+
+    def getStitchingState(self) : return self._stitching
 
 
     def allocate(self, slice_urn, creds, rspec, options) :
@@ -139,8 +144,9 @@ class GramManager :
             # Parse the request rspec.  Get back any error message from parsing
             # the rspec and a list of slivers created while parsing
             # Also OF controller, if any
-            err_output, slivers, controller_url = \
-                rspec_handler.parseRequestRspec(slice_object, rspec)
+            err_output, err_code, slivers, controller_url = \
+                rspec_handler.parseRequestRspec(slice_object, rspec, \
+                                                    self._stitching)
 
             if err_output != None :
                 # Something went wrong.  First remove from the slice any sliver
@@ -149,7 +155,7 @@ class GramManager :
                     slice_object.removeSliver(sliver_object)
                 
                 # Return an error struct.
-                code = {'geni_code': constants.REQUEST_PARSE_FAILED}
+                code = {'geni_code': err_code}
                 return {'code': code, 'value': '', 'output': err_output}
 
             # If we're associating an OpenFlow controller to this slice, 
@@ -193,10 +199,15 @@ class GramManager :
             for sliver in slivers:
                 sliver.setRequestRspec(rspec);
             agg_urn = self._aggregate_urn
-            manifest =  \
+            manifest, error_string, error_code =  \
                 rspec_handler.generateManifestForSlivers(slice_object, \
                                                              slivers, True, \
-                                                             agg_urn)
+                                                             True,
+                                                             agg_urn, \
+                                                             self._stitching)
+            if error_code != constants.SUCCESS:
+                return {'code' : {'geni_code' : error_code}, 'value' : "", 
+                        'output' : error_string}
 
             slice_object.setManifestRspec(manifest)
 
@@ -272,9 +283,17 @@ class GramManager :
 
             # Generate a manifest rpsec 
             req_rspec = slice_object.getRequestRspec()
-            manifest = rspec_handler.generateManifestForSlivers(slice_object,
-                                                                sliver_objects,
-                                                                True, self._aggregate_urn) 
+            manifest, error_string, error_code =  \
+                rspec_handler.generateManifestForSlivers(slice_object,
+                                                         sliver_objects,
+                                                         True,
+                                                         False,
+                                                         self._aggregate_urn,
+                                                         self._stitching)
+
+            if error_code != constants.SUCCESS:
+                return {'code' : {'geni_code' : error_code}, 'value' : "", 
+                        'output' : error_string}
     
             # Create a sliver status list for the slivers that were provisioned
             sliver_status_list = \
@@ -331,8 +350,17 @@ class GramManager :
                 utils.SliverList().getStatusOfSlivers(slivers)
 
             # Generate the manifest to be returned
-            manifest = rspec_handler.generateManifestForSlivers(slice_object, 
-                                                                slivers, False, self._aggregate_urn)
+            manifest, error_string, error_code =  \
+                rspec_handler.generateManifestForSlivers(slice_object, 
+                                                         slivers, 
+                                                         False, 
+                                                         False,
+                                                         self._aggregate_urn,
+                                                         self._stitching)
+
+            if error_code != constants.SUCCESS:
+                return {'code' : {'geni_code' : error_code}, 'value' : "", 
+                        'output' : error_string}
 
             # Generate the return struct
             code = {'geni_code': constants.SUCCESS}
@@ -400,6 +428,10 @@ class GramManager :
                 open_stack_interface.expireSlice(slice_object)
                 # Update VMOC
                 self.registerSliceToVMOC(slice_object, False)
+
+            # Free all stitching VLAN allocations
+            for sliver in sliver_objects:
+                self._stitching.deleteAllocation(sliver.getSliverURN())
 
             # Persist new GramManager state
             self.persist_state()
@@ -477,7 +509,8 @@ class GramManager :
         filename = "%s/%s_%d.json" % (self._snapshot_directory, \
                                          base_filename, counter)
         GramManager.__recent_base_filename = base_filename
-        Archiving.write_slices(filename, SliceURNtoSliceObject._slices)
+        Archiving.write_slices(filename, SliceURNtoSliceObject._slices,
+                               self._stitching)
         end_time = time.time()
         config.logger.info("Persisting state to %s in %.2f sec" % \
                                (filename, (end_time - start_time)))
@@ -616,7 +649,8 @@ class GramManager :
             if snapshot_file is not None:
                 config.logger.info("Restoring state from snapshot : %s" \
                                        % snapshot_file)
-                SliceURNtoSliceObject._slices = Archiving.read_slices(snapshot_file)
+                SliceURNtoSliceObject._slices = \
+                    Archiving.read_slices(snapshot_file, self._stitching)
                 config.logger.info("Restored %d slices" % \
                                        len(SliceURNtoSliceObject._slices))
 

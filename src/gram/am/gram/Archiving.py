@@ -6,10 +6,15 @@ import time
 import json
 import pdb
 from resources import Slice, VirtualMachine, NetworkLink, NetworkInterface
+import stitching
 #from AggregateState import AggregateState
 #from AllocationManager import AllocationManager
 
 class GramJSONEncoder(json.JSONEncoder):
+
+    def __init__(self, stitching_handler): 
+        super(GramJSONEncoder, self).__init__()
+        self._stitching_handler = stitching_handler
 
     def default(self, o):
 
@@ -135,6 +140,10 @@ class GramJSONEncoder(json.JSONEncoder):
             creation_time = None
             if o.getCreation() is not None:
                 creation_time = time.mktime(o.getCreation().timetuple())
+            stitching_info = None
+            if o.getSliverURN() in self._stitching_handler._reservations:
+                stitching_info = \
+                self._stitching_handler._reservations[o.getSliverURN()]
             return {"__type__":"NetworkLink",
                     "name":o.getName(),
                     "uuid":o.getUUID(),
@@ -151,14 +160,15 @@ class GramJSONEncoder(json.JSONEncoder):
                     "endpoints":[ep.getSliverURN() for ep in o.getEndpoints()],
                     'vlan_tag':o.getVLANTag(),
                     "network_uuid":o.getNetworkUUID(),
-                    "subnet_uuid":o.getSubnetUUID()
+                    "subnet_uuid":o.getSubnetUUID(),
+                    "stitching_info":stitching_info
                     }
 
 
 
 # THis should create a JSON structure which is a list
 # of the JSON encoding of all slices and then all slivers
-def write_slices(filename, slices):
+def write_slices(filename, slices, stitching_handler):
 #    print "WS.CALL " + str(slices) + " " + filename
     file = open(filename, "w")
     objects = []
@@ -167,7 +177,7 @@ def write_slices(filename, slices):
     for slice in slices.values(): 
         for sliver in slice.getAllSlivers().values():
             objects.append(sliver)
-    data = GramJSONEncoder().encode(objects)
+    data = GramJSONEncoder(stitching_handler).encode(objects)
     file.write(data)
     file.close();
 
@@ -176,7 +186,10 @@ def write_slices(filename, slices):
 # As we parse, we keep track of different relationships which
 # Can then be restored once we have all the objects by UUID
 class GramJSONDecoder:
-    def __init__(self):
+    def __init__(self, stitching_handler):
+
+        self._stitching_handler = stitching_handler
+
         self._slices_by_tenant_uuid = {} 
 
         self._slivers_by_slice_tenant_uuid = {} 
@@ -350,6 +363,15 @@ class GramJSONDecoder:
                 link.setManifestRspec(json_object["manifest_rspec"])                
                 self._network_links_by_urn[sliver_urn] = link
                 self._slivers_by_urn[sliver_urn] = link
+
+                # Restore state of stitching VLAN allocations
+                stitching_info = json_object['stitching_info']
+                if stitching_info:
+                    sliver_urn = link.getSliverURN()
+                    tag = stitching_info['vlan_tag']
+                    port = stitching_info['port']
+                    self._stitching_handler.restoreStitchingState(sliver_urn, 
+                                                                  tag, port)
                 
                 return link
 
@@ -379,7 +401,7 @@ class GramJSONDecoder:
                 network_interface.setLink(link)
                 link.addEndpoint(network_interface)
 
-def read_slices(filename):
+def read_slices(filename, stitching_handler):
     file = open(filename, "r")
     data = file.read()
     file.close()
@@ -389,7 +411,7 @@ def read_slices(filename):
     # Need to turn this into a list of objects
     # Resolve links among them
 
-    decoder = GramJSONDecoder()
+    decoder = GramJSONDecoder(stitching_handler)
     for json_object in json_data: 
         decoder.decode(json_object)
     decoder.resolve()

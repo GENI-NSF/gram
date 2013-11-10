@@ -35,7 +35,7 @@
 import logging
 import socket
 import sys
-import gmoc.gmoc
+# import gmoc.gmoc
 
 # GRAM aggregate manager ports for V2 and V3
 gram_am_port = 5001
@@ -63,6 +63,7 @@ vm_urn_prefix = sliver_urn_prefix + 'vm'
 interface_urn_prefix = sliver_urn_prefix + 'interface'
 link_urn_prefix = sliver_urn_prefix + 'link'
 image_urn_prefix = urn_prefix + 'image'
+aggregate_manager_urn = urn_prefix+"authority+cm"
 
 allocation_expiration_minutes =  10      # allocations expire in 10 mins
 lease_expiration_minutes =  7 * 24 * 60  # resources can be leased for 7 days
@@ -196,7 +197,7 @@ gmoc_site_name = ' '
 gmoc_org_name = ' '
 gmoc_pop_name = ' '
 gmoc_am_type = 'gram'
-gmoc_debug_level = gmoc.GMOC_DEBUG_OFF
+gmoc_debug_level = False
 
 
 
@@ -213,6 +214,13 @@ glance_images = None
 #    remote_switch: URN of remote switch
 #    vlans : VLAN tags configured on this port 
 stitching_info = None
+
+stitching_traffic_engineering_metric = 10
+stitching_capacity = 1000000000
+stitching_interface_mtu = 9000
+stitching_maximum_reservable_capacity = 1000000000
+stitching_minimum_reservable_capacity = 1000000
+stitching_granularity = 1000000
 
 import json
 import sys

@@ -23,6 +23,7 @@
 
 from xml.dom.minidom import *
 import config
+import constants
 import datetime
 import json
 import logging
@@ -63,24 +64,32 @@ logger = logging.getLogger('gram.stitching')
 #    <interface_ref client_id="ig-gpo1:if0" />
 #  </link>
 #
-# Then 
-#
 
 # Class that represents a stitching edge point
 # Each has its own pool of VLAN allocations
 class StitchingEdgePoint:
 
-    def __init__(self, local_switch, port, remote_switch, vlans):
+    def __init__(self, local_switch, port, remote_switch, vlans,
+                 traffic_engineering_metric, capacity, 
+                 maximum_reservable_capacity, minimum_reservable_capacity,
+                 granularity, interface_mtu):
         self._local_switch = local_switch
         self._port = port
         self._remote_switch = remote_switch
         self._vlans = VLANPool(vlans)
+        self._traffic_engineering_metric = traffic_engineering_metric
+        self._capacity = capacity
+        self._maximum_reservable_capacity = maximum_reservable_capacity
+        self._minimum_reservable_capacity = minimum_reservable_capacity
+        self._granularity = granularity
+        self._interface_mtu = interface_mtu
 
     # Return string representation of all available VLAN tags
     def availableVLANs(self): return self._vlans.dumpAvailableVLANs()
 
     # Select and allocate a tag given a set of suggested and available
     # tags from the request
+    # Return tag and success (whether successfully allocated)
     def allocateTag(self, request_suggested, request_available):
         request_suggested_values = VLANPool.parseVLANs(request_suggested)
         selected = None
@@ -90,7 +99,7 @@ class StitchingEdgePoint:
                 break
 
         if not selected:
-            if available == 'any':
+            if request_available == 'any':
                 my_available = self._vlans._available_vlans
                 if len(my_available) > 0:
                     selected = my_available[0]
@@ -105,10 +114,15 @@ class StitchingEdgePoint:
         if selected:
             self._vlans.allocate(selected)
 
-        return selected
+        print "*** ALLOCATE TAG : %s %s => %s" % \
+            (request_suggested, request_available, selected)
+        return selected, selected != None
 
     def __str__(self):
-        return "[EP %s %s %s %s]" % (self._local_switch, self._port, self._remote_switch, self._vlans)
+        return "[EP %s %s %s %s %s %s %s]" % \
+            (self._local_switch, self._port, self._remote_switch, 
+             self._vlans, self._traffic_engineering_metric, 
+             self._capacity, self._interface_mtu)
 
 
 class Stitching:
@@ -121,8 +135,40 @@ class Stitching:
         self._edge_points = {}
         for d in data['edge_points']:
             port = d['port']
+
+            # Pull edge-point specific parameters 
+            # (use defaults if not provided)
+            traffic_engineering_metric = \
+                str(config.stitching_traffic_engineering_metric)
+            if 'traffic_engineering_metric' in d:
+                traffic_engineering_metric = d['traffic_engineering_metric']
+
+            capacity = str(config.stitching_capacity)
+            if 'capacity' in d: capacity = d['capacity']
+
+            maximum_reservable_capacity = \
+                str(config.stitching_maximum_reservable_capacity)
+            if 'maximum_reservable_capacity' in d: 
+                maximum_reservable_capacity = d['maximum_reservable_capacity']
+
+            minimum_reservable_capacity = \
+                str(config.stitching_minimum_reservable_capacity)
+            if 'minimum_reservable_capacity' in d: 
+                minimum_reservable_capacity = d['minimum_reservable_capacity']
+
+            granularity = str(config.stitching_granularity)
+            if 'granularity' in d: granularity = d['granularity']
+
+            interface_mtu = str(config.stitching_interface_mtu)
+            if 'interface_mtu' in d: interface_mtu = d['interface_mtu']
+
+            
             ep = StitchingEdgePoint(d['local_switch'], port,
-                                    d['remote_switch'], d['vlans'])
+                                    d['remote_switch'], d['vlans'],
+                                    traffic_engineering_metric, 
+                                    capacity, maximum_reservable_capacity,
+                                    minimum_reservable_capacity, 
+                                    granularity, interface_mtu)
             self._edge_points[port] = ep
 
         self._aggregate_id = data['aggregate_id']
@@ -130,7 +176,7 @@ class Stitching:
         self._namespace = "http://hpn.east.isi.edu/rspec/ext/stitch/0.1"
 
         # Dictionary of sliver_urn => 
-        #      {'vlan_tag' : vlan_tag, 'port' : port, 'expiration' :expiraiton}
+        #      {'vlan_tag' : vlan_tag, 'port' : port}
         self._reservations = {}
 
     def parse(self, config_file):
@@ -162,21 +208,6 @@ class Stitching:
             child.appendChild(content)
         return child
 
-    # Time frame for which a tag is allocated before provisioned
-    TEMPORARY_TAG_ALLOCATION = 60
-
-    # Remove all expirated reservations and free tag in VLAN pool
-    def removeExpiredReservations(self):
-        now = datetime.datetime.now()
-        for sliver_urn, reservation in self._reservations.items():
-            if 'expiration' in reservation and reservation['expiration'] < now:
-                print "Expiring reservation %s %s" % (sliver_urn, reservation)
-                port = reservation['port']
-                tag = reservation['vlan_tag']
-                edge_point = self._edge_points[port]
-                edge_point._vlans.free(tag)
-                del self._reservations[sliver_urn]
-
     # Delete allocation of VLAN tag to sliver and port
     def deleteAllocation(self, sliver_id):
         if sliver_id in self._reservations:
@@ -186,10 +217,9 @@ class Stitching:
             edge_point = self._edge_points[port_id]
             edge_point._vlans.free(tag)
             del self._reservations[sliver_id]
+            print "*** Deleting VLAN tag allocation %s : %s" % (sliver_id, tag)
 
     def generateAdvertisement(self):
-        self.removeExpiredReservations()
-
         doc = Document()
 
         base = self.createChild("stitching", doc, doc)
@@ -220,6 +250,13 @@ class Stitching:
             local_switch = edge_point._local_switch
             remote_switch = edge_point._remote_switch
             vlans_value = str(edge_point._vlans)
+            traffic_engineering_metric = edge_point._traffic_engineering_metric
+            capacity = edge_point._capacity
+            maximum_reservable_capacity = edge_point._maximum_reservable_capacity
+            minimum_reservable_capacity = edge_point._minimum_reservable_capacity
+            granularity = edge_point._granularity
+
+            interface_mtu = edge_point._interface_mtu
 
             node = self.createChild("node", agg, doc)
             node.setAttribute("id", local_switch)
@@ -232,18 +269,18 @@ class Stitching:
             
             remote_link_id = self.createChild("remoteLinkId", link, doc, remote_switch)
 
-            traffic_engineering_metric = self.createChild("trafficEnginneringMetric", \
-                                                              link, doc, "10")
+            traffic_engineering_metric_elt = self.createChild("trafficEnginneringMetric", \
+                                                              link, doc, traffic_engineering_metric)
 
-            capacity = self.createChild("capacity", link, doc, "1000000")
+            capacity_elt = self.createChild("capacity", link, doc, capacity)
 
-            maximumReservableCapacity = self.createChild("maximumReservableCapacity", \
-                                                             link, doc, "1000000000")
+            maximum_reservable_capacity = self.createChild("maximumReservableCapacity", \
+                                                             link, doc, maximum_reservable_capacity)
 
-            minimumReservableCapacity = self.createChild("minimumReservableCapacity", \
-                                                             link, doc, "1000000")
+            minimum_reservable_capacity_elt = self.createChild("minimumReservableCapacity", \
+                                                             link, doc, minimum_reservable_capacity)
 
-            granularity = self.createChild("granularity", link, doc, "1000000")
+            granularity_elt = self.createChild("granularity", link, doc, granularity)
 
             scd = self.createChild("switchingCapabilityDescriptor", link, doc)
 
@@ -255,7 +292,7 @@ class Stitching:
             
             scsi_l2sc = self.createChild("switchingCapabilitySpecificInfo_L2sc", scsi, doc)
 
-            interface_mtu = self.createChild("interfaceMTU", scsi_l2sc, doc, "9000")
+            interface_mtu_elt = self.createChild("interfaceMTU", scsi_l2sc, doc, interface_mtu)
 
             # Any VLAN
             vlans = self.createChild("vlanRangeAvailability", scsi_l2sc, doc, vlans_value)
@@ -274,9 +311,18 @@ class Stitching:
     # request_details: parsed from request: My nodes, my links, my hops
     # Allocate = true: return manifest for allocate call
     # Allocate = false: return manifest for provision call
-    def generateManifest(self, request, request_details, allocate, sliver_id):
+    #
+    # Return manifest doc and successfully allocated VLANs
+    def generateManifest(self, request, allocate, sliver):
 
-        self.removeExpiredReservations()
+        success = True
+
+        sliver_id = sliver.getSliverURN()
+
+        if type(request) == str: request = parseString(request)
+
+        error_string, error_code, request_details = \
+            self.parseRequestRSpec(request)
 
         # We perform destructive operations on request to make manifest
         request = request.cloneNode(True)
@@ -315,37 +361,40 @@ class Stitching:
                     # Allocate a VLAN for manifest based on request
                     # and stick in appropriate field of manifest
                     if link_id in self._edge_points: # One of my ports
-                        self.allocateVLAN(link_id, manifest_link, \
-                                              allocate, sliver_id)
+                        success = self.allocateVLAN(link_id, manifest_link, \
+                                                        allocate, sliver_id)
+                        if not success:
+                            return None, "Failure to allocate VLAN in requested range", constants.VLAN_UNAVAILABLE
 
                 next_hop = hop.getElementsByTagName('nextHop')[0]
                 manifest_hop.appendChild(next_hop)
 
-        return doc
+        return doc, None, constants.SUCCESS
 
     # Set the suggested and availability fields of manifest hop_link
     # For a given sliver
     # If 'allocate', pick a new tag (if available)
     # If not 'allocate', use the one that is already allocated
+    # Return True if successfully allocated, False if failed to allocate
     def allocateVLAN(self, port_id, hop_link, allocate, sliver_id):
         suggested, available = self.parseVLANTagInfo(hop_link)
         edge_point = self._edge_points[port_id]
         if allocate:
-            # Temporary - with expiraiton
-            selected_vlan = edge_point.allocateTag(suggested,available)
+            # Grab a new tag from available list
+            selected_vlan, success = \
+                edge_point.allocateTag(suggested,available)
+            if not success: return False # Failure
             available = edge_point.availableVLANs()
-            expiration = datetime.datetime.now() + \
-                datetime.timedelta(seconds=Stitching.TEMPORARY_TAG_ALLOCATION)
             self._reservations[sliver_id] = {'vlan_tag' : selected_vlan,
-                                             'port' : port_id,
-                                             'expiration' : expiration}
+                                             'port' : port_id}
         else:
+            # Use existing tag
             reservation = self._reservations[sliver_id]
             selected_vlan = reservation['vlan_tag']
             available = selected_vlan
-            # Permanent allcation: remove expiration
-            del reservation['expiration']
         self.setVLANTagInfo(hop_link, selected_vlan, available)
+
+        return True # Success
 
     def setVLANTagInfo(self, hop_link, suggested, available):
         availability_nodes = hop_link.getElementsByTagName('vlanRangeAvailability')
@@ -415,8 +464,18 @@ class Stitching:
     # I hold onto this information gathered at allocate time and then
     # Set up the stitch and provision time
     #
+    # Return error_string, error_code ("", SUCCESS if no error) and
+    #   request_details {'my_nodes_by_interface', 
+    #                    'my_links', 
+    #                    'my_hops_by_path_id'}
+    #
     def parseRequestRSpec(self, request_rspec):
 
+        error_string = None
+        error_code = constants.SUCCESS
+
+        if type(request_rspec) == str:
+            request_rspec = parseString(request_rspec)
         request = request_rspec.childNodes[0]
 
         nodes = request.getElementsByTagName('node')
@@ -450,13 +509,19 @@ class Stitching:
             my_hop = self.findLocalHop(stitching, link_id)
             my_hops_by_path_id[link_id] = my_hop
 
-        print "MY NODES and IFS:" + str(my_nodes_by_interface)
-        print "MY LINKS:" + str(my_links)
-        print "MY HOPS: " + str(my_hops_by_path_id)
+#        print "MY NODES and IFS:" + str(my_nodes_by_interface)
+#        print "MY LINKS:" + str(my_links)
+#        print "MY HOPS: " + str(my_hops_by_path_id)
 
-        return {"my_nodes_by_interface" : my_nodes_by_interface,
-                "my_links" : my_links,
-                "my_hops_by_path_id" : my_hops_by_path_id}
+        request_details = {"my_nodes_by_interface" : my_nodes_by_interface,
+                        "my_links" : my_links,
+                "my_hops_by_patqh_id" : my_hops_by_path_id}
+        return error_string, error_code, request_details
+
+    # Restore stitching state from archive
+    def restoreStitchingState(self, sliver_urn, tag, port):
+        self._reservations[sliver_urn] = {'vlan_tag' : tag, 'port' : port}
+        self._edge_points[port]._vlans.allocate(tag)
 
 
 if __name__ == '__main__':
@@ -481,26 +546,22 @@ if __name__ == '__main__':
     is_stitching = stitching.isStitchingRSpec(request)
     print("IS STITCHING " + str(is_stitching))
 
-    request_details = stitching.parseRequestRSpec(request)
-
     sliver_id = "777"
 
-    Stitching.TEMPORARY_TAG_ALLOCATION = 1 
-    manifest = stitching.generateManifest(request, request_details, \
-                                              True, sliver_id)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   True, sliver_id)
     print manifest.toxml()
-    import time; time.sleep(2)
-    manifest = stitching.generateManifest(request, request_details, \
-                                              True, sliver_id)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   True, sliver_id)
     print manifest.toxml()
-    manifest = stitching.generateManifest(request, request_details, \
-                                              False, sliver_id)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   False, sliver_id)
     print manifest.toxml()
-    manifest = stitching.generateManifest(request, request_details, \
-                                              True, sliver_id)
+    manifest, output_code = stitching.generateManifest(request, 
+                                                   True, sliver_id)
     print manifest.toxml()
-    manifest = stitching.generateManifest(request, request_details, \
-                                          False, sliver_id)
+    manifest, output_code = stitching.generateManifest(request, 
+                                                   False, sliver_id)
     print manifest.toxml()
 
     stitching.deleteAllocation(sliver_id)
