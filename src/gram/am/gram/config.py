@@ -196,7 +196,7 @@ gmoc_site_name = ' '
 gmoc_org_name = ' '
 gmoc_pop_name = ' '
 gmoc_am_type = 'gram'
-gmoc_debug_level = gmoc.GMOC_DEBUG_OFF
+gmoc_debug_level = gmoc.gmoc.GMOC_DEBUG_OFF
 
 
 
