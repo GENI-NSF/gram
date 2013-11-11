@@ -361,10 +361,17 @@ class Stitching:
                     # Allocate a VLAN for manifest based on request
                     # and stick in appropriate field of manifest
                     if link_id in self._edge_points: # One of my ports
-                        success = self.allocateVLAN(link_id, manifest_link, \
-                                                        allocate, sliver_id)
+                        success, tag = self.allocateVLAN(link_id, 
+                                                         manifest_link, 
+                                                         allocate, sliver_id)
                         if not success:
                             return None, "Failure to allocate VLAN in requested range", constants.VLAN_UNAVAILABLE
+                        else:
+                            # Set the VLAN tag of the network_link sliver and 
+                            # associated network interface slivers
+                            sliver.setVLANTag(tag)
+                            for interface in sliver.getEndpoints():
+                                interface.setVLANTag(tag)
 
                 next_hop = hop.getElementsByTagName('nextHop')[0]
                 manifest_hop.appendChild(next_hop)
@@ -376,6 +383,7 @@ class Stitching:
     # If 'allocate', pick a new tag (if available)
     # If not 'allocate', use the one that is already allocated
     # Return True if successfully allocated, False if failed to allocate
+    # As well as the tag_id (or None) allocated
     def allocateVLAN(self, port_id, hop_link, allocate, sliver_id):
         suggested, available = self.parseVLANTagInfo(hop_link)
         edge_point = self._edge_points[port_id]
@@ -383,7 +391,7 @@ class Stitching:
             # Grab a new tag from available list
             selected_vlan, success = \
                 edge_point.allocateTag(suggested,available)
-            if not success: return False # Failure
+            if not success: return False, None # Failure
             available = edge_point.availableVLANs()
             self._reservations[sliver_id] = {'vlan_tag' : selected_vlan,
                                              'port' : port_id}
@@ -394,7 +402,7 @@ class Stitching:
             available = selected_vlan
         self.setVLANTagInfo(hop_link, selected_vlan, available)
 
-        return True # Success
+        return True, selected_vlan # Success
 
     def setVLANTagInfo(self, hop_link, suggested, available):
         availability_nodes = hop_link.getElementsByTagName('vlanRangeAvailability')
