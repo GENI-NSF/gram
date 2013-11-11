@@ -15,7 +15,8 @@ class OperatingSystem(GenericInstaller):
         self.comment("*** OperatingSystem Install ***")
         self.comment("Step 2. Add repository and upgrade Ubuntu")
         self.backup("/etc", config.backup_directory, "ntp.conf")
-
+        self.backup("/etc", config.backup_directory, "hosts")
+ 
         # write the interface file
         self.writeToFile('auto lo','interfaces')
         self.appendToFile('iface lo inet loopback\n','interfaces')
@@ -117,29 +118,38 @@ class OperatingSystem(GenericInstaller):
         # configure ~/.gcf/gcf_config
         self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.service_token + "\/\/gcf/","/home/gram/.gcf/gcf_config")
         self.sed("s/host=.*/host=" + config.control_host + "/","/home/gram/.gcf/gcf_config")
-        self.appendToFile(config.control_host_addr + " " + config.control_host, "/etc/hosts")
+
+        # set up the /etc/hosts file
+        self.writeToFile("127.0.0.1       localhost", "~\hosts")
+        self.appendToFile(config.control_host_addr + " " + config.control_host, "~\hosts")
+        self.appendToFile("", "\etc\hosts")
+        self.appendToFile("::1     ip6-localhost ip6-loopback", "~\hosts")
+        self.appendToFile("fe00::0 ip6-localne", "~\hosts")
+        self.appendToFile("ff00::0 ip6-mcastprefix", "~\hosts")
+        self.appendToFile("ff02::1 ip6-allnodes", "~\hosts")
+        self.appendToFile("ff02::2 ip6-allrouters", "~\hosts")
         nodes = config.compute_hosts
         for node in nodes:
-            self.appendToFile(nodes[node] + " " + node,"/etc/hosts")
+            self.appendToFile(nodes[node] + " " + node,"~/hosts")
 
 
 
         # create an omni config file
-        self.append("[omni]",self.omni_config)
-        self.append("users = gramuser", self.omni_config)
-        self.append("default_cf = my_gcf", self.omni_config)
-        self.append("[my_gcf]",self.omni_config)
-        self.append("type=gcf",self.omni_config)
-        self.append("authority=geni:" + config.service_token + ":gcf",self.omni_config)
-        self.append("cert=~/.gcf/gramuser-cert.pem", self.omni_config)
-        self.append("key=~/.gcf/gramuser-key.pem", self.omni_config)
-        self.append("ch = https://" + config.external_address + ":8000", self.omni_config)
-        self.append("sa = https://" + config.external_address + ":8000", self.omni_config)
-        self.append("[gramuser]", self.omni_config)
-        self.append("urn=urn:publicid:IDN+geni:dell:gcf+user+gramuser", self.omni_config)
-        self.append("keys=~/.ssh/id_rsa.pub", self.omni_config)
-        self.append("[aggregate_nicknames]", self.omni_config)
-        self.append("gram=,https://" + config.external_address, self.omni_config)
+        self.writeToFile("[omni]",self.omni_config)
+        self.appendToFile("users = gramuser", self.omni_config)
+        self.appendToFile("default_cf = my_gcf", self.omni_config)
+        self.appendToFile("[my_gcf]",self.omni_config)
+        self.appendToFile("type=gcf",self.omni_config)
+        self.appendToFile("authority=geni:" + config.service_token + ":gcf",self.omni_config)
+        self.appendToFile("cert=~/.gcf/gramuser-cert.pem", self.omni_config)
+        self.appendToFile("key=~/.gcf/gramuser-key.pem", self.omni_config)
+        self.appendToFile("ch = https://" + config.external_address + ":8000", self.omni_config)
+        self.appendToFile("sa = https://" + config.external_address + ":8000", self.omni_config)
+        self.appendToFile("[gramuser]", self.omni_config)
+        self.appendToFile("urn=urn:publicid:IDN+geni:dell:gcf+user+gramuser", self.omni_config)
+        self.appendToFile("keys=~/.ssh/id_rsa.pub", self.omni_config)
+        self.appendToFile("[aggregate_nicknames]", self.omni_config)
+        self.appendToFile("gram=,https://" + config.external_address, self.omni_config)
         
         # generate  credentials for this user
         self.add("/opt/gcf/src/gen-certs.py --exp -u gramuser") 
@@ -147,7 +157,7 @@ class OperatingSystem(GenericInstaller):
         # add these entries to satisfy omni/portal
         nodes = config.host_file_entries
         for node in nodes:
-            self.appendToFile(nodes[node] + "\t" + node,"/etc/hosts")
+            self.appendToFile(nodes[node] + "\t" + node,"~/hosts")
 
         self.writeToFile("Defaults:quantum !requiretty", "/etc/sudoers.d/quantum_sudoers")
         self.appendToFile("quantum ALL=NOPASSWD: ALL","/etc/sudoers.d/quantum_sudoers")

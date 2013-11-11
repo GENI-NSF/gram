@@ -38,7 +38,7 @@ class Keystone(GenericInstaller):
         self.add("rm -f " + data_script_filename)
         self.add("wget " + data_script_url)
         self.sed("s/HOST_IP=.*/HOST_IP=" + config.control_host_addr +  "/",data_script_filename)
-        self.sed("s/ADMIN_PASSWORD.*/ADMIN_PASSWORD=${ADMIN_PASSWORD:-" + config.os_password + "/",data_script_filename)
+        self.sed("s/^ADMIN_PASSWORD.*/ADMIN_PASSWORD=$\{ADMIN_PASSWORD:-" + config.os_password + "\}/",data_script_filename)
         #self.sed("s/SERVICE_PASSWORD.*/SERVICE_PASSWORD=" + keystone_password + "/",data_script_filename)
         #self.sed("s/SERVICE_TOKEN.*/SERVICE_TOKEN=" + service_token + "/",data_script_filename)
         #self.sed("s/SERVICE_TENANT_NAME.*/SERVICE_TENANT_NAME=" + config.os_tenant_name + "/",data_script_filename) 
