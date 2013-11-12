@@ -35,7 +35,7 @@
 import logging
 import socket
 import sys
-import gmoc.gmoc
+import monitor.gmoc
 
 # GRAM aggregate manager ports for V2 and V3
 gram_am_port = 5001
@@ -196,7 +196,7 @@ gmoc_site_name = ' '
 gmoc_org_name = ' '
 gmoc_pop_name = ' '
 gmoc_am_type = 'gram'
-gmoc_debug_level = gmoc.gmoc.GMOC_DEBUG_OFF
+gmoc_debug_level = monitor.gmoc.GMOC_DEBUG_OFF
 
 
 
