@@ -29,7 +29,7 @@ MONDEBUGLEVEL= gmoc.GMOC_DEBUG_VERBOSE
 def monitor():
  organization = gmoc.Organization( ORGNAME )
  pop = gmoc.POP( POPNAME )
- aggregate = gmoc.Aggregate('shouldbeurn', type='gram', version='3', pop = pop, operator=organization)
+ aggregate = gmoc.Aggregate('urn:publicid:geni:bos:gcf+authority+am', type='gram', version='3', pop = pop, operator=organization)
 
  #get vmresources
  vmresources = open_stack_interface._getConfigParam('/etc/gram/config.json', 'compute_hosts')
@@ -54,18 +54,23 @@ def monitor():
     print filename
     allF.append(filename)
 
- nfiles = sorted(allF, key=os.path.getctime)
- oldest = nfiles[0]
- newest = nfiles[-1]
+ if allF:
+  nfiles = sorted(allF, key=os.path.getctime)
+  oldest = nfiles[0]
+  newest = nfiles[-1]
 
- myslices = Archiving.read_slices(newest)
+  myslices = Archiving.read_slices(newest)
+  sliver = {}
 
- for i, slice in myslices.iteritems():
-  gmoc.Slice(str(slice.getSliceURN()))
-  slivers = slice.getAllSlivers()
-  for k, v in slivers.iteritems():
+  for i, slice in myslices.iteritems():
+   gmoc.Slice(str(slice.getSliceURN()))
+   slivers = slice.getAllSlivers()
+   for k, v in slivers.iteritems():
     print "*********************"
-    sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), v.getExpiration(), v.getOperationalState(), aggregate, v.getUserURN())                                                    
+    #import pdb; pdb.set_trace()
+    #sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), v.getExpiration(), v.getOperationalState(), aggregate, v.getUserURN())                                                    
+    #sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), v.getExpiration(), gmoc.SLIVER_STATE_UP, aggregate, gmoc.Contact(str(v.getUserURN())))
+    sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), expires = v.getExpiration(), state = gmoc.SLIVER_STATE_UP, aggregate = aggregate, creator = gmoc.Contact(str(v.getUserURN())))
     print v.getCreation()
     print v.getExpiration()
     print v.getSliverURN()
@@ -79,8 +84,8 @@ def monitor():
       #have a question about the UUID and the slivers class assigned at the end of this function
       gmoc.ResourceMapping(str(v.getUUID()), type = 'vm', resource = resources[v.getHost()], sliver = sliver[v.getSliverURN()])                                                                             
     else:
-        print "link"
-        print "*********************"
+      print "link"
+      print "*********************"
 
 
 
@@ -90,17 +95,19 @@ def monitor():
            username = MONUSERNAME,
            password = MONPASSWORD,
          )
+
+ print pop
 #if DEBUG:  # assuming you set an optional debugging flag, which is a good idea                    
 #  client.debugLevel = gmoc.GMOC_DEBUG_VERBOSE                                                      
 
- result = client.store(pop)                                                                      
- if result != 0:                                                                                   
-  print "Attempted to submit relational data, but received: %s" % result
-  print "HTTP status code was: %d" % data.resultStatus                                            
-  print "Error message was: %s" % data.errorMessage                     
+# result = client.store(pop)                                                                      
+# if result != 0:                                                                                   
+#  print "Attempted to submit relational data, but received: %s" % result
+#  print "HTTP status code was: %d" % data.resultStatus                                            
+#  print "Error message was: %s" % data.errorMessage                     
 
 if __name__ == "__main__":
 
     while True:
-        time.sleep(100)
-    monitor() 
+    	monitor() 
+        time.sleep(10)
