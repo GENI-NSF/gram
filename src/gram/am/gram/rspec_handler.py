@@ -83,9 +83,11 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
 
         # If the node is already bound (component_manager_id is set)
         # Ignore the node if it isn't bound to my component_manager_id
-#        if node_attributes.has_key('component_manager_id') and \
-#                node_attributes['component_manager_id'].value != config.aggregate_manager_urn:
-#            continue
+        if node_attributes.has_key('component_manager_id'):
+            cmi = node_attributes['component_manager_id'].value
+            if cmi  != config.aggregate_manager_urn:
+                print "Ignoring remote node : %s" % cmi
+                continue
 
         # Create a VirtualMachine object for this node and add it to the list
         # of virtual machines that belong to this slice at this aggregate
@@ -272,10 +274,8 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
             interface_object =  \
                 geni_slice.getNetworkInterfaceByName(interface_name)
             if interface_object == None :
-                error_string = 'Malformed rspec: Unknown interface_ref %s specified for link %s' % (interface_name, link_object.getName())
-                error_code = constants.REQUEST_PARSE_FAILED
-                config.logger.error(error_string)
-                return error_string, error_code, sliver_list, None
+                print "Ignoring unknown interface : %s " % interface_name
+                continue
 
             # Set the interface to point to this link
             interface_object.setLink(link_object)
@@ -295,6 +295,11 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
                     if netaddr.IPNetwork(link_object.getSubnet()).network != cidr.network:
                         config.logger.warn(" Link on multiple subnets: " + str(cidr) + " and " + link_object.getSubnet())
                         config.logger.warn(" Using subnet " + link_object.getSubnet())
+
+        # If we've created a link that has no interfaces for this aggregate, remove it from allocation
+        if len(link_object.getEndpoints()) == 0:
+            sliver_list.remove(link_object)
+            geni_slice.removeSliver(link_object)
 
     controllers = rspec_dom.getElementsByTagName('openflow:controller')
     if len(controllers) > 0:
