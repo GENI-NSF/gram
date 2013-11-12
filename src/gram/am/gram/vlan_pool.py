@@ -21,6 +21,8 @@
 # IN THE WORK.
 #----------------------------------------------------------------------
 
+import threading
+
 # Class to manage a set of VLAN's
 # Letting someone allocate and free one, 
 # Verifying if one is allocated, and getting a list of all allocated ones
@@ -28,10 +30,12 @@
 
 class VLANPool:
 
-    def __init__(self, vlan_spec):
+    def __init__(self, vlan_spec, name):
+        self._lock = threading.RLock()
         self._all_vlans = VLANPool.parseVLANs(vlan_spec)
         self._available_vlans = [v for v in self._all_vlans]
         self._temporary_allocations = {} # tag => timestamp
+        self._name = name
 
     # Parse a comma-separated set of sorted tags into a list of tags
     @staticmethod
@@ -65,33 +69,47 @@ class VLANPool:
     def getAvailableVLANs(self):
         return self._available_vlans
 
+    # Return whether a given tag belongs to this pool but is allocated
+    def isAllocated(self, tag):
+        return tag in self._all_vlans and tag not in self._available_vlans
+
     # Return whether a given tag is available
     def isAvailable(self, tag):
         return tag in self._available_vlans
 
-    # Free a given VLAN tag, if in pool and not already allocated
-    # If duration_sec is given, only keep allocation for that number of seconds
-    # then release
-    # If duration_sec was previously given and is no longer given, then 
-    # Remove it from temporary state
+    # Allocate a VLAN tag.
+    # If the tag is specified, allocate it if available otherwise fail
+    # If not specified (None) return the first available or fail if none left
     # Return boolean indicating success
-    def allocate(self, tag, duration_sec=None):
-        if tag not in self._all_vlans: return False
+    def allocate(self, tag):
+        with self._lock:  # Thread-safe concurrent access to pool
+            # If tag not specified, pick the first from the list
+            if not tag:
+                if len(self._available_vlans) > 0:
+                    tag = self._available_vlans[0]
+                else:
+                    return False, None
 
-        if tag not in self._available_vlans: return False
+            if tag not in self._all_vlans: return False, None
+
+            if tag not in self._available_vlans: return False, None
             
-        self._available_vlans.remove(tag)
+            self._available_vlans.remove(tag)
 
-        return True
+            print "Allocated %d from VLAN pool %s" % (tag, self._name)
+
+            return True, tag
 
     # Free a given VLAN tag, if allowed to be in pool and not already freed
     # Return boolean indicating success
     def free(self, tag):
-        if tag not in self._all_vlans: return False
-        if tag in self._available_vlans: return False
-        self._available_vlans.append(tag)
-        self._available_vlans.sort()
-        return True
+        with self._lock: # Thread-safe concurrent access to pool
+            if tag not in self._all_vlans: return False
+            if tag in self._available_vlans: return False
+            self._available_vlans.append(tag)
+            self._available_vlans.sort()
+            print "Freed %d to VLAN pool %s" % (tag, self._name)
+            return True
 
 if __name__ == "__main__":
     pool = VLANPool('3-50,60-90')

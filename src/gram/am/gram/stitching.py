@@ -76,7 +76,7 @@ class StitchingEdgePoint:
         self._local_switch = local_switch
         self._port = port
         self._remote_switch = remote_switch
-        self._vlans = VLANPool(vlans)
+        self._vlans = VLANPool(vlans, port)
         self._traffic_engineering_metric = traffic_engineering_metric
         self._capacity = capacity
         self._maximum_reservable_capacity = maximum_reservable_capacity
@@ -324,6 +324,9 @@ class Stitching:
         error_string, error_code, request_details = \
             self.parseRequestRSpec(request)
 
+        if not request_details:
+            return None, None, constants.SUCCESS # No stitching, no error
+
         # We perform destructive operations on request to make manifest
         request = request.cloneNode(True)
 
@@ -476,11 +479,13 @@ class Stitching:
     #   request_details {'my_nodes_by_interface', 
     #                    'my_links', 
     #                    'my_hops_by_path_id'}
+    # Return request_details = None if no stitching element in request
     #
     def parseRequestRSpec(self, request_rspec):
 
         error_string = None
         error_code = constants.SUCCESS
+        request_details = None
 
         if type(request_rspec) == str:
             request_rspec = parseString(request_rspec)
@@ -510,20 +515,23 @@ class Stitching:
                     break
 
         # Find hops that are mine ad involved in link-referenced stitching
-        stitching = request.getElementsByTagName('stitching')[0]
-        my_hops_by_path_id = {}
-        for link in my_links:
-            link_id = link.attributes['client_id'].value
-            my_hop = self.findLocalHop(stitching, link_id)
-            my_hops_by_path_id[link_id] = my_hop
+        stitching_elts = request.getElementsByTagName('stitching')
+        if len(stitching_elts) > 0:
+            stitching = stitching_elts[0]
+            my_hops_by_path_id = {}
+            for link in my_links:
+                link_id = link.attributes['client_id'].value
+                my_hop = self.findLocalHop(stitching, link_id)
+                my_hops_by_path_id[link_id] = my_hop
 
-#        print "MY NODES and IFS:" + str(my_nodes_by_interface)
-#        print "MY LINKS:" + str(my_links)
-#        print "MY HOPS: " + str(my_hops_by_path_id)
+#            print "MY NODES and IFS:" + str(my_nodes_by_interface)
+#            print "MY LINKS:" + str(my_links)
+#            print "MY HOPS: " + str(my_hops_by_path_id)
 
-        request_details = {"my_nodes_by_interface" : my_nodes_by_interface,
-                        "my_links" : my_links,
-                "my_hops_by_patqh_id" : my_hops_by_path_id}
+            request_details = {"my_nodes_by_interface" : my_nodes_by_interface,
+                               "my_links" : my_links,
+                               "my_hops_by_patqh_id" : my_hops_by_path_id}
+
         return error_string, error_code, request_details
 
     # Restore stitching state from archive

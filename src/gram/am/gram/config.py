@@ -204,17 +204,32 @@ gmoc_debug_level = False
 
 glance_images = None
 
+# The set of internal VLAN tags associated with this aggregate
+# That is, the set for internal links and networks, not for stitching
+# Stitching VLAN's are assocaited with stitching edge points (below)
+internal_vlans = "2-10"
+
 # Stitching information for this aggregate. A JSON structure
 # containing
 # aggregate_id : The URN of this AM
 # aggregate_url : The URL of this AM
-# edge_points: a list of dictionaries
+# edge_points: a list of dictionaries for which:
+#  These are mandatory:
 #    local_switch : URN of local switch
 #    port : URN port on local switch leading to remote switch
 #    remote_switch: URN of remote switch
 #    vlans : VLAN tags configured on this port 
+#  These are optional (to be defaulted by values below):
+#    traffic_engineering_metric
+#    capacity
+#    interface_mtu
+#    maximum_reservable_capacity
+#    minimum_reservable_capacity
+#    granularity
 stitching_info = None
 
+# Defaults for stitching link parameters, to be overridden if provided
+# in individual end-points
 stitching_traffic_engineering_metric = 10
 stitching_capacity = 1000000000
 stitching_interface_mtu = 9000

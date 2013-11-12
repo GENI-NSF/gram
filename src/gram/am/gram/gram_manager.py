@@ -9,11 +9,12 @@ import time
 import config
 import constants
 from sfa.trust.certificate import Certificate
-from resources import Slice, VirtualMachine
+from resources import Slice, VirtualMachine, NetworkLink
 import rspec_handler
 import open_stack_interface
 import stitching
 import utils
+import vlan_pool
 import Archiving
 import threading
 
@@ -71,6 +72,9 @@ class GramManager :
         for part in cert_data_parts:
             if part.find('URI:urn:publicid')>=0:
                 self._aggregate_urn = part[4:]
+
+        self._internal_vlans = \
+            vlan_pool.VLANPool(config.internal_vlans, "INTERNAL")
 
         open_stack_interface.init() # OpenStack related initialization
 
@@ -206,6 +210,14 @@ class GramManager :
                                                              agg_urn, \
                                                              self._stitching)
             if error_code != constants.SUCCESS:
+                return {'code' : {'geni_code' : error_code}, 'value' : "", 
+                        'output' : error_string}
+
+            # Associate an internal VLAN tag with every link 
+            # that isn't already set by stitching
+            if not self.allocate_internal_vlan_tags(slice_object):
+                error_string = "No more internal VLAN tags available"
+                error_code = constants.VLAN_UNAVAILABLE
                 return {'code' : {'geni_code' : error_code}, 'value' : "", 
                         'output' : error_string}
 
@@ -433,6 +445,13 @@ class GramManager :
             for sliver in sliver_objects:
                 self._stitching.deleteAllocation(sliver.getSliverURN())
 
+            # Free all internal vlans back to pool
+            for sliver in sliver_objects:
+                if isinstance(sliver, NetworkLink):
+                    tag = sliver.getVLANTag()
+                    if self._internal_vlans.isAllocated(tag):
+                        self._internal_vlans.free(tag)
+
             # Persist new GramManager state
             self.persist_state()
 
@@ -653,6 +672,17 @@ class GramManager :
                     Archiving.read_slices(snapshot_file, self._stitching)
                 config.logger.info("Restored %d slices" % \
                                        len(SliceURNtoSliceObject._slices))
+
+    # Allocate internal VLAN tags to all links for which the tag is not
+    # yet set (by stitching)
+    def allocate_internal_vlan_tags(self, slice_object):
+        for link_sliver in slice_object.getNetworkLinks():
+            data_network_vlan = link_sliver.getVLANTag()
+            if data_network_vlan is None: 
+                success, tag = self._internal_vlans.allocate(None)
+                if not success: return False
+                link_sliver.setVLANTag(tag)
+        return True
 
 
     # Remove old snapshots, keeping only last config.snapshot_maintain_limit

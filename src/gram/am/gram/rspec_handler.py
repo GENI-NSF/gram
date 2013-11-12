@@ -355,8 +355,9 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
             if err_code != constants.SUCCESS:
                 return None, err_output, err_code
 
-            stitching_manifest_element = stitching_manifest.childNodes[0]
-            manifest.appendChild(stitching_manifest_element)
+            if stitching_manifest:
+                stitching_manifest_element = stitching_manifest.childNodes[0]
+                manifest.appendChild(stitching_manifest_element)
 
     return cleanXML(root, "Manifest"), err_output, err_code
 
