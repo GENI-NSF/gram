@@ -352,17 +352,18 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
 
-    if stitching_handler:
-        if isinstance(sliver, NetworkLink):
-            stitching_manifest, err_output,  err_code = \
-                stitching_handler.generateManifest(req_rspec, allocate, \
+    for sliver in geni_slivers:
+        if stitching_handler:
+            if isinstance(sliver, NetworkLink):
+                stitching_manifest, err_output,  err_code = \
+                   stitching_handler.generateManifest(req_rspec, allocate, \
                                                        sliver)
-            if err_code != constants.SUCCESS:
-                return None, err_output, err_code
+                if err_code != constants.SUCCESS:
+                    return None, err_output, err_code
 
-            if stitching_manifest:
-                stitching_manifest_element = stitching_manifest.childNodes[0]
-                manifest.appendChild(stitching_manifest_element)
+                if stitching_manifest:
+                    stitching_manifest_element = stitching_manifest.childNodes[0]
+                    manifest.appendChild(stitching_manifest_element)
 
     return cleanXML(root, "Manifest"), err_output, err_code
 

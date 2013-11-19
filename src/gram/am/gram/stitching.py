@@ -319,7 +319,7 @@ class Stitching:
 
         sliver_id = sliver.getSliverURN()
 
-        if type(request) == str: request = parseString(request)
+        if isinstance(request, basestring): request = parseString(request)
 
         error_string, error_code, request_details = \
             self.parseRequestRSpec(request)
@@ -487,7 +487,7 @@ class Stitching:
         error_code = constants.SUCCESS
         request_details = None
 
-        if type(request_rspec) == str:
+        if isinstance(request_rspec, basestring):
             request_rspec = parseString(request_rspec)
         request = request_rspec.childNodes[0]
 

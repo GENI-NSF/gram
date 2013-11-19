@@ -706,7 +706,7 @@ def _createNetworkForLink(link_object,used_ips=None) :
     # Create a network with the exprimenter specified name for the link
     tenant_uuid = slice_object.getTenantUUID()
     network_name = link_object.getName()
-    cmd_string = 'quantum net-create %s --tenant-id %s --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id ' % (network_name, tenant_uuid, link_object.getVLANTag())
+    cmd_string = 'quantum net-create %s --tenant-id %s --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id %s' % (network_name, tenant_uuid, link_object.getVLANTag())
                                                            
     try :
         output = _execCommand(cmd_string) 
