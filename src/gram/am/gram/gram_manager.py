@@ -284,8 +284,9 @@ class GramManager :
                 # We failed to provision this slice for some reason (described
                 # in err_str)
                 code = {'geni_code': constants.OPENSTACK_ERROR}
+                self.delete(slice_object, sliver_objects, options)        
                 return {'code': code, 'value': '', 'output': err_str}
-            
+    
             # Set expiration times on the provisioned resources
             # Set expiration times on the allocated resources
             expiration = utils.min_expire(creds, self._max_lease_time,

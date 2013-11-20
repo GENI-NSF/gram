@@ -17,8 +17,8 @@ class GramJSONEncoder(json.JSONEncoder):
         self._stitching_handler = stitching_handler
 
     def default(self, o):
-
-#        print "In Default " + str(o)
+         
+        #print "In Default " + str(o)
         # if isinstance(o, AggregateState):
         #     return {
         #         "__type__":"AggregateState",
@@ -97,7 +97,8 @@ class GramJSONEncoder(json.JSONEncoder):
                     "os_type":o.getOSType(),
                     "os_version":o.getOSVersion(),
                     "vm_flavor":o.getVMFlavor(),
-                    "host":o.getHost()
+                    "host":o.getHost(),
+                    "port":o.getSSHProxyLoginPort()
                     }
         
 
@@ -169,14 +170,20 @@ class GramJSONEncoder(json.JSONEncoder):
 # THis should create a JSON structure which is a list
 # of the JSON encoding of all slices and then all slivers
 def write_slices(filename, slices, stitching_handler):
-#    print "WS.CALL " + str(slices) + " " + filename
+    #print "WS.CALL " + str(slices) + " " + filename
     file = open(filename, "w")
     objects = []
     for slice in slices.values(): 
         objects.append(slice)
+        #print " ++ appending slice : " + str(slice)
     for slice in slices.values(): 
+        #print "slice: " + str(slice)
+        #print "Slivers: " + str(slice.getSlivers())
         for sliver in slice.getAllSlivers().values():
+            #print " ++ appending : " + str(sliver)
             objects.append(sliver)
+
+
     data = GramJSONEncoder(stitching_handler).encode(objects)
     file.write(data)
     file.close();
@@ -206,10 +213,9 @@ class GramJSONDecoder:
 
 
     def decode(self, json_object):
-#        print "DECODE : " + str(type(json_object)) + " " + str(json_object) 
+        #print "DECODE : " + str(type(json_object)) + " " + str(json_object) 
         if isinstance(json_object, dict) and json_object.has_key("__type__"):
             obj_type = json_object["__type__"]
-
             if(obj_type == "Slice"):
                 slice = Slice(json_object["slice_urn"])
                 tenant_uuid = json_object['tenant_uuid']
@@ -248,10 +254,11 @@ class GramJSONDecoder:
                 slice_tenant_uuid = json_object['slice']
                 uuid = json_object['uuid']
                 slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
-                vm = VirtualMachine(slice, uuid)
+                urn = json_object["sliver_urn"]
+                vm = VirtualMachine(slice,uuid=uuid,urn=urn)
                 vm.setName(json_object["name"])
                 vm.setUUID(uuid)
-                vm._sliver_urn = json_object["sliver_urn"]
+                vm._sliver_urn = urn
                 sliver_urn = vm._sliver_urn
                 expiration_timestamp = json_object['expiration']
                 expiration_time = None
@@ -264,6 +271,8 @@ class GramJSONDecoder:
                     creation_time = \
                         datetime.datetime.fromtimestamp(creation_timestamp)
                 vm.setUserURN(json_object["user_urn"])
+                vm.setMgmtNetAddr(json_object["mgmt_net_addr"])
+                vm.setSSHProxyLoginPort(json_object["port"])
                 vm.setExpiration(expiration_time)
                 vm.setCreation(creation_time)
                 vm.setAllocationState(json_object["allocation_state"])
@@ -294,9 +303,10 @@ class GramJSONDecoder:
                 virtual_machine_urn = json_object['virtual_machine']
                 uuid = json_object['uuid']
                 slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
-                nic = NetworkInterface(slice, None, uuid)
+                urn = json_object["sliver_urn"]
+                nic = NetworkInterface(slice, None, uuid=uuid,urn=urn)
                 nic.setName(json_object["name"])
-                nic._sliver_urn = json_object["sliver_urn"]
+                nic._sliver_urn = urn
                 sliver_urn = nic._sliver_urn
                 expiration_timestamp = json_object['expiration']
                 expiration_time = None
@@ -336,10 +346,10 @@ class GramJSONDecoder:
                 slice_tenant_uuid = json_object['slice']
                 uuid = json_object['uuid']
                 slice = self._slices_by_tenant_uuid[slice_tenant_uuid]
-                link = NetworkLink(slice, uuid)
+                sliver_urn = json_object["sliver_urn"]
+                link = NetworkLink(slice, uuid,urn=sliver_urn)
                 link.setName(json_object["name"])
-                link._sliver_urn = json_object["sliver_urn"]
-                sliver_urn = link._sliver_urn
+                link._sliver_urn = sliver_urn
                 expiration_timestamp = json_object['expiration']
                 expiration_time = None
                 if expiration_timestamp is not None:
@@ -411,15 +421,22 @@ def read_slices(filename, stitching_handler):
     # Need to turn this into a list of objects
     # Resolve links among them
 
+    slices = dict()
     decoder = GramJSONDecoder(stitching_handler)
     for json_object in json_data: 
         decoder.decode(json_object)
     decoder.resolve()
 
     # Return a  dictionary of all slices indexed by slice_urn
-    slices = dict()
     for slice in decoder._slices_by_tenant_uuid.values():
         slice_urn = slice.getSliceURN()
+        print slice_urn
+        print "restoring slivers: " + str(slice.getAllSlivers()) 
+        # Restore the port forwarding rules
+        vms = slice.getVMs()
+        for vm in vms:
+            print " map:" + vm.getMgmtNetAddr() + " -> " + str(vm.getSSHProxyLoginPort())
+ 
         slices[slice_urn] = slice
 
     return slices

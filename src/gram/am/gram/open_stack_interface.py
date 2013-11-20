@@ -633,6 +633,9 @@ def _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
     """
         Delete the security group created for this tenant
     """
+    if secgrp_name == None:
+        return
+ 
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-delete %s' % secgrp_name
@@ -1021,16 +1024,11 @@ def _createVM(vm_object, users, placement_hint) :
             if found != -1:
                 fip_cmd = "quantum floatingip-create --tenant-id " + tenant_uuid + " public"
                 output = _execCommand(fip_cmd)
-                config.logger.info(output)
                 fip_id = _getValueByPropertyName(output,'id')
-                config.logger.info(fip_id)
                 fip = _getValueByPropertyName(output,'floating_ip_address')
                 vm_object.setExternalIp(fip)
                 fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
                 output = _execCommand(fip_cmd)
-                config.logger.info(output)
-            else:
-                config.logger.info(" --- did not find mgmt port")
 
 
     # Set up the SSH proxy for the new VM
@@ -1335,16 +1333,13 @@ def _getFloatingIpByVM(vm_uuid):
     cmd = 'quantum port-list --device_id=' + vm_uuid
     output = _execCommand(cmd)
     output_lines = output.split('\n')
-    config.logger.info(output_lines)
     name = 'subnet'
     for line in output_lines:
-        config.logger.info('line: ' + line)
         if re.search(name, line) :
             columns = line.split('|')
             port_id = columns[1].strip()
             # for each port get a list of associated floating IPs
             output2 = _execCommand("quantum floatingip-list -- --port_id=" + port_id)
-            config.logger.info(output2)
             port = re.escape(port_id)
             output_lines2 = output2.split('\n')
             # Find the row in the output table that has the desired port

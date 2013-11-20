@@ -496,6 +496,9 @@ class Stitching:
         # Find nodes that is mine that has an interface in a stitching link
         my_nodes_by_interface = {}
         for node in nodes:
+            node_attributes = node.attributes
+            if not node_attributes.has_key('component_manager_id') :
+                continue
             cmid = node.attributes['component_manager_id'].value
             if cmid == self._aggregate_id:
                 node_id = node.attributes['client_id'].value
