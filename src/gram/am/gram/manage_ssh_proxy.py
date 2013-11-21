@@ -143,7 +143,7 @@ def _getPortFromTable(addr, delete) :
 	return portNumber
 
 
-def _updatePortTable(addr) :
+def _updatePortTable(addr,port=None) :
     # Attempt to open the port table file for reading
     portLines = []
     scriptFile = None
@@ -182,6 +182,9 @@ def _updatePortTable(addr) :
 	    # If the port is available then stop the search, otherwise go to the next port
             portNumber = int(tokens[1])
 	    if addr == tokens[0] :
+                # For reinsertions in the table of entries that exist in file but not in the iptable
+                if port == portNumber:
+                    return portNumber
                 duplicate = True
             elif insert_index < 0 :
                 if portCounter == portNumber :
@@ -243,11 +246,11 @@ def _updatePortTable(addr) :
     return portCounter
 
 
-def _addNewProxy(addr) :
+def _addNewProxy(addr,port=None) :
     """
     Access the GRAM SSH proxy daemon and create a new proxy with the given address
     """
-    portNumber = _updatePortTable(addr)
+    portNumber = _updatePortTable(addr,port)
     if portNumber == 0 :
         return 0
 
@@ -284,3 +287,19 @@ def _removeProxy(addr) :
             open_stack_interface._execCommand(cmd_string)
         except :
             config.logger.error("Address %s not present in SSH proxy" % addr)
+
+def _getIpTable():
+    """ 
+    Print out the IP tables
+    """
+
+    cmd_string = '%s ' % config.ssh_proxy_exe
+    cmd_string = cmd_string + ' -m L -n %s' % open_stack_interface._getConfigParam('/etc/gram/config.json','mgmt_ns')
+   
+    output = ""
+    try:
+        output = open_stack_interface._execCommand(cmd_string)
+    except :
+        config.logger.error("Address %s not present in SSH proxy" % addr)
+
+    return output

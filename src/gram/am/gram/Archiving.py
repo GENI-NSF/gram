@@ -7,6 +7,10 @@ import json
 import pdb
 from resources import Slice, VirtualMachine, NetworkLink, NetworkInterface
 import stitching
+import config
+from open_stack_interface import _execCommand
+from manage_ssh_proxy import _getIpTable,_addNewProxy
+import re
 #from AggregateState import AggregateState
 #from AllocationManager import AllocationManager
 
@@ -427,17 +431,35 @@ def read_slices(filename, stitching_handler):
         decoder.decode(json_object)
     decoder.resolve()
 
+    # Get the port current port forwarding in the ip table
+    output = _getIpTable()
+    ip_table_entries = dict()
+    for line in output.split('\n'):
+        m = re.search(r'tcp dpt:(.*) to:(.*):22',line)
+        if m:
+            ip_table_entries[m.group(1)] = m.group(2)
+  
+
     # Return a  dictionary of all slices indexed by slice_urn
     for slice in decoder._slices_by_tenant_uuid.values():
         slice_urn = slice.getSliceURN()
-        print slice_urn
-        print "restoring slivers: " + str(slice.getAllSlivers()) 
-        # Restore the port forwarding rules
-        vms = slice.getVMs()
-        for vm in vms:
-            print " map:" + vm.getMgmtNetAddr() + " -> " + str(vm.getSSHProxyLoginPort())
- 
         slices[slice_urn] = slice
+        config.logger.info("restored slivers: " + str(slice.getAllSlivers())) 
 
+        # Restore the port forwarding rules on each slice
+        vms = slice.getVMs()
+        config.logger.info("Restoring ip tables")
+        for vm in vms:
+            port = str(vm.getSSHProxyLoginPort())
+            addr = vm.getMgmtNetAddr()
+            config.logger.info( " mgmt address " + addr + \
+                   " is mapped to port: " + port)
+            if port in ip_table_entries.keys():
+                config.logger.info(" Port " + port + " is already in the iptable")
+            elif addr in ip_table_entries.values():
+                config.logger.info(" Addr " + addr + " is already in the ipdatble")
+            else:
+                _addNewProxy(addr,int(port))
+    print ip_table_entries
     return slices
 

@@ -48,6 +48,7 @@
 #define MODE_CREATE 1
 #define MODE_DELETE 2
 #define MODE_CLEAR  3
+#define MODE_LIST 4
 
 #define TRUE 1
 #define FALSE 0
@@ -708,6 +709,8 @@ int main(int argc, char *argv[])
         mode = MODE_DELETE;
       } else if (*optarg == 'x' || *optarg == 'X') {
         mode = MODE_CLEAR;
+      } else if (*optarg == 'l' || *optarg == 'L') {
+        mode = MODE_LIST;
       } else {
         fprintf(stderr, USAGE_STRING, argv[0]);
         exit(EXIT_FAILURE);
@@ -732,15 +735,25 @@ int main(int argc, char *argv[])
     }
   }
 
-  if (mode == MODE_NONE || (mode != MODE_CLEAR && addr_not_found))
+  if (mode == MODE_NONE || (mode != MODE_LIST && mode != MODE_CLEAR && addr_not_found))
   {
     free(addr);
     fprintf(stderr, USAGE_STRING, argv[0]);
     exit(EXIT_FAILURE);      
   }
 
-  if (mode == MODE_CREATE)
+  if (mode == MODE_LIST)
   {
+    int cmdlen;
+    char *cmd;
+    cmd = (char *)malloc(sizeof(char) * MAX_IPTABLES_CMD_STR_LEN);
+    memset(cmd, (int)'\0', MAX_IPTABLES_CMD_STR_LEN);
+    cmdlen = sprintf(cmd, "ip netns exec %s %s -L -t nat --line-numbers",
+                   namespace, IPTABLES_LOCATION_STR);
+    fprintf(stdout, "%s\n", cmd);
+    system(cmd);
+
+  } else if (mode == MODE_CREATE){
     if (port_not_found)
     {
       fprintf(stdout, "Creating SSH Proxy for address %s\n", addr);
