@@ -536,7 +536,7 @@ class NetworkInterface(Sliver):
          self._link = None  # NetworkLink associated with NIC
          self._vlan_tag = None
          self._enabled = False # False => NIC not connected to provisioned link
-         Sliver.__init__(self, my_slice,urn=urn)
+         Sliver.__init__(self, my_slice,urn=urn, uuid=uuid)
 
      def __str__(self):
         return resource_image(self, "NIC");
@@ -584,6 +584,7 @@ class NetworkInterface(Sliver):
         return self._vlan_tag
 
      def setVLANTag(self, vlan_tag): # Set VLAN tag of traffic on this interface
+        if vlan_tag: vlan_tag = int(vlan_tag)
         self._vlan_tag = vlan_tag
 
 
@@ -625,6 +626,7 @@ class NetworkLink(Sliver): # was Link
         return self._subnet_uuid
 
      def setVLANTag(self, vlan_tag) :
+        if vlan_tag: vlan_tag = int(vlan_tag)
         self._vlan_tag = vlan_tag
 
      def getVLANTag(self) :

@@ -65,6 +65,10 @@ class VLANPool:
             
         return ",".join("%d-%d" % (seg[0], seg[1]) for seg in segments)
 
+    # Return list of all VLAN tags for this pool (allocated and not)
+    def getAllVLANs(self):
+        return self._all_vlans
+
     # Return list of all available VLAN tags
     def getAvailableVLANs(self):
         return self._available_vlans

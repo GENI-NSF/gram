@@ -653,10 +653,10 @@ class GramManager :
         if self._snapshot_directory is not None:
             if not os.path.exists(self._snapshot_directory):
                 os.makedirs(self._snapshot_directory)
-
             # Use the specified one (if any)
             # Otherwise, use the most recent (if indicated)
             # Otherwise, no state to restore
+            print config.recover_from_most_recent_snapshot
             snapshot_file = None
             if config.recover_from_snapshot and \
                     config.recover_from_snapshot != "": 
@@ -665,12 +665,24 @@ class GramManager :
                 files = self.get_snapshots()
                 if files and len(files) > 0:
                     snapshot_file = files[len(files)-1]
-
+                print 'snapshot file: '
+                print snapshot_file
             if snapshot_file is not None:
                 config.logger.info("Restoring state from snapshot : %s" \
                                        % snapshot_file)
                 SliceURNtoSliceObject._slices = \
                     Archiving.read_slices(snapshot_file, self._stitching)
+                # Restore the state of the VLAN pools
+                # Go through all the network links and 
+                # if the vlan tag is in the internal pool, allocate it
+
+                for slice_urn, slice_obj in SliceURNtoSliceObject._slices.items():
+                    for network_link in slice_obj.getNetworkLinks():
+                        vlan_tag = network_link.getVLANTag()
+                        if vlan_tag and vlan_tag in self._internal_vlans.getAllVLANs():
+#                            config.logger.info("Restored internal VLAN %d" % vlan_tag)
+                            self._internal_vlans.allocate(vlan_tag)
+
                 config.logger.info("Restored %d slices" % \
                                        len(SliceURNtoSliceObject._slices))
 
