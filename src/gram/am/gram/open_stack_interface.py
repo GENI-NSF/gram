@@ -67,7 +67,10 @@ def init() :
     resources.GramManagementNetwork.set_mgmt_net_uuid(mgmt_net_uuid)
     config.logger.info('Found GRAM managemnet network %s with uuid %s' % \
                            (mgmt_net_name, mgmt_net_uuid))
-    
+
+    resources.GramImageInfo.get_image_list()
+    #print output2
+
     
 def cleanup(signal, frame) :
     """
@@ -128,7 +131,7 @@ def provisionResources(geni_slice, slivers, users) :
             # Failed to create tenant admin.  Cleanup actions before 
             # we return:
             #    - delete the tenant
-            _deleteTenantByUUID(tenant_uuid)
+            #_deleteTenantByUUID(tenant_uuid)
             return 'GRAM internal error: OpenStack failed to create a tenant admin for slice %s' % geni_slice.getSliceURN()
 
         
@@ -147,8 +150,8 @@ def provisionResources(geni_slice, slivers, users) :
             # we return:
             #    - delete tenant admin
             #    - delete tenant
-            _deleteUserByUUID(admin_user_info['admin_uuid'])
-            _deleteTenantByUUID(tenant_uuid)
+            #_deleteUserByUUID(admin_user_info['admin_uuid'])
+            #_deleteTenantByUUID(tenant_uuid)
             return 'GRAM internal error: OpenStack failed to create a security group for slice %s' % geni_slice.getSliceURN()
         
 
@@ -248,10 +251,10 @@ def provisionResources(geni_slice, slivers, users) :
                 #      call to provisionResources
                 #    - delete tenant admin
                 #    - delete tenant
-                for i in range(0, len(links_created_this_call)) :
-                    _deleteNetworkLink(geni_slice, links_created_this_call)
-                _deleteUserByUUID(admin_user_info['admin_uuid'])
-                _deleteTenantByUUID(tenant_uuid)
+                #for i in range(0, len(links_created_this_call)) :
+                #    _deleteNetworkLink(geni_slice, links_created_this_call)
+                #_deleteUserByUUID(admin_user_info['admin_uuid'])
+                #_deleteTenantByUUID(tenant_uuid)
                 return 'GRAM internal error: Failed to create a quantum network for link %s' % link.getName()
 
             link.setNetworkUUID(uuids['network_uuid'])
@@ -271,10 +274,10 @@ def provisionResources(geni_slice, slivers, users) :
         #      call to provisionResources
         #    - delete tenant admin
         #    - delete tenant
-        for i in range(0, len(links_created_this_call)) :
-            _deleteNetworkLink(geni_slice, links_created_this_call)
-        _deleteUserByUUID(admin_user_info['admin_uuid'])
-        _deleteTenantByUUID(tenant_uuid)
+        #for i in range(0, len(links_created_this_call)) :
+        #    _deleteNetworkLink(geni_slice, links_created_this_call)
+        #_deleteUserByUUID(admin_user_info['admin_uuid'])
+        #_deleteTenantByUUID(tenant_uuid)
         return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
 
     for net_uuid in nets_info.keys():
@@ -371,14 +374,14 @@ def provisionResources(geni_slice, slivers, users) :
                 #      call to provisionResources
                 #    - delete tenant admin
                 #    - delete tenant
-                for i in range (0, len(vms_created_this_call)) :
-                    _deleteVM(vms_created_this_call[i])
-                    for i in range(0, len(links_created_this_call)) :
-                        _deleteNetworkLink(geni_slice, links_created_this_call)
-                    _deleteUserByUUID(admin_user_info['admin_uuid'])
-                    _deleteTenantByUUID(tenant_uuid)
-                config.logger.error('Failed to create vm for node %s' % \
-                                        vm.getName())
+                #for i in range (0, len(vms_created_this_call)) :
+                #    _deleteVM(vms_created_this_call[i])
+                #    for i in range(0, len(links_created_this_call)) :
+                #        _deleteNetworkLink(geni_slice, links_created_this_call)
+                #    _deleteUserByUUID(admin_user_info['admin_uuid'])
+                #    _deleteTenantByUUID(tenant_uuid)
+                #config.logger.error('Failed to create vm for node %s' % \
+                #                        vm.getName())
                 return 'GRAM internal error: Failed to create a VM for node %s' % vm.getName()
             else :
                 vm.setUUID(vm_uuid)
@@ -1134,14 +1137,17 @@ def  _getImageUUID(image_name) :
         Given the name of an OS image (e.g. ubuntu-12.04), returns the 
         UUID of the image.  Returns None if the image cannot be found.
     """
-    cmd_string = 'nova image-list'
-    try :
-        output = _execCommand(cmd_string) 
-    except :
-        return None
-    else :
+    output = resources.GramImageInfo.get_image_list()
+    #cmd_string = 'nova image-list'
+    #try :
+    #    output = _execCommand(cmd_string)
+        #output2 = resources.GramImageInfo.get_image_list() 
+        #print output2
+    #except :
+    #    return None
+    #else :
         # Extract and return the uuid of the image
-        return _getUUIDByName(output, image_name)
+    return _getUUIDByName(output, image_name)
 
 
 def _getFlavorID(flavor_name) :
@@ -1149,9 +1155,9 @@ def _getFlavorID(flavor_name) :
         Given the name of maching flavor (e.g. m1.small), returns the 
         id of the flavor.  Returns None if the flavor cannot be found.
     """
-    cmd_string = 'nova flavor-list'
-    output = _execCommand(cmd_string) 
-
+    # cmd_string = 'nova flavor-list'
+    # output = _execCommand(cmd_string) 
+    output = resources.GramImageInfo.get_flavor_list()
     # Extract and return the uuid of the image
     return _getUUIDByName(output, flavor_name)
 
@@ -1260,8 +1266,9 @@ def _listHosts(onlyForService=None):
 # Get dictionary of all supported flavors (id => description)
 def _listFlavors():
     flavors = {}
-    command_string = "nova flavor-list"
-    output = _execCommand(command_string)
+    #command_string = "nova flavor-list"
+    #output = _execCommand(command_string)
+    output = resources.GramImageInfo.get_flavor_list()
     output_lines = output.split('\n')
     for i in range(3, len(output_lines)-2):
         line = output_lines[i]
@@ -1275,7 +1282,9 @@ def _listFlavors():
 def _listImages():
     images ={}
     command_string = "nova image-list"
-    output = _execCommand(command_string)
+    #output = _execCommand(command_string)
+    output = resources.GramImageInfo.get_image_list()
+    #print output2
     output_lines = output.split('\n')
     for i in range(3, len(output_lines)-2):
         line = output_lines[i]

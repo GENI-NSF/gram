@@ -33,6 +33,7 @@ import os
 
 import config
 import constants
+from open_stack_interface import _execCommand
 
 # Helper function for generating field-by-field image 
 # for resources
@@ -63,6 +64,43 @@ def resource_image(obj, label):
    return "#<" + label + " " + members_image + ">";
 
 
+# Holds information about GRAM images, based on nova calls
+class GramImageInfo :
+  _image_list = None
+  _flavor_list = None
+  _last_update = None
+
+  @staticmethod
+  def refresh():
+      cmd = 'nova image-list'
+      try :
+          GramImageInfo._image_list = _execCommand(cmd)
+          GramImageInfo._last_update = datetime.datetime.utcnow()
+      except :
+          config.logger.error('Failed to execute "nova image-list"')
+      cmd = 'nova flavor-list'
+      try:
+          GramImageInfo._flavor_list = _execCommand(cmd)
+      except:
+          config.logger.error('Failed to execute "nova flavor-list"')
+
+  @staticmethod
+  def get_image_list():
+      now = datetime.datetime.utcnow()
+      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
+          GramImageInfo.refresh()
+      else:
+          return GramImageInfo._image_list
+
+  @staticmethod
+  def get_flavor_list():
+      now = datetime.datetime.utcnow()
+      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
+          GramImageInfo.refresh()
+      else:
+          return GramImageInfo._flavor_list
+
+    
 # Holds information about the GRAM management network (used for aggregate
 # control plane traffic).  E.g. ssh connections to the VMs
 class GramManagementNetwork :
