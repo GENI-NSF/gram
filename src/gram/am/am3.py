@@ -95,7 +95,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             ret = self.Describe(slice_urns, credentials, options)
             return ret
 
-        result = generateAdvertisement(self._my_urn)
+        stitching_state = self._gram_manager.getStitchingState()
+        result = generateAdvertisement(self._my_urn, stitching_state)
         
         if 'geni_compressed' in options and options['geni_compressed']:
             try:

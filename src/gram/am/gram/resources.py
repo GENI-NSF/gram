@@ -33,6 +33,7 @@ import os
 
 import config
 import constants
+from open_stack_interface import _execCommand
 
 # Helper function for generating field-by-field image 
 # for resources
@@ -63,6 +64,41 @@ def resource_image(obj, label):
    return "#<" + label + " " + members_image + ">";
 
 
+# Holds information about GRAM images, based on nova calls
+class GramImageInfo :
+  _image_list = None
+  _flavor_list = None
+  _last_update = None
+
+  @staticmethod
+  def refresh():
+      cmd = 'nova image-list'
+      try :
+          GramImageInfo._image_list = _execCommand(cmd)
+          GramImageInfo._last_update = datetime.datetime.utcnow()
+      except :
+          config.logger.error('Failed to execute "nova image-list"')
+      cmd = 'nova flavor-list'
+      try:
+          GramImageInfo._flavor_list = _execCommand(cmd)
+      except:
+          config.logger.error('Failed to execute "nova flavor-list"')
+
+  @staticmethod
+  def get_image_list():
+      now = datetime.datetime.utcnow()
+      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
+          GramImageInfo.refresh()
+      return GramImageInfo._image_list
+
+  @staticmethod
+  def get_flavor_list():
+      now = datetime.datetime.utcnow()
+      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
+          GramImageInfo.refresh()
+      return GramImageInfo._flavor_list
+
+    
 # Holds information about the GRAM management network (used for aggregate
 # control plane traffic).  E.g. ssh connections to the VMs
 class GramManagementNetwork :
@@ -139,7 +175,7 @@ class Slice:
 
    def removeSliver(self, sliver) :
       sliver_urn = sliver.getSliverURN()
-      
+      config.logger.info("Deleting sliver: " + sliver_urn) 
       # Remove sliver from list of slivers
       if sliver_urn in self._slivers :
          del self._slivers[sliver_urn]
@@ -297,9 +333,12 @@ class Slice:
 
 # Base class for resource slivers
 class Sliver():
-   def __init__(self, my_slice, uuid=None) :
+   def __init__(self, my_slice, uuid=None,urn=None) :
       self._slice = my_slice # Slice associated with sliver
-      self._sliver_urn = self._generateURN()    # URN of this sliver
+      if urn == None:
+          self._sliver_urn = self._generateURN()    # URN of this sliver
+      else:
+          self._sliver_urn = urn
       self._uuid = uuid     # OpenStack UUID of resource
       self._expiration = None # Sliver expiration time
       now = datetime.datetime.utcnow()
@@ -425,7 +464,7 @@ class _ExecuteItem :
 # A virtual machine resource
 # Note, we don't support bare-metal machines (yet).
 class VirtualMachine(Sliver): # 
-   def __init__(self, my_slice, uuid=None) :
+   def __init__(self, my_slice, uuid=None, urn=None) :
       self._mgmt_net_addr = None  # IP address of VM on the management net
       self._installs = []    # Items to be installed on the VM on startup
       self._executes = []    # Scripts to be extecuted on the VM on startup
@@ -441,7 +480,7 @@ class VirtualMachine(Sliver): #
       self._ssh_proxy_login_port = None # Port number assigned for remote 
                                         # SSH proxy login
       self._external_ip = None  # floating ip assigned to the VM
-      Sliver.__init__(self, my_slice, uuid)
+      Sliver.__init__(self, my_slice, uuid=uuid, urn=urn)
 
    def __str__(self):
       return resource_image(self, "VM") 
@@ -524,7 +563,7 @@ class VirtualMachine(Sliver): #
 
 # A NIC (Network Interface Card) resource
 class NetworkInterface(Sliver):  
-     def __init__(self, my_slice, myVM, uuid=None) :
+     def __init__(self, my_slice, myVM, uuid=None,urn=None) :
          self._device_number = None
          self._mac_address = None  # string MAC address of NIC
          self._ip_address = None   # string IP address of NIC
@@ -533,7 +572,7 @@ class NetworkInterface(Sliver):
          self._link = None  # NetworkLink associated with NIC
          self._vlan_tag = None
          self._enabled = False # False => NIC not connected to provisioned link
-         Sliver.__init__(self, my_slice, uuid)
+         Sliver.__init__(self, my_slice,urn=urn, uuid=uuid)
 
      def __str__(self):
         return resource_image(self, "NIC");
@@ -581,18 +620,19 @@ class NetworkInterface(Sliver):
         return self._vlan_tag
 
      def setVLANTag(self, vlan_tag): # Set VLAN tag of traffic on this interface
+        if vlan_tag: vlan_tag = int(vlan_tag)
         self._vlan_tag = vlan_tag
 
 
 # A Network Link resource
 class NetworkLink(Sliver): # was Link
-     def __init__(self, my_slice, uuid=None) :
+     def __init__(self, my_slice, uuid=None,urn=None) :
         self._subnet = None     # IP subnet: 10.0.x.0/24
         self._endpoints = []    # List of NetworkInterfaces attached to link
         self._network_uuid = None # quantum UUID of the link's network 
         self._subnet_uuid = None  # quantum UUID of the link's subnet 
         self._vlan_tag = None
-        Sliver.__init__(self, my_slice, uuid);
+        Sliver.__init__(self, my_slice, uuid=uuid,urn=urn);
 
      def __str__(self):
         return resource_image(self, "Link")
@@ -622,6 +662,7 @@ class NetworkLink(Sliver): # was Link
         return self._subnet_uuid
 
      def setVLANTag(self, vlan_tag) :
+        if vlan_tag: vlan_tag = int(vlan_tag)
         self._vlan_tag = vlan_tag
 
      def getVLANTag(self) :

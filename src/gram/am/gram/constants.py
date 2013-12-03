@@ -46,6 +46,7 @@ UNKNOWN_SLICE = 12              # aka SEARCHFAILED
 UNSUPPORTED = 13                
 SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
 OUT_OF_RANGE = 19               # typically for time mismatches
+VLAN_UNAVAILABLE = 24
 
 # GRAM specific codes
 OPENSTACK_ERROR = 100

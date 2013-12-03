@@ -67,6 +67,7 @@
    "compute_hosts": null,
    "host_file_entries": null,
    "glance_images" : [],
+   "stitching_info" : null,
    "mgmt_ns" : null 
 
 }

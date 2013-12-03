@@ -25,13 +25,15 @@ from xml.dom.minidom import *
 import socket
 
 import config
+import constants
 import open_stack_interface
 from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
 import uuid
 import utils
 import netaddr
+import stitching
 
-def parseRequestRspec(geni_slice, rspec) :
+def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
     """ This function parses a request rspec and creates the sliver objects for
         the resources requested by this rspec.  The resources are not actually
         created.
@@ -44,6 +46,7 @@ def parseRequestRspec(geni_slice, rspec) :
     """
     # Initialize return values
     error_string = None
+    error_code = constants.SUCCESS
     sliver_list = []
     controller = None
         
@@ -69,15 +72,25 @@ def parseRequestRspec(geni_slice, rspec) :
                     error_string = \
                         'Rspec error: VM with name %s already exists' % \
                         node_name
+                    error_code = constants.REQUEST_PARSE_FAILED
                     config.logger.error(error_string)
-                    return error_string, sliver_list, None
+                    return error_string, error_code, sliver_list, None
         else :
             error_string = 'Malformed rspec: Node name not specified' 
+            error_code = constants.REQUEST_PARSE_FAILED
             config.logger.error(error_string)
-            return error_string, sliver_list, None
+            return error_string, error_code, sliver_list, None
+
+        # If the node is already bound (component_manager_id is set)
+        # Ignore the node if it isn't bound to my component_manager_id
+        if node_attributes.has_key('component_manager_id'):
+            cmi = node_attributes['component_manager_id'].value
+            if cmi  != config.aggregate_manager_urn:
+                print "Ignoring remote node : %s" % cmi
+                continue
 
         # Create a VirtualMachine object for this node and add it to the list
-        # of virtual machines that belong to this slice
+        # of virtual machines that belong to this slice at this aggregate
         vm_object = VirtualMachine(geni_slice)
         vm_object.setName(node_name)
         sliver_list.append(vm_object)
@@ -87,8 +100,9 @@ def parseRequestRspec(geni_slice, rspec) :
             value = node_attributes["exclusive"].value
             if value.lower() == 'true':
                 error_string = "GRAM instance can't allocate exclusive compute resources"
+                error_code = constants.UNSUPPORTED
                 config.logger.error(error_string)
-                return error_string, sliver_list, None
+                return error_string, error_code, sliver_list, None
 
         # Get flavor from the sliver_type
         sliver_type_list = node.getElementsByTagName('sliver_type')
@@ -104,8 +118,9 @@ def parseRequestRspec(geni_slice, rspec) :
             else:
                 error_string = "Undefined sliver_type flavor " + \
                     str(sliver_type_name)
+                error_code = constants.UNSUPPORTED
                 config.logger.error(error_string)
-                return error_string, sliver_list, None
+                return error_string, error_code, sliver_list, None
 
             # Get disk image by name from node
             disk_image_list = sliver_type.getElementsByTagName('disk_image')
@@ -133,8 +148,9 @@ def parseRequestRspec(geni_slice, rspec) :
                 else:
                     error_string = "Unsupported disk image: " + \
                         str(disk_image_name)
+                    error_code = constants.UNSUPPORTED
                     config.logger.error(error_string)
-                    return error_string, sliver_list, None
+                    return error_string, error_code, sliver_list, None
 
         # Get interfaces associated with the node
         interface_list = node.getElementsByTagName('interface')
@@ -150,13 +166,15 @@ def parseRequestRspec(geni_slice, rspec) :
                 interface_object.setName(interface_attributes['client_id'].value)
             else :
                 error_string = 'Malformed rspec: Interface name not specified'
+                error_code = constants.REQUEST_PARSE_FAILED
                 config.logger.error(error_string)
-                return error_string, sliver_list, None
+                return error_string, error_code, sliver_list, None
             ip_list = interface.getElementsByTagName('ip')
             if len(ip_list) > 1:
                 error_string = 'Malformed rspec: Interface can have only one ip'
+                error_code = constants.REQUEST_PARSE_FAILED
                 config.logger.error(error_string)
-                return error_string, sliver_list, None
+                return error_string, error_code, sliver_list, None
             for ip in ip_list:
                 if ip.attributes.has_key('address'):
                     interface_object.setIPAddress(ip.attributes['address'].value)
@@ -174,8 +192,9 @@ def parseRequestRspec(geni_slice, rspec) :
                 if not (install_attributes.has_key('url') and 
                         install_attributes.has_key('install_path')) :
                     error_string = 'Source URL or destination path missing for install element in request rspec'
+                    error_code = constants.REQUEST_PARSE_FAILED
                     config.logger.error(error_string)
-                    return error_string, sliver_list, None
+                    return error_string, error_code, sliver_list, None
 
                 source_url = install_attributes['url'].value
                 destination = install_attributes['install_path'].value
@@ -194,8 +213,9 @@ def parseRequestRspec(geni_slice, rspec) :
                 execute_attributes = execute.attributes
                 if not execute_attributes.has_key('command') :
                     error_string = 'Command missing for execute element in request rspec'
+                    error_code = constants.REQUEST_PARSE_FAILED
                     config.logger.error(error_string)
-                    return error_string, sliver_list, None
+                    return error_string, error_code, sliver_list, None
 
                 exec_command = execute_attributes['command'].value
                 if execute_attributes.has_key('shell') :
@@ -208,7 +228,8 @@ def parseRequestRspec(geni_slice, rspec) :
 
     # Done getting information about nodes in the rspec.  Now get information
     # about links.
-    link_list = rspec_dom.getElementsByTagName('link')
+    link_list = [link for link in rspec_dom.childNodes[0].childNodes if
+                 link.nodeName == 'link']
     for link in link_list :
         # Get information about this link from the rspec
         link_attributes = link.attributes
@@ -224,12 +245,14 @@ def parseRequestRspec(geni_slice, rspec) :
                     error_string = \
                         'Rspec error: Link with name %s already exists' % \
                         link_name
+                    error_code = constants.REQUEST_PARSE_FAILED
                     config.logger.error(error_string)
-                    return error_string, sliver_list, None
+                    return error_string, error_code, sliver_list, None
         else :
             error_string = 'Malformed rspec: Link name not specified'
+            error_code = constants.REQUEST_PARSE_FAILED
             config.logger.error(error_string)
-            return error_string, sliver_list, None
+            return error_string, error_code, sliver_list, None
 
         # Create a NetworkLink object for this link 
         link_object = NetworkLink(geni_slice)
@@ -251,9 +274,8 @@ def parseRequestRspec(geni_slice, rspec) :
             interface_object =  \
                 geni_slice.getNetworkInterfaceByName(interface_name)
             if interface_object == None :
-                error_string = 'Malformed rspec: Unknown interface_ref %s specified for link %s' % (interface_name, link_object.getName())
-                config.logger.error(error_string)
-                return error_string, sliver_list, None
+                print "Ignoring unknown interface : %s " % interface_name
+                continue
 
             # Set the interface to point to this link
             interface_object.setLink(link_object)
@@ -274,15 +296,31 @@ def parseRequestRspec(geni_slice, rspec) :
                         config.logger.warn(" Link on multiple subnets: " + str(cidr) + " and " + link_object.getSubnet())
                         config.logger.warn(" Using subnet " + link_object.getSubnet())
 
+        # If we've created a link that has no interfaces for this aggregate, remove it from allocation
+        if len(link_object.getEndpoints()) == 0:
+            sliver_list.remove(link_object)
+            geni_slice.removeSliver(link_object)
+
     controllers = rspec_dom.getElementsByTagName('openflow:controller')
     if len(controllers) > 0:
         controller_node = controllers[0]
         controller = controller_node.attributes['url'].value
 
-    return error_string, sliver_list, controller
+    if stitching_handler:
+        error_string, error_code, request_details =  \
+            stitching_handler.parseRequestRSpec(rspec_dom)
+
+    return error_string, error_code, sliver_list, controller
 
 
-def generateManifestForSlivers(geni_slice, geni_slivers, recompute, aggregate_urn):
+def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
+                                   allocate, 
+                                   aggregate_urn,  \
+                                   stitching_handler = None):
+
+    err_code = constants.SUCCESS
+    err_output = None
+
     req_rspec = geni_slice.getRequestRspec()
     request = parseString(req_rspec).childNodes[0]
 
@@ -314,7 +352,20 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, aggregate_ur
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
 
-    return cleanXML(root, "Manifest")
+    for sliver in geni_slivers:
+        if stitching_handler:
+            if isinstance(sliver, NetworkLink):
+                stitching_manifest, err_output,  err_code = \
+                   stitching_handler.generateManifest(req_rspec, allocate, \
+                                                       sliver)
+                if err_code != constants.SUCCESS:
+                    return None, err_output, err_code
+
+                if stitching_manifest:
+                    stitching_manifest_element = stitching_manifest.childNodes[0]
+                    manifest.appendChild(stitching_manifest_element)
+
+    return cleanXML(root, "Manifest"), err_output, err_code
 
 def getRequestElementForSliver(sliver):
     full_request_rspec = parseString(sliver.getRequestRspec()).childNodes[0]
@@ -325,26 +376,6 @@ def getRequestElementForSliver(sliver):
         if sliver.getName() == client_id:
             return child
     return None
-
-# def getSliverForRequest(request, slivers):
-#     client_id = request.attributes['client_id'].value
-#     found = None
-#     for sliver in slivers:
-#         if sliver.getName() == client_id:
-#             found = sliver
-#             break
-#     return found
-
-# def getSliverRequest(sliver, request):
-#     sliver_name = sliver.getName()
-#     sliver_request = None
-#     for child in request.childNodes:
-#         if child.attributes is not None and \
-#                 child.attributes.has_key('client_id') and \
-#                 child.attributes['client_id'].value == sliver_name:
-#             sliver_request = child
-#             break
-#     return sliver_request
 
 def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_urn):
     node_name = "node"
@@ -448,7 +479,8 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
     return node
 
 
-def generateManifest(geni_slice, req_rspec, aggregate_urn) :
+def generateManifest(geni_slice, req_rspec, aggregate_urn, \
+                         stitching_handler = None) :
 
     """
         Returns a manifets rspec that corresponds to the given request rspec
@@ -630,12 +662,11 @@ def cleanXML(doc, label):
             clean_xml += line + '\n'
     config.logger.info("Clean %s = %s" % (label, clean_xml))
     return clean_xml
-    
-    
+
 
 # Generate advertisement RSPEC for aggeregate based on 
 # flavors and disk images registered with open stack
-def generateAdvertisement(am_urn):
+def generateAdvertisement(am_urn, stitching_handler = None):
 
     component_manager_id = am_urn
     component_name = str(uuid.uuid4())
@@ -667,13 +698,16 @@ def generateAdvertisement(am_urn):
         image_types = image_types + disk_image + "\n"
 
     available = True
+
     tmpl = '''  <node component_manager_id="%s"
         client_id="%s"
         component_name="%s"
         component_id="%s"
         exclusive="%s">%s%s<sliver_type name="%s"/>
     <available now="%s"/>
-  </node></rspec>
+  </node>
+  %s
+  </rspec>
   '''
 
     schema_locs = ["http://www.geni.net/resources/rspec/3",
@@ -684,9 +718,16 @@ def generateAdvertisement(am_urn):
          <rspec xmlns="http://www.geni.net/resources/rspec/3"                 
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
        xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
+
+    stitching_advertisement =""
+    if stitching_handler:
+        stitching_advertisement_doc = \
+            stitching_handler.generateAdvertisement()
+        stitching_advertisement = \
+            stitching_advertisement_doc.childNodes[0].toxml()
     result = advert_header + \
         (tmpl % (component_manager_id, client_id, component_name, \
                      component_id, exclusive, node_types, \
                      image_types, \
-                     sliver_type, available)) 
+                     sliver_type, available, stitching_advertisement)) 
     return result
