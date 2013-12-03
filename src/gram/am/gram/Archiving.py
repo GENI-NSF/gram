@@ -452,14 +452,15 @@ def read_slices(filename, stitching_handler):
         for vm in vms:
             port = str(vm.getSSHProxyLoginPort())
             addr = vm.getMgmtNetAddr()
-            config.logger.info( " mgmt address " + addr + \
+            if port and addr:
+                config.logger.info( " mgmt address " + addr + \
                    " is mapped to port: " + port)
-            if port in ip_table_entries.keys():
-                config.logger.info(" Port " + port + " is already in the iptable")
-            elif addr in ip_table_entries.values():
-                config.logger.info(" Addr " + addr + " is already in the ipdatble")
-            else:
-                _addNewProxy(addr,int(port))
-    print ip_table_entries
+                if port in ip_table_entries.keys():
+                    config.logger.info(" Port " + port + " is already in the iptable")
+                elif addr in ip_table_entries.values():
+                    config.logger.info(" Addr " + addr + " is already in the ipdatble")
+                else:
+                    _addNewProxy(addr,int(port))
+
     return slices
 
