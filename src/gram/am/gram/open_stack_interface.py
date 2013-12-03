@@ -959,7 +959,7 @@ def _createVM(vm_object, users, placement_hint) :
     # Create the VM.  Form the command string in stages.
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, slice_object.getTenantName())
-    cmd_string += (' boot %s --poll --image %s --flavor %s' % \
+    cmd_string += (' boot %s  --config-drive=true --poll --image %s --flavor %s' % \
                        (vm_name, os_image_id, vm_flavor_id))
 
     # Add user meta data to create account, pass keys etc.
