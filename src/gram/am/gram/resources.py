@@ -89,16 +89,14 @@ class GramImageInfo :
       now = datetime.datetime.utcnow()
       if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
           GramImageInfo.refresh()
-      else:
-          return GramImageInfo._image_list
+      return GramImageInfo._image_list
 
   @staticmethod
   def get_flavor_list():
       now = datetime.datetime.utcnow()
       if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
           GramImageInfo.refresh()
-      else:
-          return GramImageInfo._flavor_list
+      return GramImageInfo._flavor_list
 
     
 # Holds information about the GRAM management network (used for aggregate
