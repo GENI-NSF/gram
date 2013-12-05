@@ -70,7 +70,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self._gram_manager = GramManager(certfile)
 
     def GetVersion(self, options):
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
         result = ReferenceAggregateManager.GetVersion(self, options)
         hostname = socket.getfqdn()
         v3_url = "https://%s:%d" % (hostname, config.gram_am_port)
@@ -86,7 +86,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     # this is just the current implementation
     def ListResources(self, credentials, options):
         self.logger.info('ListResources')
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
         creds = self.validate_credentials(credentials, (), None)
 
 
@@ -96,8 +96,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
             ret = self.Describe(slice_urns, credentials, options)
             return ret
 
-        stitching_state = self._gram_manager.getStitchingState()
-        result = generateAdvertisement(self._my_urn, stitching_state)
+        result = generateAdvertisement(self._my_urn)
         
         if 'geni_compressed' in options and options['geni_compressed']:
             try:
@@ -116,7 +115,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         Return an RSpec of the actually allocated resources.
         """
         self.logger.info('Allocate(%r)' % (slice_urn))
-        self._gram_manager.expire_slivers()
+        # self._gram_manager.expire_slivers()
         # Note this list of privileges is really the name of an operation
         # from the privilege_table in sfa/trust/rights.py
         # Credentials will specify a list of privileges, each of which
@@ -139,7 +138,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         Return an RSpec of the actually allocated resources.
         """
         self.logger.info('Provision(%r)' % (urns))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
 
         # Set the_slice to the slice_object that contains the slivers to
         # be provisioned.  Set slivers to the silver_objects that need to
@@ -171,7 +170,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         """Stop and completely delete the named slivers and/or slice.
         """
         self.logger.info('Delete(%r)' % (urns))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
 
         # Set the_slice to the slice_object that contains the slivers to
         # be provisioned.  Set slivers to the silver_objects that need to
@@ -193,7 +192,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         urns.
         """
         self.logger.info('PerformOperationalAction(%r)' % (urns))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
         if not the_slice:
@@ -301,7 +300,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         #import pdb; pdb.set_trace()
         self.logger.info('got here')
         self.logger.info('Status(%r)' % (urns))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
         the_slice, slivers = self._gram_manager.decode_urns(urns)
 
         if not the_slice:
@@ -317,7 +316,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         """Generate a manifest RSpec for the given resources.
         """
         self.logger.info('Describe(%r)' % (urns))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
         if not the_slice:
@@ -337,7 +336,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         Return False on any error, True on success.'''
 
         self.logger.info('Renew(%r, %r)' % (urns, expiration_time))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
         if not the_slice:
@@ -355,7 +354,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         '''For Management Authority / operator use: shut down a badly
         behaving sliver, without deleting it to allow for forensics.'''
         self.logger.info('Shutdown(%r)' % (slice_urn))
-        self._gram_manager.expire_slivers()
+        #self._gram_manager.expire_slivers()
         privileges = (SHUTDOWNSLIVERPRIV,)
         creds = self.validate_credentials(credentials, privileges, \
                                               slice_urn)

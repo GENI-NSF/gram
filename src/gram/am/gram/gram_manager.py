@@ -17,6 +17,7 @@ import utils
 import vlan_pool
 import Archiving
 import threading
+import thread
 
 from vmoc.VMOCClientInterface import VMOCClientInterface
 from vmoc.VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
@@ -112,6 +113,8 @@ class GramManager :
         
         # Remove extraneous snapshots
         self.prune_snapshots()
+
+        thread.start_new_thread(self.periodic_cleanup,())
 
     def getStitchingState(self) : return self._stitching
 
@@ -693,6 +696,13 @@ class GramManager :
 
                 config.logger.info("Restored %d slices" % \
                                        len(SliceURNtoSliceObject._slices))
+
+    # Clean up expired slices periodically
+    def periodic_cleanup(self):
+        while True:
+            config.logger.info("Cleaning up expired slivers")
+            self.expire_slivers()
+            time.sleep(3000)
 
     # Allocate internal VLAN tags to all links for which the tag is not
     # yet set (by stitching)
