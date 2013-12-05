@@ -377,7 +377,8 @@ class GramManager :
 
             # Generate the return struct
             code = {'geni_code': constants.SUCCESS}
-            result_struct = {'geni_rspec': manifest, 
+            result_struct = {'geni_rspec': manifest,
+                             'geni_urn':slice_object.getSliceURN(), 
                              'geni_slivers': sliver_status_list}
 
             ret_val = {'code': code, 'value': result_struct, 'output': ''}
@@ -487,8 +488,15 @@ class GramManager :
             sliver_status_list = \
                 utils.SliverList().getStatusOfSlivers(sliver_objects)
 
+            requested = utils._naiveUTC(dateutil.parser.parse(expiration_time))
+            if requested > expiration:
+                print 'expiration time too long'
+                code = {'geni_code':constants.REQUEST_PARSE_FAILED}
+                return {'code':code, 'value':sliver_status_list, 'output':'WARNING: Requested sliver expiration is greater than the slice expiration. Using Slice expiration instead'}
+
             code = {'geni_code': constants.SUCCESS}
             return {'code': code, 'value': sliver_status_list, 'output':''}
+
 
 
     def shutdown_slice(self, slice_urn):
@@ -630,7 +638,7 @@ class GramManager :
                 slivers = slice_object.getSlivers()
                 expired_slivers = list()
                 for sliver in slivers.values():
-                    if sliver.getExpiration() < now:
+                    if not sliver.getExpiration() or sliver.getExpiration() < now:
                         expired_slivers.append(sliver)
                 if len(expired_slivers) != 0 :
                     self.delete(slice_object, expired_slivers, None)

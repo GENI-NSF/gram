@@ -30,10 +30,10 @@ import inspect
 import uuid
 import threading
 import os
+import subprocess
 
 import config
 import constants
-from open_stack_interface import _execCommand
 
 # Helper function for generating field-by-field image 
 # for resources
@@ -87,15 +87,15 @@ class GramImageInfo :
   @staticmethod
   def get_image_list():
       now = datetime.datetime.utcnow()
-      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
+      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 6000:
           GramImageInfo.refresh()
       return GramImageInfo._image_list
 
   @staticmethod
   def get_flavor_list():
       now = datetime.datetime.utcnow()
-      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 300:
-          GramImageInfo.refresh()
+      if not GramImageInfo._last_update or (now - GramImageInfo._last_update).seconds > 6000:
+        GramImageInfo.refresh()
       return GramImageInfo._flavor_list
 
     
@@ -667,4 +667,18 @@ class NetworkLink(Sliver): # was Link
 
      def getVLANTag(self) :
         return self._vlan_tag
-     
+    
+def _execCommand(cmd_string) :
+    """
+       Execute the specified command.  Return the output of the command or
+       raise and exception if the command execution fails.
+    """
+    config.logger.info('Issuing command %s' % cmd_string)
+    command = cmd_string.split()
+    try :
+        return subprocess.check_output(command)
+    except :
+        config.logger.error('Error executing command %s' % cmd_string)
+        raise
+
+ 

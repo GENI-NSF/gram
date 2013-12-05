@@ -348,6 +348,7 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
             sliver_manifest = \
                 generateManifestForSliver(geni_slice, sliver, \
                                               root, sliver_request_element,aggregate_urn)
+
             sliver.setManifestRspec(sliver_manifest.toxml())
         if sliver_manifest is not None:
             manifest.appendChild(sliver_manifest)
@@ -465,11 +466,14 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
                 my_host_name = \
                     socket.gethostbyaddr(socket.gethostname())[0]
                 login.setAttribute("externally-routable-ip", geni_sliver.getExternalIp())
-                login.setAttribute("hostname", my_host_name)
+                login.setAttribute("hostname", config.public_ip)
                 login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
                 login.setAttribute("username", user)
+                print 'this'
+                print login
                 services.appendChild(login)
             node.appendChild(services)
+
 
         host = root.createElement("host")
         host_name = geni_sliver.getName()
@@ -671,14 +675,14 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     component_manager_id = am_urn
     component_name = str(uuid.uuid4())
     component_id = 'urn:public:geni:gpo:vm+' + component_name
-    exclusive = False
+    exclusive = 'false'
     client_id="VM"
 
     flavors = open_stack_interface._listFlavors()
     sliver_type = config.default_VM_flavor
     node_types = ""
     for flavor_name in flavors.values():
-        node_type = '<node_type type_name="%s"/>' % flavor_name
+        node_type = '<sliver_type name="%s"/>' % flavor_name
         node_types = node_types + node_type + "\n"
 
     images = open_stack_interface._listImages()
@@ -697,14 +701,12 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         disk_image = '<disk_image name="%s" os="%s" version="%s" description="%s" />' % (image_name, os, version, description)
         image_types = image_types + disk_image + "\n"
 
-    available = True
-
     tmpl = '''  <node component_manager_id="%s"
-        client_id="%s"
         component_name="%s"
         component_id="%s"
-        exclusive="%s">%s%s<sliver_type name="%s"/>
-    <available now="%s"/>
+        exclusive="%s">
+  %s <sliver_type name="%s"> 
+  %s </sliver_type>
   </node>
   %s
   </rspec>
@@ -726,8 +728,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         stitching_advertisement = \
             stitching_advertisement_doc.childNodes[0].toxml()
     result = advert_header + \
-        (tmpl % (component_manager_id, client_id, component_name, \
+        (tmpl % (component_manager_id, component_name, \
                      component_id, exclusive, node_types, \
-                     image_types, \
-                     sliver_type, available, stitching_advertisement)) 
+                     sliver_type, image_types,  stitching_advertisement)) 
     return result
