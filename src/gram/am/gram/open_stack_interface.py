@@ -1019,19 +1019,20 @@ def _createVM(vm_object, users, placement_hint) :
     vm_object.setOperationalState(constants.configuring)
 
     # Create the floating IPs for the VM
-    #ports_info = _getPortsForTenant(tenant_uuid,vm_uuid)
-    #if ports_info != None :
-    #    for port in ports_info.keys():
-    #        mgmt_ip = eval(ports_info[port]['fixed_ips'])['ip_address']
-    #        found = string.find(mgmt_ip,mgmt_net_prefix)
-    #        if found != -1:
-    #            fip_cmd = "quantum floatingip-create --tenant-id " + tenant_uuid + " public"
-    #            output = _execCommand(fip_cmd)
-    #            fip_id = _getValueByPropertyName(output,'id')
-    #            fip = _getValueByPropertyName(output,'floating_ip_address')
-    #            vm_object.setExternalIp(fip)
-    #            fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
-    #            output = _execCommand(fip_cmd)
+    if vm_object.getExternalIp() == 'true':
+      ports_info = _getPortsForTenant(tenant_uuid,vm_uuid)
+      if ports_info != None :
+        for port in ports_info.keys():
+            mgmt_ip = eval(ports_info[port]['fixed_ips'])['ip_address']
+            found = string.find(mgmt_ip,mgmt_net_prefix)
+            if found != -1:
+                fip_cmd = "quantum floatingip-create --tenant-id " + tenant_uuid + " public"
+                output = _execCommand(fip_cmd)
+                fip_id = _getValueByPropertyName(output,'id')
+                fip = _getValueByPropertyName(output,'floating_ip_address')
+                vm_object.setExternalIp(fip)
+                fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
+                output = _execCommand(fip_cmd)
 
 
     # Set up the SSH proxy for the new VM

@@ -61,6 +61,7 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
         # Get information about the node from the rspec
         node_attributes = node.attributes
 
+
         # Find the name of the node.  We need to make sure we don't already
         # have a node with this name before we do anything else.
         if node_attributes.has_key('client_id') :
@@ -103,6 +104,16 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
                 error_code = constants.UNSUPPORTED
                 config.logger.error(error_string)
                 return error_string, error_code, sliver_list, None
+
+        if node_attributes.has_key("external_ip"):
+            value = node_attributes["external_ip"].value
+            if value.lower() == 'true':
+                vm_object.setExternalIp('true')
+    
+        found = node.getElementsByTagName('emulab:routable_control_ip')
+        if found:
+            vm_object.setExternalIp('true')
+
 
         # Get flavor from the sliver_type
         sliver_type_list = node.getElementsByTagName('sliver_type')
@@ -392,6 +403,14 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
     node.setAttribute("sliver_id", sliver_id)
     if geni_sliver.__class__ == NetworkLink:
 
+        link_list = geni_slice.getNetworkLinks()
+        for i in range(len(link_list)) :
+                if client_id == link_list[i].getName() :
+                    link_object = link_list[i]
+                    break
+
+        node.setAttribute("vlantag", str(link_object.getVLANTag()))
+
         for interface in geni_sliver.getEndpoints():
             interface_ref = root.createElement('interface_ref')
             client_id = interface.getName()
@@ -465,9 +484,13 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
                 login.setAttribute("authentication", "ssh-keys")
                 my_host_name = \
                     socket.gethostbyaddr(socket.gethostname())[0]
-                login.setAttribute("externally-routable-ip", geni_sliver.getExternalIp())
-                login.setAttribute("hostname", config.public_ip)
-                login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
+                #login.setAttribute("externally-routable-ip", geni_sliver.getExternalIp())
+                if geni_sliver.getExternalIp():
+                    login.setAttribute("hostname", geni_sliver.getExternalIp())
+                    login.setAttribute("port", "22")
+                else:    
+                    login.setAttribute("hostname", config.public_ip)
+                    login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
                 login.setAttribute("username", user)
                 print 'this'
                 print login
@@ -654,6 +677,7 @@ def generateManifest(geni_slice, req_rspec, aggregate_urn, \
                     link_object = link_list[i]
                     break
             child.setAttribute('sliver_id', link_object.getSliverURN())
+            child.setAttribute('vlantag', str(link_object.getVLANTag()))
 
     return cleanXML(manifest, "OldManifest")
 

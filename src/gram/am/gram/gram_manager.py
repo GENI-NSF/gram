@@ -200,7 +200,16 @@ class GramManager :
 
             # Set expiration time on the slice itself
                 slice_object.setExpiration(expiration);
-        
+       
+
+            # Associate an internal VLAN tag with every link 
+            # that isn't already set by stitching
+            if not self.allocate_internal_vlan_tags(slice_object):
+                error_string = "No more internal VLAN tags available"
+                error_code = constants.VLAN_UNAVAILABLE
+                return {'code' : {'geni_code' : error_code}, 'value' : "",
+                        'output' : error_string}
+ 
             # Generate a manifest rspec
             slice_object.setRequestRspec(rspec)
             for sliver in slivers:
@@ -213,14 +222,6 @@ class GramManager :
                                                              agg_urn, \
                                                              self._stitching)
             if error_code != constants.SUCCESS:
-                return {'code' : {'geni_code' : error_code}, 'value' : "", 
-                        'output' : error_string}
-
-            # Associate an internal VLAN tag with every link 
-            # that isn't already set by stitching
-            if not self.allocate_internal_vlan_tags(slice_object):
-                error_string = "No more internal VLAN tags available"
-                error_code = constants.VLAN_UNAVAILABLE
                 return {'code' : {'geni_code' : error_code}, 'value' : "", 
                         'output' : error_string}
 
