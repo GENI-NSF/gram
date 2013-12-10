@@ -172,10 +172,12 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self.logger.info('Delete(%r)' % (urns))
         #self._gram_manager.expire_slivers()
 
+        self._gram_manager.restore_state()
         # Set the_slice to the slice_object that contains the slivers to
         # be provisioned.  Set slivers to the silver_objects that need to
         # be provisioned.  If the Provision API call was given just a 
         # slice_urn, slivers will include all sliver_objects in the slice
+ 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
         if not the_slice:
             return self._no_slice_found(urns)
@@ -296,6 +298,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         in the sliver. The AM may not know.
         Return a dict of sliver urn, status, and a list of dicts resource
         statuses.'''
+        self._gram_manager.restore_state()
         # Loop over the resources in a sliver gathering status.
         #import pdb; pdb.set_trace()
         self.logger.info('got here')
@@ -334,7 +337,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         until the given expiration time (in UTC with a TZ per RFC3339).
         Requires at least one credential that is valid until then.
         Return False on any error, True on success.'''
-
+       
+        self._gram_manager.restore_state()
         self.logger.info('Renew(%r, %r)' % (urns, expiration_time))
         #self._gram_manager.expire_slivers()
 
@@ -376,10 +380,14 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
     # Return error if no slice found for set of URN's
     def _no_slice_found(self, urns):
         if len(urns) > 0:
-            return self._no_such_slice(urns[0])
+            return self.errorResult(constants.UNKNOWN_SLICE, 'URN not found: ' + urns[0])
         else:
-            return self.errorResult(self, AM_API.SEARCH_FAILED, \
-                                        'No URNs provided to AM call')
+            return self.errorResult(constants.UNKNOWN_SLICE, 'No URNs provided to AM call')
+
+    def errorResult(self,code,message):
+        ret =  {'code' : {'geni_code' : code}, 'value' : '', 'output' : message}
+        self.logger.info("No slice found, returning: " + ret)
+        return ret
 
     # Does the given set of credentials allow all the following privileges?
     def validate_credentials(self, credentials, privileges, slice_urn):
