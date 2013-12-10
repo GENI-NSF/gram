@@ -128,7 +128,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
         ret_v3 = self._v3_am.Delete(urns, credentials, options)
-        return self.successResult(True)
+        return ret_v3
 
     def SliverStatus(self, slice_urn, credentials, options):
         credentials = [self.transform_credential(c) for c in credentials]
