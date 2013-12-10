@@ -386,7 +386,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     def errorResult(self,code,message):
         ret =  {'code' : {'geni_code' : code}, 'value' : '', 'output' : message}
-        self.logger.info("No slice found, returning: " + ret)
+        self.logger.info("No slice found, returning: " + str(ret))
         return ret
 
     # Does the given set of credentials allow all the following privileges?

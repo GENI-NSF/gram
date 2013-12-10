@@ -496,7 +496,7 @@ class GramManager :
             if requested > expiration:
                 print 'expiration time too long'
                 code = {'geni_code':constants.REQUEST_PARSE_FAILED}
-                return {'code':code, 'value':sliver_status_list, 'output':'WARNING: Requested sliver expiration is greater than the slice expiration. Using Slice expiration instead'}
+                return {'code':code, 'value':sliver_status_list, 'output':'ERROR: Requested sliver expiration is greater than either the slice expiration or the maximum lease time: ' + str(config.lease_expiration_minutes) + ' minutes'}
 
             code = {'geni_code': constants.SUCCESS}
             return {'code': code, 'value': sliver_status_list, 'output':''}
