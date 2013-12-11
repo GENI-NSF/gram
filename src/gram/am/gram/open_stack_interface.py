@@ -1058,6 +1058,16 @@ def _createVM(vm_object, users, placement_hint) :
 
     return vm_uuid
 
+# Reboot given VM
+def _rebootVM(vm_object):
+    pass
+
+def _shutdownVM(vm_object):
+    pass
+
+def _bootVM(vm_object):
+    pass
+
 
 def _deleteVM(vm_object) :
     """

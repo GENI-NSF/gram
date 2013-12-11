@@ -389,15 +389,33 @@ class GramManager :
             return ret_val
 
 
+    # Perform operational action.
+    # By the time this is called, we should know that the slivers
+    # are in the right state to for the given action
     def performOperationalAction(self, slice_object, slivers, action, options) :
         """
             AM API V3 method.
 
-            This is not currently supported by GRAM.
+            Support these actions:
+                geni_start (boot if not_ready)
+                geni_restart (reboot if ready)
+                geni_stop (shutdown if ready)
         """
-        code = {'geni_code': constants.UNSUPPORTED}
-        err_str = 'Unsupported API call: performOperationalAction'
-        return {'code': code, 'value': '', 'output': err_str}
+        for sliver_object in slivers:
+
+            # Only perform operational actions on VMs
+            if type(sliver_object) != VirtualMachine: continue
+
+            if action == 'geni_start':
+                # boot the VM's
+                open_stack_interface._bootVM(sliver_object)
+            elif action == 'geni_restart':
+                open_stack_interface._rebootVM(sliver_object)
+            elif action == 'geni_stop':
+                open_stack_interfvace._shutdownVM(sliver_object)
+            else:
+                msg = 'Unsupported: action %s is not supported' % action
+                raise ApiErrorException(AM_API.UNSUPPORTED, msg)
 
 
     def delete(self, slice_object, sliver_objects, options) :

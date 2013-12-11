@@ -210,10 +210,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        return self._gram_manager.performOperationalAction(the_slice, slivers,
-                                                           action, options)
-
-
         # A place to store errors on a per-sliver basis.
         # {sliverURN --> "error", sliverURN --> "error", etc.}
         astates = []
@@ -250,6 +246,10 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         if not best_effort and errors:
             raise ApiErrorException(AM_API.UNSUPPORTED,
                                     "\n".join(errors.values()))
+
+        # Perform the operational action (reboot, shutdown, boot)
+        self._gram_manager.performOperationalAction(the_slice, slivers,
+                                                    action, options)
 
         # Perform the state changes:
         for sliver in slivers:
