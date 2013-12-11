@@ -1058,15 +1058,25 @@ def _createVM(vm_object, users, placement_hint) :
 
     return vm_uuid
 
-# Reboot given VM
-def _rebootVM(vm_object):
-    pass
+# Perform operational action (reboot, suspend, resume) on given VM
+# By the time this is called, we've already checked that the VM is in 
+# the appropriate state
+def _performOperationalAction(vm_object, action):
+    if action == 'geni_start':
+        cmd = 'resume'
+    elif action == 'geni_restart':
+        cmd = 'reboot'
+    else: # action == 'geni_stop':
+        cmd = 'suspend'
 
-def _shutdownVM(vm_object):
-    pass
-
-def _bootVM(vm_object):
-    pass
+    nova_cmd = 'nova %s %s' % (cmd, vm_object.getUUID())
+    config.logger.info("Performing %s " % nova_cmd)
+    
+    try :
+        _execCommand(nova_cmd)
+    except :
+        config.logger.error('Failed to perform operational action %s %s: %s' %
+                            (action, vm_action.getUUID(), nova_cmd))
 
 
 def _deleteVM(vm_object) :

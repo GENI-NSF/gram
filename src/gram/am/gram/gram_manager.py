@@ -406,16 +406,8 @@ class GramManager :
             # Only perform operational actions on VMs
             if type(sliver_object) != VirtualMachine: continue
 
-            if action == 'geni_start':
-                # boot the VM's
-                open_stack_interface._bootVM(sliver_object)
-            elif action == 'geni_restart':
-                open_stack_interface._rebootVM(sliver_object)
-            elif action == 'geni_stop':
-                open_stack_interfvace._shutdownVM(sliver_object)
-            else:
-                msg = 'Unsupported: action %s is not supported' % action
-                raise ApiErrorException(AM_API.UNSUPPORTED, msg)
+            # Perform operational action on VM within openstack
+            open_stack_interface._performOperationalAction(sliver_object, action)
 
 
     def delete(self, slice_object, sliver_objects, options) :
