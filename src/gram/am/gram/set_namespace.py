@@ -27,7 +27,25 @@ import fileinput
 import sys
 import config
 import netaddr
+import re
 from open_stack_interface import _execCommand, _getConfigParam
+
+
+def _getPublicIp(ns):
+    """ Looks at the IP Tables in the management namespace and 
+        figures out the SNAT IP address that is mapped to the
+        management network
+    """
+    command = 'ip netns exec ' + ns + ' iptables -L -t nat --line-numbers'
+    output = _execCommand(command)
+    output_lines = output.split('\n')
+    found = 0
+    mgmt_cidr = _getConfigParam('/etc/gram/config.json','management_network_cidr')
+    for line in output_lines:
+        m = re.search(r'SNAT.*all.*' + mgmt_cidr + '.*to:(.*)',line)
+        if m:
+            return m.group(1)
+
 
 def _getMgmtNamespace() :
     """
@@ -66,17 +84,32 @@ def _getMgmtNamespace() :
             has_public = 0
     return None
 
+
+def _setField(field,value):
+    for line in fileinput.input('/etc/gram/config.json', inplace=1):
+        if field in line:
+            line = line.replace(line,'   "' + field + '": "' + value + '",\n' )
+        sys.stdout.write(line)
+
 if __name__ == "__main__":
+
 
    # Get the namespace name
    ns = _getMgmtNamespace()
-   
+   pub_ip = _getPublicIp(ns)
+    
+ 
    # edit config.json to update the namespace
    if ns:
-     for line in fileinput.input('/etc/gram/config.json', inplace=1):
-        if 'mgmt_ns' in line:
-            line = line.replace(line,'   "mgmt_ns": "' + ns + '"\n' )
-        sys.stdout.write(line) 
+     _setField('mgmt_ns',ns)
+   else:
+     print 'Failed to set namespace'
+
+   # set the public ip address
+   if pub_ip:
+     _setField('public_ip',pub_ip)
+   else:
+     print 'Failed to set public IP address'
 
 
 
