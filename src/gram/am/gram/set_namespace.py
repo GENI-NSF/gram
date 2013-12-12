@@ -85,10 +85,13 @@ def _getMgmtNamespace() :
     return None
 
 
-def _setField(field,value):
+def _setField(field,value,hasMore=False):
     for line in fileinput.input('/etc/gram/config.json', inplace=1):
         if field in line:
-            line = line.replace(line,'   "' + field + '": "' + value + '",\n' )
+            if hasMore:
+                line = line.replace(line,'   "' + field + '": "' + value + '",\n' )
+            else:
+                line = line.replace(line,'   "' + field + '": "' + value + '"\n' )
         sys.stdout.write(line)
 
 if __name__ == "__main__":
@@ -101,13 +104,13 @@ if __name__ == "__main__":
  
    # edit config.json to update the namespace
    if ns:
-     _setField('mgmt_ns',ns)
+     _setField('mgmt_ns',ns,False)
    else:
      print 'Failed to set namespace'
 
    # set the public ip address
    if pub_ip:
-     _setField('public_ip',pub_ip)
+     _setField('public_ip',pub_ip,True)
    else:
      print 'Failed to set public IP address'
 
