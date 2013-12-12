@@ -172,7 +172,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         self.logger.info('Delete(%r)' % (urns))
         #self._gram_manager.expire_slivers()
 
-        self._gram_manager.restore_state()
         # Set the_slice to the slice_object that contains the slivers to
         # be provisioned.  Set slivers to the silver_objects that need to
         # be provisioned.  If the Provision API call was given just a 
@@ -193,10 +192,11 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         """Peform the specified action on the set of objects specified by
         urns.
         """
-        self.logger.info('PerformOperationalAction(%r)' % (urns))
+        self.logger.info('PerformOperationalAction(%r,%s)' % (urns,action))
         #self._gram_manager.expire_slivers()
 
         the_slice, slivers = self._gram_manager.decode_urns(urns)
+        print slivers
         if not the_slice:
             return self._no_slice_found(urns)
 
@@ -298,7 +298,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         in the sliver. The AM may not know.
         Return a dict of sliver urn, status, and a list of dicts resource
         statuses.'''
-        self._gram_manager.restore_state()
         # Loop over the resources in a sliver gathering status.
         #import pdb; pdb.set_trace()
         self.logger.info('got here')
@@ -338,7 +337,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         Requires at least one credential that is valid until then.
         Return False on any error, True on success.'''
        
-        self._gram_manager.restore_state()
         self.logger.info('Renew(%r, %r)' % (urns, expiration_time))
         #self._gram_manager.expire_slivers()
 
@@ -417,7 +415,7 @@ class GramAggregateManagerServer(object):
 
     def __init__(self, addr, keyfile=None, certfile=None,
                  trust_roots_dir=None,
-                 ca_certs=None, base_name=None):
+                 ca_certs=None, base_name=None,GRAM=None):
         # ca_certs arg here must be a file of concatenated certs
         if ca_certs is None:
             raise Exception('Missing CA Certs')
@@ -426,9 +424,9 @@ class GramAggregateManagerServer(object):
 
         # Decode the addr into a URL. Is there a pythonic way to do this?
         server_url = "https://%s:%d/" % addr
-        delegate = GramReferenceAggregateManager(trust_roots_dir, base_name,
-                                             certfile, 
-                                             server_url)
+        delegate = GRAM #GramReferenceAggregateManager(trust_roots_dir, base_name,
+                        #                     certfile, 
+                        #                     server_url)
         # FIXME: set logRequests=true if --debug
         self._server = GramSecureXMLRPCServer(addr, keyfile=keyfile,
                                           certfile=certfile, ca_certs=ca_certs)

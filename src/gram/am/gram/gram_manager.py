@@ -174,7 +174,7 @@ class GramManager :
             # the rspec and a list of slivers created while parsing
             # Also OF controller, if any
             err_output, err_code, slivers, controller_url = \
-                rspec_handler.parseRequestRspec(slice_object, rspec, \
+                rspec_handler.parseRequestRspec(self._aggregate_urn,slice_object, rspec, \
                                                     self._stitching)
 
             if err_output != None :
@@ -411,16 +411,33 @@ class GramManager :
             return ret_val
 
 
+    # Perform operational action.
+    # By the time this is called, we should know that the slivers
+    # are in the right state to for the given action
     def performOperationalAction(self, slice_object, slivers, action, options) :
         """
             AM API V3 method.
 
-            This is not currently supported by GRAM.
+            Support these actions:
+                geni_start (boot if not_ready)
+                geni_restart (reboot if ready)
+                geni_stop (shutdown if ready)
         """
-        code = {'geni_code': constants.UNSUPPORTED}
-        err_str = 'Unsupported API call: performOperationalAction'
-        return {'code': code, 'value': '', 'output': err_str}
+        for sliver_object in slivers:
+            print 'sliver_object:'
+            print type(sliver_object)
+            # Only perform operational actions on VMs
+            if not isinstance(sliver_object, VirtualMachine): continue
+            #if type(sliver_object) != VirtualMachine: continue
 
+            # Perform operational action on VM within openstack
+            open_stack_interface._performOperationalAction(sliver_object, action)
+
+        code = {'geni_code': constants.SUCCESS}
+        sliver_status_list = \
+                utils.SliverList().getStatusOfSlivers(slivers)
+        ret_val = {'code': code, 'value': sliver_status_list, 'output': ''}
+        return ret_val
 
     def delete(self, slice_object, sliver_objects, options) :
         """

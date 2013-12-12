@@ -962,6 +962,12 @@ def _createVM(vm_object, users, placement_hint) :
     cmd_string += (' boot %s --config-drive=true --poll --image %s --flavor %s' % \
                        (vm_name, os_image_id, vm_flavor_id))
 
+    component_name = vm_object.getComponentName()
+    if component_name:
+        config.logger.info("Creating VM on compute node " + component_name)
+        cmd_string += ' --availability-zone nova:' + component_name
+
+
     # Add user meta data to create account, pass keys etc.
     # userdata_filename = '/tmp/userdata.txt'
     userdata_file = tempfile.NamedTemporaryFile(delete=False)
@@ -1058,6 +1064,28 @@ def _createVM(vm_object, users, placement_hint) :
 
     return vm_uuid
 
+# Perform operational action (reboot, suspend, resume) on given VM
+# By the time this is called, we've already checked that the VM is in 
+# the appropriate state
+def _performOperationalAction(vm_object, action):
+    ret_val = True
+    if action == 'geni_start':
+        cmd = 'resume'
+    elif action == 'geni_restart':
+        cmd = 'reboot'
+    else: # action == 'geni_stop':
+        cmd = 'suspend'
+
+    nova_cmd = 'nova %s %s' % (cmd, vm_object.getUUID())
+    config.logger.info("Performing %s " % nova_cmd)
+    
+    try :
+        _execCommand(nova_cmd)
+    except :
+        config.logger.error('Failed to perform operational action %s %s: %s' %
+                            (action, vm_action.getUUID(), nova_cmd))
+        ret_val = False
+    return ret_val
 
 def _deleteVM(vm_object) :
     """

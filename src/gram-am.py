@@ -40,6 +40,7 @@ if sys.version_info < (2, 6):
 elif sys.version_info >= (3,):
     raise Exception('Not python 3 ready')
 
+import threading
 import logging
 import optparse
 import os
@@ -67,8 +68,10 @@ def parse_args(argv):
     # using socket.gethostbyname(socket.gethostname())
     parser.add_option("-H", "--host", 
                       help="server ip", metavar="HOST")
-    parser.add_option("-p", "--port", type=int, 
-                      help="server port", metavar="PORT")
+    parser.add_option("-p", "--v3_port", type=int, 
+                      help="V3 server port", metavar="PORT")
+    parser.add_option("-q", "--v2_port", type=int,
+                      help="V2 server port", metavar="PORT")
     parser.add_option("--debug", action="store_true", default=False,
                        help="enable debugging output")
     parser.add_option("-V", "--api-version", type=int,
@@ -114,10 +117,10 @@ def main(argv=None):
     gram.am.gram.config.initialize(opts.config_file)
 
     # If the port isn't set explicitly, use defaults from config
-    if not opts.port:
-        opts.port = gram.am.gram.config.gram_am_port
-        if opts.api_version == 2:
-            opts.port = gram.am.gram.config.gram_am_v2_port
+    if not opts.v3_port:
+        opts.v3_port = gram.am.gram.config.gram_am_port
+    if not opts.v2_port:
+        opts.v2_port = gram.am.gram.config.gram_am_v2_port
 
     level = logging.INFO
     if opts.debug:
@@ -176,29 +179,38 @@ def main(argv=None):
     # certs possibly concatenated together
     comboCertsFile = geni.CredentialVerifier.getCAsFileFromDir(getAbsPath(opts.rootcadir))
 
+    server_url = "https://%s:%d/" % (opts.host, int(opts.v3_port))
+    GRAM=gram.am.am3.GramReferenceAggregateManager(getAbsPath(opts.rootcadir), config['global']['base_name'], certfile, server_url)
+
     if opts.api_version == 1:
         msg = "Version 1 of AM API unsopported in GRAM"
         sys.exit(msg)
-    elif opts.api_version == 2:
-        ams = gram.am.gram_am2.GramAggregateManagerServer((opts.host, int(opts.port)),
+    #elif opts.api_version == 2:
+    ams_v2 = gram.am.gram_am2.GramAggregateManagerServer((opts.host, int(opts.v2_port)),
                                           keyfile=keyfile,
                                           certfile=certfile,
                                           trust_roots_dir=getAbsPath(opts.rootcadir),
                                           ca_certs=comboCertsFile,
-                                          base_name=config['global']['base_name'])
-    elif opts.api_version == 3:
-        ams = gram.am.am3.GramAggregateManagerServer((opts.host, int(opts.port)),
+                                          base_name=config['global']['base_name'],
+                                          GRAM=GRAM)
+    #elif opts.api_version == 3:
+    ams_v3 = gram.am.am3.GramAggregateManagerServer((opts.host, int(opts.v3_port)),
                                           keyfile=keyfile,
                                           certfile=certfile,
                                           trust_roots_dir=getAbsPath(opts.rootcadir),
                                           ca_certs=comboCertsFile,
-                                          base_name=config['global']['base_name'])
-    else:
-        msg = "Unknown API version: %d. Valid choices are \"1\", \"2\", or \"3\""
-        sys.exit(msg % (opts.api_version))
+                                          base_name=config['global']['base_name'],
+                                          GRAM=GRAM)
+    #else:
+    #    msg = "Unknown API version: %d. Valid choices are \"1\", \"2\", or \"3\""
+    #    sys.exit(msg % (opts.api_version))
 
-    logging.getLogger('gcf-am').info('GENI AM Listening on port %s...' % (opts.port))
-    ams.serve_forever()
+    logging.getLogger('gcf-am').info('GENI AM 3 Listening on port %s...' % (opts.v3_port))
+    logging.getLogger('gcf-am').info('GENI AM 2 Listening on port %s...' % (opts.v2_port))
+ 
+    thread = threading.Thread(target=ams_v2.serve_forever,args=())
+    thread.start()
+    ams_v3.serve_forever()
 
 if __name__ == "__main__":
     sys.exit(main())
