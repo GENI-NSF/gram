@@ -39,13 +39,13 @@ import zlib
 
 class GramReferenceAggregateManager(ReferenceAggregateManager):
 
-    def __init__(self, root_cert, urn_authority, url, certfile, server):
+    def __init__(self, root_cert, urn_authority, url, certfile, server,GRAM):
 
         ReferenceAggregateManager.__init__(self, root_cert, urn_authority, 
                                            url)
-        self._v3_am = GramReferenceAggregateManager_V3(root_cert, 
-                                                       urn_authority, 
-                                                       certfile, url)
+        self._v3_am = GRAM #GramReferenceAggregateManager_V3(root_cert, 
+                           #                            urn_authority, 
+                           #                            certfile, url)
         self._certfile = certfile
         self._am_type = "gram"
         self._server = server
@@ -58,7 +58,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         v2_url = "https://%s:%d" % (hostname, config.gram_am_v2_port)
         geni_api_versions = {'2' : v2_url, '3' : v3_url}
         result['value']['geni_api_versions'] = geni_api_versions
-        result['code']['am_type'] = 'GRAM'
         return result
 
     def ListResources(self, credentials, options):
@@ -142,9 +141,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         manifest = ret_provision_v3['value']['geni_rspec']
 
          # PerformOperationalAction(geni_start)
-        action = 'geni_start'
-        self._v3_am.PerformOperationalAction(urns, credentials, \
-                                                 action, options)
+        #action = 'geni_start'
+        #self._v3_am.PerformOperationalAction(urns, credentials, \
+        #                                         action, options)
         return self.successResult(manifest)
 
     def DeleteSliver(self, slice_urn, credentials, options):
@@ -177,6 +176,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     def RenewSliver(self, slice_urn, credentials, expiration_time, options):
         credentials = [self.transform_credential(c) for c in credentials]
+        
         urns = [slice_urn]
         ret_v3 = self._v3_am.Renew(urns, credentials, 
                                       expiration_time, options)
@@ -205,7 +205,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 class GramAggregateManagerServer(object):
     def __init__(self, addr, keyfile=None, certfile=None,
                  trust_roots_dir=None,
-                 ca_certs=None, base_name=None):
+                 ca_certs=None, base_name=None,GRAM=None):
         # ca_certs arg here must be a file of concatenated certs
         if ca_certs is None:
             raise Exception('Missing CA Certs')
@@ -219,7 +219,8 @@ class GramAggregateManagerServer(object):
                                           certfile=certfile, ca_certs=ca_certs)
         delegate = GramReferenceAggregateManager(trust_roots_dir, base_name,
                                              server_url, certfile, 
-                                             self._server)
+                                             self._server,
+                                             GRAM)
         self._server.register_instance(AggregateManager(delegate))
         # Set the server on the delegate so it can access the
         # client certificate.

@@ -34,6 +34,7 @@ import subprocess
 
 import config
 import constants
+import open_stack_interface
 
 # Helper function for generating field-by-field image 
 # for resources
@@ -69,9 +70,13 @@ class GramImageInfo :
   _image_list = None
   _flavor_list = None
   _last_update = None
+  _compute_hosts = None
 
   @staticmethod
   def refresh():
+      if not GramImageInfo._compute_hosts:
+          GramImageInfo._compute_hosts = open_stack_interface._listHosts('compute')
+
       cmd = 'nova image-list'
       try :
           GramImageInfo._image_list = _execCommand(cmd)
@@ -349,6 +354,7 @@ class Sliver():
       self._allocation_state = constants.allocated  # API v3 allocation state
       self._operational_state = constants.notready  # Operational state
       self._user_urn = None
+      self._component_name = None
       my_slice.addSliver(self)  # Add this sliver to the list of slivers owned
                                 # by the slice.  sliver_urn must be set.
 
@@ -365,6 +371,12 @@ class Sliver():
          config.logger.error('Unknown sliver type.  Cannot set URN')
       return sliver_urn
       
+   def setComponentName(self,component_name):
+      self._component_name = component_name
+
+   def getComponentName(self):
+      return self._component_name
+
    def setName(self, name) :
       self._name = name
 

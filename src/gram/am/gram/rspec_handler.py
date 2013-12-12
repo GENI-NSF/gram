@@ -23,17 +23,18 @@
 
 from xml.dom.minidom import *
 import socket
+import re
 
 import config
 import constants
 import open_stack_interface
-from resources import Slice, VirtualMachine, NetworkInterface, NetworkLink
+from resources import GramImageInfo, Slice, VirtualMachine, NetworkInterface, NetworkLink
 import uuid
 import utils
 import netaddr
 import stitching
 
-def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
+def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
     """ This function parses a request rspec and creates the sliver objects for
         the resources requested by this rspec.  The resources are not actually
         created.
@@ -86,7 +87,7 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
         # Ignore the node if it isn't bound to my component_manager_id
         if node_attributes.has_key('component_manager_id'):
             cmi = node_attributes['component_manager_id'].value
-            if cmi  != config.aggregate_manager_urn:
+            if cmi  != agg_urn:
                 print "Ignoring remote node : %s" % cmi
                 continue
 
@@ -95,6 +96,28 @@ def parseRequestRspec(geni_slice, rspec, stitching_handler=None) :
         vm_object = VirtualMachine(geni_slice)
         vm_object.setName(node_name)
         sliver_list.append(vm_object)
+
+        # Check for component_id
+        compute_hosts = GramImageInfo._compute_hosts.keys()
+        if node_attributes.has_key('component_id'):
+          ci = getHostFromUrn(node_attributes['component_id'].value)
+          if ci:
+            if ci.lower() not in compute_hosts:
+                error_string = "Invalid value for component_id"
+                error_code = constants.UNSUPPORTED
+                config.logger.error(error_string)
+                return error_string, error_code, sliver_list, None
+            vm_object.setComponentName(ci)
+
+        # Check for component_name
+        if node_attributes.has_key('component_name'):
+            cn = node_attributes['component_name'].value
+            if cn.lower() not in compute_hosts:
+                error_string = "Invalid value for component_name"
+                error_code = constants.UNSUPPORTED
+                config.logger.error(error_string)
+                return error_string, error_code, sliver_list, None
+            vm_object.setComponentName(cn)
 
         # Make sure there isn't an exclusive="true" clause in the node 
         if node_attributes.has_key("exclusive"):
@@ -697,10 +720,13 @@ def cleanXML(doc, label):
 def generateAdvertisement(am_urn, stitching_handler = None):
 
     component_manager_id = am_urn
-    component_name = str(uuid.uuid4())
+    component_name = "" #str(uuid.uuid4())
     component_id = 'urn:public:geni:gpo:vm+' + component_name
     exclusive = 'false'
     client_id="VM"
+
+    urn_prefix = getURNprefix(am_urn)
+    compute_nodes = GramImageInfo._compute_hosts
 
     flavors = open_stack_interface._listFlavors()
     sliver_type = config.default_VM_flavor
@@ -722,28 +748,69 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             if metadata.has_key('os'): os = metadata['os']
             if metadata.has_key('version'): version = metadata['version']
             if metadata.has_key('description'): description = metadata['description']
-        disk_image = '<disk_image name="%s" os="%s" version="%s" description="%s" />' % (image_name, os, version, description)
+        disk_image = '      <disk_image name="%s" os="%s" version="%s" description="%s" />' % (image_name, os, version, description)
         image_types = image_types + disk_image + "\n"
 
-    tmpl = '''  <node component_manager_id="%s"
-        component_name="%s"
-        component_id="%s"
-        exclusive="%s">
-  %s <sliver_type name="%s"> 
-  %s </sliver_type>
-  </node>
-  %s
-  </rspec>
-  '''
+    sliver_block = ''
+    for flavor_name in flavors.values():
+        entry = '    <sliver_type name="%s">' % flavor_name
+        sliver_block = sliver_block + entry + '\n'
+        sliver_block = sliver_block + image_types
+        sliver_block = sliver_block + '    </sliver_type> \n'
+
+    node_block = ''
+    for compute_node in compute_nodes.keys():
+        entry = '<node component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % (compute_node, component_manager_id, urn_prefix + socket.gethostname() + '+node+' + compute_node, exclusive)
+        node_block = node_block + entry + '\n'
+        node_block = node_block + sliver_block
+        node_block = node_block + '</node> \n \n'
+
+    POA_header = '<rspec_opstate xmlns="http://www.geni.net/resources/rspec/ext/opstate/1" ' + \
+                'aggregate_manager_id=' + '"' + am_urn + '" '
+
+  
+    POA_block = POA_header + 'start="OPSTATE_GENI_NOT_READY"> \n' + \
+                node_types + \
+                '<state name="OPSTATE_GENI_NOT_READY"> \n' + \
+                   '<action name="geni_start" next="OPSTATE_GENI_READY"> \n' + \
+                       '<description>Boot the node</description> \n' + \
+                   '</action> \n' + \
+                '<description>VMs begin powered down or inactive. They must be explicitly booted before use.</description> \n' + \
+                '</state> \n' + \
+                '</rspec_opstate> \n \n' + \
+                POA_header + 'start="OPSTATE_GENI_READY"> \n' + \
+                node_types + \
+                '<state name="OPSTATE_GENI_READY"> \n' + \
+                   '<action name="geni_restart" next="OPSTATE_GENI_READY"> \n' + \
+                       '<description>Reboot the node</description> \n' + \
+                   '</action> \n' + \
+                   '<action name="geni_stop" next="OPSTATE_GENI_READY"> \n' + \
+                       '<description>The state of the VM</description> \n' + \
+                   '</action> \n' +   \
+                '<description>The VM has been booted and is ready</description> \n' + \
+                '</state> \n' + \
+                '</rspec_opstate> \n'
+
+                   
+
+#    tmpl = '''  <node component_manager_id="%s"
+#        component_name="%s"
+#        component_id="%s"
+#        exclusive="%s">
+#  %s <sliver_type name="%s"> 
+#  %s </sliver_type>
+#  </node>
+#  %s
+#  %s
+#  </rspec>
+#  '''
 
     schema_locs = ["http://www.geni.net/resources/rspec/3",
                    "http://www.geni.net/resources/rspec/3/ad.xsd",
                    "http://www.geni.net/resources/rspec/ext/opstate/1",
                    "http://www.geni.net/resources/rspec/ext/opstate/1/ad.xsd"]
     advert_header = '''<?xml version="1.0" encoding="UTF-8"?> 
-         <rspec xmlns="http://www.geni.net/resources/rspec/3"                 
-                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-       xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
+         <rspec xmlns="http://www.geni.net/resources/rspec/3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
 
     stitching_advertisement =""
     if stitching_handler:
@@ -751,8 +818,22 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             stitching_handler.generateAdvertisement()
         stitching_advertisement = \
             stitching_advertisement_doc.childNodes[0].toxml()
-    result = advert_header + \
-        (tmpl % (component_manager_id, component_name, \
-                     component_id, exclusive, node_types, \
-                     sliver_type, image_types,  stitching_advertisement)) 
+    result = advert_header  + '\n' + node_block + stitching_advertisement + POA_block + '</rspec'
+
+#        (tmpl % (component_manager_id, component_name, \
+#                     component_id, exclusive, node_types, \
+#                     sliver_type, image_types,  stitching_advertisement, POA_block)) 
     return result
+
+def getURNprefix(am_urn):
+        host = socket.gethostname().split('.')[0]
+        m = re.search(r'(.*)' + host + '(.*)',am_urn)
+        if m:
+            return m.group(1)
+
+def getHostFromUrn(urn):
+        m = re.search(r'.*\+node\+(.*)',urn)
+        if m:
+            return m.group(1)
+
+
