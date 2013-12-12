@@ -100,7 +100,8 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
         # Check for component_id
         compute_hosts = GramImageInfo._compute_hosts.keys()
         if node_attributes.has_key('component_id'):
-            ci = getHostFromUrn(node_attributes['component_id'].value)
+          ci = getHostFromUrn(node_attributes['component_id'].value)
+          if ci:
             if ci.lower() not in compute_hosts:
                 error_string = "Invalid value for component_id"
                 error_code = constants.UNSUPPORTED
@@ -110,7 +111,7 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
 
         # Check for component_name
         if node_attributes.has_key('component_name'):
-            cn = node_attributes['component_id'].value
+            cn = node_attributes['component_name'].value
             if cn.lower() not in compute_hosts:
                 error_string = "Invalid value for component_name"
                 error_code = constants.UNSUPPORTED

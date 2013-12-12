@@ -141,9 +141,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         manifest = ret_provision_v3['value']['geni_rspec']
 
          # PerformOperationalAction(geni_start)
-        action = 'geni_start'
-        self._v3_am.PerformOperationalAction(urns, credentials, \
-                                                 action, options)
+        #action = 'geni_start'
+        #self._v3_am.PerformOperationalAction(urns, credentials, \
+        #                                         action, options)
         return self.successResult(manifest)
 
     def DeleteSliver(self, slice_urn, credentials, options):
