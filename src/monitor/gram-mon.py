@@ -1,6 +1,30 @@
-import open_stack_interface
-import Archiving
-import config
+#----------------------------------------------------------------------
+# Copyright (c) 2013 Raytheon BBN Technologies
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and/or hardware specification (the "Work") to
+# deal in the Work without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Work, and to permit persons to whom the Work
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Work.
+#
+# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
+# IN THE WORK.
+#----------------------------------------------------------------------
+
+from gram.am.gram import open_stack_interface
+from gram.am.gram import Archiving
+from gram.am.gram import config
+from gram.am.gram import stitching
 import gmoc
 import os
 import getpass
@@ -32,7 +56,11 @@ def monitor():
  aggregate = gmoc.Aggregate('urn:publicid:geni:bos:gcf+authority+am', type='gram', version='3', pop = pop, operator=organization)
 
  #get vmresources
- vmresources = open_stack_interface._getConfigParam('/etc/gram/config.json', 'compute_hosts')
+ config.initialize("/etc/gram/config.json")
+ #vmresources = open_stack_interface._getConfigParam('/etc/gram/config.json', 'compute_hosts')
+ vmresources = config.compute_hosts
+ stitching_handler = stitching.Stitching()
+
 
  resources={}
  for k in vmresources:
@@ -59,7 +87,7 @@ def monitor():
   oldest = nfiles[0]
   newest = nfiles[-1]
 
-  myslices = Archiving.read_slices(newest)
+  myslices = Archiving.read_slices(newest, stitching_handler)
   sliver = {}
 
   for i, slice in myslices.iteritems():
