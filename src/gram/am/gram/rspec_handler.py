@@ -825,7 +825,8 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     return result
 
 def getURNprefix(am_urn):
-        m = re.search(r'(.*)' + socket.gethostname() + '(.*)',am_urn)
+        host = socket.gethostname().split('.')[0]
+        m = re.search(r'(.*)' + host + '(.*)',am_urn)
         if m:
             return m.group(1)
 
