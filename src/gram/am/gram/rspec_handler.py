@@ -111,7 +111,7 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
 
         # Check for component_name
         if node_attributes.has_key('component_name'):
-            cn = node_attributes['component_name'].value
+            cn = node_attributes['component_id'].value
             if cn.lower() not in compute_hosts:
                 error_string = "Invalid value for component_name"
                 error_code = constants.UNSUPPORTED
@@ -735,20 +735,20 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         node_type = '<sliver_type name="%s"/>' % flavor_name
         node_types = node_types + node_type + "\n"
 
-    images = open_stack_interface._listImages()
-#    print "IMAGES = " + str(images)
+    #images = open_stack_interface._listImages()
+    #print "IMAGES = " + str(images)
+    images = config.disk_image_metadata
+    print "IMAGES = " + str(images)
     image_types = ""
-    for image_id in images.keys():
-        image_name = images[image_id]
-        version = config.default_OS_version
-        os = config.default_OS_type
+    for image in images:
         description = ""
-        if config.disk_image_metadata.has_key(image_name):
-            metadata = config.disk_image_metadata[image_name]
+        if config.disk_image_metadata.has_key(image):
+            metadata = config.disk_image_metadata[image]
             if metadata.has_key('os'): os = metadata['os']
             if metadata.has_key('version'): version = metadata['version']
-            if metadata.has_key('description'): description = metadata['description']
-        disk_image = '      <disk_image name="%s" os="%s" version="%s" description="%s" />' % (image_name, os, version, description)
+            #if metadata.has_key('description'): description = metadata['description']
+            description = 'standard'
+        disk_image = '      <disk_image name="%s" os="%s" version="%s" description="%s" />' % (image, os, version, description)
         image_types = image_types + disk_image + "\n"
 
     sliver_block = ''
@@ -789,9 +789,31 @@ def generateAdvertisement(am_urn, stitching_handler = None):
                    '</action> \n' +   \
                 '<description>The VM has been booted and is ready</description> \n' + \
                 '</state> \n' + \
+                '</rspec_opstate> \n' + \
+                POA_header + 'start="any_state"> \n' + \
+                '<state name="any"> \n' + \
+                   '<action name="create_snapshot" next="" > \n' + \
+                       '<description>Create a public image of an existing snapshot</description> \n' + \
+                   '</action> \n' + \
+                   '<action name="delete_snapshot" next=""> \n' + \
+                       '<description>Delete a public image of a snapshot</description> \n' + \
+                   '</action> \n' +   \
+                '<description>These operations can be run on VMs in a any state.Must \
+                 specify vm_name and snapshot_name in optsfile.</description> \n' + \
+                '</state> \n' + \
                 '</rspec_opstate> \n'
 
-                   
+# custome image list
+    ci_block = ""
+    u_images = open_stack_interface._listImages().values()
+    if len(u_images) > len(images):
+      ci_block = '<node component_id="" component_manager_id="' + component_manager_id + '" exclusive="false">\n'
+      ci_block += '<sliver_type name="" >\n'
+      for u_image in u_images:
+        if u_image not in images:  
+            ci_block += '<disk_image name="' + u_image + '"  description="custom"/>\n'
+      ci_block += "</sliver_type>\n"
+      ci_block += "</node>\n"       
 
 #    tmpl = '''  <node component_manager_id="%s"
 #        component_name="%s"
@@ -818,7 +840,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             stitching_handler.generateAdvertisement()
         stitching_advertisement = \
             stitching_advertisement_doc.childNodes[0].toxml()
-    result = advert_header  + '\n' + node_block + stitching_advertisement + POA_block + '</rspec'
+    result = advert_header  + '\n' + node_block + stitching_advertisement + POA_block + ci_block + '</rspec>'
 
 #        (tmpl % (component_manager_id, component_name, \
 #                     component_id, exclusive, node_types, \

@@ -1,25 +1,3 @@
-#----------------------------------------------------------------------
-# Copyright (c) 2013 Raytheon BBN Technologies
-#
-# Permission is hereby granted, free of charge, to any person obtaining
-# a copy of this software and/or hardware specification (the "Work") to
-# deal in the Work without restriction, including without limitation the
-# rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Work, and to permit persons to whom the Work
-# is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be
-# included in all copies or substantial portions of the Work.
-#
-# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
-# IN THE WORK.
-#----------------------------------------------------------------------
 
 import datetime
 import dateutil
@@ -31,7 +9,7 @@ import time
 import config
 import constants
 from sfa.trust.certificate import Certificate
-from resources import Slice, VirtualMachine, NetworkLink
+from resources import GramImageInfo, Slice, VirtualMachine, NetworkLink
 import rspec_handler
 import open_stack_interface
 import stitching
@@ -423,20 +401,47 @@ class GramManager :
                 geni_restart (reboot if ready)
                 geni_stop (shutdown if ready)
         """
-        for sliver_object in slivers:
-            print 'sliver_object:'
-            print type(sliver_object)
+        ret_str = ""
+        if action == 'delete_snapshot':
+            ret_code, ret_str = open_stack_interface._deleteImage(options)
+            sliver_status_list = utils.SliverList().getStatusOfSlivers(slivers)
+            ret_val = {'code': {'geni_code': ret_code}, 'value': "", 'output': ret_str}
+            GramImageInfo.refresh()
+            return ret_val
+
+        elif action == 'create_snapshot':
+            if not options['snapshot_name'] or not options['vm_name']:
+                ret_code = constants.REQUEST_PARSE_FAILED 
+                ret_str = "Must specify vm_name and snapshot_name in output file"
+            else:
+                ret_code,ret_str = open_stack_interface._createImage(slivers,options) 
+            ret_val = {'code': {'geni_code': ret_code}, 'value': "", 'output': ret_str}
+            GramImageInfo.refresh()
+            return ret_val
+
+        elif action in ["geni_start", "geni_stop", "geni_restart"]:            
+          ret_str = ""
+          for sliver_object in slivers:
             # Only perform operational actions on VMs
             if not isinstance(sliver_object, VirtualMachine): continue
-            #if type(sliver_object) != VirtualMachine: continue
 
             # Perform operational action on VM within openstack
-            open_stack_interface._performOperationalAction(sliver_object, action)
+            ret = open_stack_interface._performOperationalAction(sliver_object, action,options)
 
-        code = {'geni_code': constants.SUCCESS}
+            if not ret:
+                ret_str += "Failed to perform " + action + " on " + sliver_object.getName() + "\n"
+        else:
+            ret_str = "Operation not supported"
+       
+        if not len(ret_str):
+            code = {'geni_code': constants.SUCCESS}
+        else:
+            code = {'geni_code': constants.REQUEST_PARSE_FAILED}
+
+
         sliver_status_list = \
                 utils.SliverList().getStatusOfSlivers(slivers)
-        ret_val = {'code': code, 'value': sliver_status_list, 'output': ''}
+        ret_val = {'code': code, 'value': sliver_status_list, 'output': ret_str}
         return ret_val
 
     def delete(self, slice_object, sliver_objects, options) :

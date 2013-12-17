@@ -1064,26 +1064,80 @@ def _createVM(vm_object, users, placement_hint) :
 
     return vm_uuid
 
+def _createImage(slivers,options):
+    found  = False
+    uuid = _getImageUUID(options['snapshot_name'])
+    if uuid:
+        ret_code =  constants.REQUEST_PARSE_FAILED
+        ret_str = "Image with this name already exists. Choose a different name"
+        return ret_code,ret_str
+
+    for sliver_object in slivers:
+        if not isinstance(sliver_object, resources.VirtualMachine): continue
+        if sliver_object.getName() == options['vm_name']:
+                found = True
+                uuid = sliver_object.getUUID()
+                nova_cmd = 'nova image-create %s %s' % (uuid,options['snapshot_name'])
+                config.logger.info("Performing %s " % nova_cmd)
+                try :
+                        _execCommand(nova_cmd)
+                        ret_code = constants.SUCCESS
+                        ret_str = ""
+                except:
+                        config.logger.error('Failed to perform operational action %s %s: %s' %
+                            (action, sliver_object.getUUID(), nova_cmd))
+                        ret_code =  constants.REQUEST_PARSE_FAILED
+                        ret_str = "Failed to create snapshot"
+    if not found:
+        ret_code = constants.REQUEST_PARSE_FAILED
+        ret_str =  "VM not found"
+    return ret_code,ret_str
+
+
+def _deleteImage(options):
+    if options['snapshot_name']:
+        cmd = 'image-delete '
+        uuid = _getImageUUID(options['snapshot_name'])
+        if not uuid:
+            config.logger.error("Image not found")
+            return constants.UNKNOWN_SLICE,"Image not found"
+    else:
+        return constants.REQUEST_PARSE_FAILED,"Image not specified"
+    nova_cmd = 'nova %s %s' % (cmd, uuid)
+    config.logger.info("Performing %s " % nova_cmd)
+    try :
+        _execCommand(nova_cmd)
+    except:
+        config.logger.error('Failed to perform operational action %s: %s' %
+                            (action, nova_cmd))
+        return constants.REQUEST_PARSE_FAILED,"Failed to delete image"
+    return constants.SUCCESS,"a"
+
+
 # Perform operational action (reboot, suspend, resume) on given VM
 # By the time this is called, we've already checked that the VM is in 
 # the appropriate state
 def _performOperationalAction(vm_object, action):
+
     ret_val = True
+    uuid = vm_object.getUUID()
     if action == 'geni_start':
         cmd = 'resume'
     elif action == 'geni_restart':
         cmd = 'reboot'
-    else: # action == 'geni_stop':
+    elif action == 'geni_stop':
         cmd = 'suspend'
+    else:
+        return False
 
-    nova_cmd = 'nova %s %s' % (cmd, vm_object.getUUID())
+    nova_cmd = 'nova %s %s' % (cmd, uuid)
     config.logger.info("Performing %s " % nova_cmd)
-    
+ 
     try :
         _execCommand(nova_cmd)
-    except :
+    except:
         config.logger.error('Failed to perform operational action %s %s: %s' %
-                            (action, vm_action.getUUID(), nova_cmd))
+                            (action, vm_object.getUUID(), nova_cmd))
         ret_val = False
     return ret_val
 
@@ -1167,6 +1221,10 @@ def  _getImageUUID(image_name) :
         UUID of the image.  Returns None if the image cannot be found.
     """
     output = resources.GramImageInfo.get_image_list()
+    if not _getUUIDByName(output, image_name):
+        resources.GramImageInfo.refresh()
+
+    print output
     #cmd_string = 'nova image-list'
     #try :
     #    output = _execCommand(cmd_string)
@@ -1214,6 +1272,7 @@ def _getUUIDByName(output_table, name) :
         if re.search(r'\b' + name + r'\b', output_lines[i]) :
             # Found the table row for router_name.  Split this row into 
             # individual columns and pick out column 1
+            
             columns = output_lines[i].split('|')
             return columns[1].strip()
 
