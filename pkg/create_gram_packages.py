@@ -10,6 +10,7 @@
 # 
 # You can ask for the current version by 'gram-am.py --version"
 
+import os
 import sys
 import logging
 import optparse
@@ -43,7 +44,12 @@ class PackageCreator:
                               choices=['folsom', 'grizzly'], \
                               default='grizzly', \
                               help='OpenStack version')
-
+        parser.add_option("--is_update", \
+                              help="Use this option to create an update package rather than the full package", \
+                              default=False, dest="is_update")
+        parser.add_option("--gram_root", \
+                              help="Root of the GRAM source tree", \
+                              default=os.environ['HOME'], dest="gram_root")
         [self.opts, args] = parser.parse_args()
 
 
@@ -54,6 +60,13 @@ class PackageCreator:
         if self.opts.version is None:
             print "Version must be set"
             sys.exit(0)
+
+        # Check if it's an update packager
+        if self.opts.is_update:
+            template = "python createupdatedpkg.py --os_version=%s --version=%s --gram_root=%s"
+            cmd = template % (self.opts.os_version, self.opts.version,self.opts.gram_root)
+            self._execCommand(cmd)
+            return
 
         # Generate the two deb files
         template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s_%s.deb --version=%s"
