@@ -54,89 +54,100 @@ class Quantum(GenericInstaller):
         mgmt_net_cidr = config.management_network_cidr
         mgmt_net_vlan = config.management_network_vlan
 
-        connection = "sql_connection = mysql://"+ quantum_user + ":" +  quantum_password + "@" + control_address + "/quantum"  
+        connection = "sql_connection = mysql:\/\/"+ quantum_user + ":" +  quantum_password + "@" + control_address + "\/quantum"  
 
         self.comment("*** Quantum Install ***")
 
         self.comment("Install packages")
 
         self.comment("Configure quantum services")
-        self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
-        self.backup(self.quantum_plugin_directory, backup_directory, self.quantum_plugin_conf_filename)
+        #self.backup(self.quantum_directory, backup_directory, self.quantum_conf_filename)
+        #self.backup(self.quantum_plugin_directory, backup_directory, self.quantum_plugin_conf_filename)
         self.backup(self.quantum_directory, backup_directory, self.quantum_api_conf_filename) 
  
         self.sed("s/sql_connection.*/" + connection + "/",
             self.quantum_plugin_directory + "/" + \
             self.quantum_plugin_conf_filename)
 
-        self.sed("/^tenant_network_type.*/ s/^/# /",
+        self.sed("s/^.*Example: tenant_network_type.*/tenant_network_type=vlan/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("s/^\# tenant_network_type.*/tenant_network_type=vlan/", \
-                     self.quantum_plugin_directory + "/" + \
-                     self.quantum_plugin_conf_filename)
+        #self.sed("s/^\# tenant_network_type.*/tenant_network_type=vlan/", \
+        #             self.quantum_plugin_directory + "/" + \
+        #             self.quantum_plugin_conf_filename)
 
 
-        self.sed("/^tunnel_id_ranges.*/ s/^/# /",
+        self.sed("s/^tunnel_id_ranges.*//",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("/^integration_bridge.*/ s/^/#/",
+        self.sed("s/^integration_bridge.*//",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("/^tunnel_bridge.*/ s/^/\#/", \
+        self.sed("s/^tunnel_bridge.*//", \
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("/^local_ip.*/ s/^/\#/", \
+        self.sed("s/^local_ip.*//", \
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("/^enable_tunneling.*/ s/^/\#/", \
+        self.sed("s/^enable_tunneling.*//", \
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
         self.sed("s/^\# root_helper sudo \/usr.*/root_helper = sudo \/usr\/bin\/quantum-rootwrap \/etc\/quantum\/rootwrap.conf/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("s/\# Default: tenant_network_type.*/tenant_network_type=vlan/",
-                     self.quantum_plugin_directory + "/" + \
-                     self.quantum_plugin_conf_filename)
+        #self.sed("s/\# Default: tenant_network_type.*/tenant_network_type=vlan/",
+        #             self.quantum_plugin_directory + "/" + \
+        #             self.quantum_plugin_conf_filename)
         # TODO:  Figure out ranges
         self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2000,physnet2:2001:3000/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
-        self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-eth1,physnet2:br-" + mgmt_if + "/",
+        self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-" + config.data_interface + ",physnet2:br-" + config.management_interface + "/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
         
 
-        #self.sed("s/^\[SECURITYGROUP\].*/\[SECURITYGROUP\]\nfirewall_driver = quantum.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver\n",self.quantum_plugin_directory + "/" + self.quantum_plugin_conf_filename)
+        self.sed("s/^# firewall_driver.*/firewall_driver = quantum.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver/",self.quantum_plugin_directory + "/" + self.quantum_plugin_conf_filename)
 
 
-        self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host = control_address\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = quantum\nadmin_password = service_pass\n" + "/", \
-                     self.quantum_plugin_directory + "/" + \
-                     self.quantum_api_conf_filename)
+        #self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host = control_address\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = quantum\nadmin_password = service_pass\n" + "/", \
+        #             self.quantum_plugin_directory + "/" + \
+        #             self.quantum_api_conf_filename)
 
-        self.sed("s/auth_host.*/auth_host = localhost/", self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/auth_port.*/auth_port = 35357/", self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/auth_protocol.*/auth_protocol = http/", self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/signing_dir.*/signing_dir = /var/lib/quantum/keystone-signing/", self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/admin_tenant_name.*/admin_tenant_name = service/", 
-                 self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/admin_user.*/admin_user = " + quantum_user + "/", 
-                 self.quantum_directory + "/" + self.quantum_conf_filename)
-        self.sed("s/admin_password.*/admin_password = " + os_password + "/", 
-                 self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^\[filter:authtoken\].*//",self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        self.sed("s/^paste.filter_factory = keystonec.*//",self.quantum_directory + "/" + self.quantum_api_conf_filename)
 
-        self.sed("s/^rabbit_host/rabbit_host = " + control_address + "/"  ,self.quantum_conf_filename)
+        self.appendToFile("[filter:authtoken]",self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        self.appendToFile("paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory",self.quantum_directory+ "/" + self.quantum_api_conf_filename)
+        self.appendToFile("auth_host =" + control_address, self.quantum_directory + "/" + self.quantum_api_conf_filename )
+        self.appendToFile("auth_port = 35357", self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        self.appendToFile("auth_protocol = http", self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        self.appendToFile("admin_tenant_name = service", self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        self.appendToFile("admin_user = " + quantum_user, self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        self.appendToFile("admin_password = service_pass", self.quantum_directory + "/" + self.quantum_api_conf_filename)
+        
+        self.appendToFile("rabbit_host = " + control_address,self.quantum_directory + "/" + self.quantum_conf_filename)
 
 
-        self.add("# The Quantum user information for accessing the Quantum API.",quantum_metadata_file)
-        self.add("auth_url = http://" + control_address + ":35357/v2.0",quantum_metadata_file)
-        self.add("auth_region = RegionOne",quantum_metadata_file)
-        self.add("admin_tenant_name = service",quantum_metadata_file)
-        self.add("admin_user = quantum",quantum_metadata_file)
-        self.add("admin_password =" + os_password,quantum_metadata_file)
-        self.add("nova_metadata_ip =" + control_address,quantum_metadata_file)
-        self.add("nova_metadata_port = 8775",quantum_metadata_file)
-        self.add("metadata_proxy_shared_secret = helloOpenStack",quantum_metadata_file)
+        self.sed("s/^auth_host.*/auth_host =" + control_address + "/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^auth_port.*/auth_port = 35357/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^auth_protocol.*/auth_protocol = http/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^signing_dir.*/signing_dir = \/var\/lib\/quantum\/keystone-signing/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^admin_tenant_name.*/admin_tenant_name = service/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^admin_user.*/admin_user = " + quantum_user + "/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^admin_password.*/admin_password = service_pass/", self.quantum_directory + "/" + self.quantum_conf_filename)
+        self.sed("s/^\# allow_overlapping_ips .*/allow_overlapping_ips = True/",self.quantum_directory + "/" + self.quantum_conf_filename)
+
+        self.writeToFile("[DEFAULT]",self.quantum_metadata_file)
+        self.appendToFile("# The Quantum user information for accessing the Quantum API.",self.quantum_metadata_file)
+        self.appendToFile("auth_url = http://" + control_address + ":35357/v2.0",self.quantum_metadata_file)
+        self.appendToFile("auth_region = RegionOne",self.quantum_metadata_file)
+        self.appendToFile("admin_tenant_name = service",self.quantum_metadata_file)
+        self.appendToFile("admin_user = quantum",self.quantum_metadata_file)
+        self.appendToFile("admin_password =service_pass",self.quantum_metadata_file)
+        self.appendToFile("nova_metadata_ip =" + control_address,self.quantum_metadata_file)
+        self.appendToFile("nova_metadata_port = 8775",self.quantum_metadata_file)
+        self.appendToFile("metadata_proxy_shared_secret = helloOpenStack",self.quantum_metadata_file)
         # SD: Will need to double check that this works, not in the installation instructions
 
         self.add("source /etc/novarc")
@@ -154,9 +165,9 @@ class Quantum(GenericInstaller):
         self.add("  sleep .5")
         self.add("done")
         self.add("echo 'Creating management network'")
-	self.add("quantum net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared=true")
+	self.add("quantum net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared")
         self.add("echo 'Creating management subnet'")
-	self.add("quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr)
+	self.add("quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr + " --dns-nameservers " + config.public_dns_nameservers)
 	self.add('export MGMT_SUBNET_ID=`quantum net-list | grep ' + mgmt_net_name + ' | cut -d "|" -f 4`')
         self.add("echo 'Creating external network'")
         self.add("quantum net-create public --router:external=True")
@@ -187,9 +198,13 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/\# router_id.*/router_id=$EXTERNAL_ROUTER_ID/",
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
-
+        self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.add("service quantum-l3-agent restart")
+        self.add("export PYTHONPATH=$PYTHONPATH:/opt/gcf/src:/home/gram/gram/src:/home/gram/gram/src/gram/am/gram")
+        self.add("python /home/gram/gram/src/gram/am/gram/set_namespace.py") 
+
         
+        self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_dhcp_conf_filename)
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):

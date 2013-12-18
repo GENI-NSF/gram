@@ -35,11 +35,11 @@ class OpenStack:
         pass
 
     _CONTROL_INSTALLERS = [
-#        {
-#            "name": "operating_system_control", 
-#            "installer" : OperatingSystem.OperatingSystem(control_node=True) 
-#        },
-#
+        {
+            "name": "operating_system_control", 
+            "installer" : OperatingSystem.OperatingSystem(control_node=True) 
+        },
+
         {
             "name": "mysql", 
             "installer": MySQL.MySQL()
@@ -119,9 +119,11 @@ class OpenStack:
             module_name = module["name"]
             module_installer = module["installer"]
 
-            install_file.write("%s/install_%s.sh\n" % \
+
+            if module_name != "operating_system_control" and "module name != operating_system_compute": 
+                install_file.write("%s/install_%s.sh\n" % \
                                    (directory, module_name))
-            uninstall_file.write("%s/uninstall_%s.sh\n" % \
+                uninstall_file.write("%s/uninstall_%s.sh\n" % \
                                      (directory, module_name))
 
             self.installerCommands(directory, module_name, \

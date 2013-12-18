@@ -44,6 +44,7 @@ class Glance(GenericInstaller):
         os_password = config.os_password
         rabbit_password = config.rabbit_password
         backup_directory = config.backup_directory
+        control_address = config.control_address
 
         self.backup(self.glance_directory, backup_directory, \
                         self.glance_registry_conf_filename)
@@ -55,13 +56,28 @@ class Glance(GenericInstaller):
                         self.glance_api_ini_filename)
 
 
-        self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host = localhost\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = glance\nadmin_password = service_pass\n" + "/", \
-                     self.glance_directory + "/" + \
-                     self.glance_api_ini_filename)
-     
-        self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host = localhost\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = glance\nadmin_password = service_pass\n" + "/", \
-                     self.glance_directory + "/" + \
-                     self.glance_registry_ini_filename)  
+        #self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host = localhost\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = glance\nadmin_password = service_pass\n" + "/", \
+        #             self.glance_directory + "/" + \
+        #             self.glance_api_ini_filename)
+        self.appendToFile("auth_host = localhost", self.glance_directory + "/" +self.glance_api_ini_filename)
+        self.appendToFile("auth_port = 35357",self.glance_directory + "/" +self.glance_api_ini_filename)
+        self.appendToFile("auth_protocol = http",self.glance_directory + "/" +self.glance_api_ini_filename)
+        self.appendToFile("admin_tenant_name = service",self.glance_directory + "/" +self.glance_api_ini_filename)
+        self.appendToFile("admin_user = glance",self.glance_directory + "/" +self.glance_api_ini_filename)
+        self.appendToFile("admin_password = service_pass",self.glance_directory + "/" +self.glance_api_ini_filename)    
+
+ 
+        #self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host = localhost\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = glance\nadmin_password = service_pass\n" + "/", \
+        #             self.glance_directory + "/" + \
+        #             self.glance_registry_ini_filename)  
+
+        self.appendToFile("auth_host = localhost",self.glance_directory + "/" +self.glance_registry_ini_filename)
+        self.appendToFile("auth_port = 35357",self.glance_directory + "/" +self.glance_registry_ini_filename)
+        self.appendToFile("auth_protocol = http",self.glance_directory + "/" +self.glance_registry_ini_filename)
+        self.appendToFile("admin_tenant_name = service",self.glance_directory + "/" +self.glance_registry_ini_filename)
+        self.appendToFile("admin_user = glance",self.glance_directory + "/" +self.glance_registry_ini_filename)
+        self.appendToFile("admin_password = service_pass",self.glance_directory + "/" +self.glance_registry_ini_filename)
+
 
         connection = "sql_connection = mysql:\/\/" + glance_user + ":" +\
             glance_password + "@localhost:3306\/glance"
@@ -70,11 +86,11 @@ class Glance(GenericInstaller):
                      self.glance_directory + "/" + \
                      self.glance_registry_conf_filename)
 
-        self.sed("s/^\[paste_deploy\].*/" + "\[paste_deploy\]\nflavor = keystone\n" + "/", \
+        self.sed("s/^#flavor=.*/flavor= keystone/", \
                      self.glance_directory + "/" + \
                      self.glance_registry_conf_filename)
 
-        self.sed("s/^\[paste_deploy\].*/" + "\[paste_deploy\]\nflavor = keystone\n" + "/", \
+        self.sed("s/^#flavor=.*/flavor= keystone/", \
                      self.glance_directory + "/" + \
                      self.glance_api_conf_filename)
 

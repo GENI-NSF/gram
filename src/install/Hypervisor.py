@@ -74,7 +74,7 @@ class Hypervisor(GenericInstaller):
                  self.default_directory + "/" + self.libvirt_bin_filename)
 
         self.add("service libvirt-bin restart")
-
+        self.add("service dbus restart")
 
     # Return a list of command strings for uninstalling this component
     def uninstallCommands(self):
