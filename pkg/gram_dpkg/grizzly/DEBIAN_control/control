@@ -1,7 +1,0 @@
-Package: gram
-Version: 0.1
-Priority: optional
-Architecture: all
-Depends: git, module-assistant, cloud-init, xmlsec1,ntp, vlan, bridge-utils, rabbitmq-server, keystone, glance, quantum-server, nova-api, nova-cert, novnc, nova-consoleauth, nova-scheduler, nova-novncproxy, nova-doc, nova-conductor, cinder-api, cinder-scheduler, cinder-volume, iscsitarget, open-iscsi, iscsitarget-dkms, openstack-dashboard, memcached, openvswitch-switch, openvswitch-datapath-dkms,quantum-plugin-openvswitch-agent, quantum-dhcp-agent, quantum-l3-agent, quantum-metadata-agent
-Maintainer: GRAM Developers <gram-dev@bbn.com>
-Description: GRAM installation package
