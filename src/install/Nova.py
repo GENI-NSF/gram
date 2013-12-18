@@ -75,6 +75,7 @@ class Nova(GenericInstaller):
         self.backup(self.nova_directory, self.backup_directory, \
                         self.config_filename)
         nova_conf = self.nova_directory + "/" + self.config_filename
+        nova_pol = self.nova_directory + "/policy.json"
 
         self.writeToFile("[DEFAULT]",nova_conf)
         self.appendToFile("logdir=/var/log/nova",nova_conf)
@@ -88,6 +89,9 @@ class Nova(GenericInstaller):
         self.appendToFile("nova_url=http://localhost:8774/v1.1/",nova_conf)
         self.appendToFile(self.connection,nova_conf)
         self.appendToFile("root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf",nova_conf)
+
+        self.appendToFile("quota_cores=150",nova_conf)
+        self.appendToFile("quota_instances=15",nova_conf)
 
         self.appendToFile("# Auth",nova_conf)
         self.appendToFile("use_deprecated_auth=false",nova_conf)
@@ -129,6 +133,8 @@ class Nova(GenericInstaller):
         self.add('service nova-cert restart')
         self.add('service nova-consoleauth restart')
         self.add('service nova-scheduler restart')
+
+        self.sed('s/.*compute:create:forced_host.*/"compute:create:forced_host": ""/',nova_pol)
 
     def installCommandsCompute(self):
         self.comment("*** Nova Install (compute) ***")
