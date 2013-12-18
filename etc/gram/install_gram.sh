@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Install GRAM on either compute or control node
-# usage: install_gram <compute/control> <grizzly/folsom>
+# usage: install_gram <compute/control>
 
 export SENSE="control"
+export VERSION="grizzly"
 
 if [ $# -gt 1 ]
 then
     export SENSE=$1
-    export VERSION=$2
 fi
 
 mkdir /home/gram/.backup
@@ -27,7 +27,7 @@ chown -R gram.gram /etc/gram/certs
 
 # Set up the install shell scripts based on the parameters specified
 # in /etc/gram/config.json
-cd ~gram/gram/src/install$VERSION
+cd ~gram/gram/src/install
 export PYTHONPATH=~gram/gram/src:$PYTHONPATH
 python OpenStack.py
 cd /tmp/install
