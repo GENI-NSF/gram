@@ -29,7 +29,7 @@ import subprocess
 import optparse
 import logging
 
-class CreateUpdateDpkg:
+class CreateDpkg:
     def __init__(self):
         self.opts = None
         self._should_cleanup = True
@@ -47,10 +47,14 @@ class CreateUpdateDpkg:
 
     def parse_args(self) :
         parser = optparse.OptionParser()
+        parser.add_option("--compute_node", help="DEB for compute node", \
+                              default="False", dest="compute_node")
         parser.add_option("--deb_location", help="DEB directory", \
                               default="/tmp/gram_dpkg", dest="deb_location")
         parser.add_option("--deb_filename", help="DEB filename", \
                               default="/tmp/gram.deb", dest="deb_filename")
+        parser.add_option("--gcf_root", help="GCF installation", \
+                              default="/opt/gcf-2.2", dest="gcf_root")
         parser.add_option("--should_cleanup", \
                               help="should cleanup before generating", 
                               default="True", dest="should_cleanup")
@@ -63,11 +67,6 @@ class CreateUpdateDpkg:
         parser.add_option("--version", \
                               help="Version of this GRAM deb release", \
                               default=None, dest="version")
-        parser.add_option("--os_version",type='choice', action='store', \
-                              dest='os_version', \
-                              choices=['folsom', 'grizzly'], \
-                              default='grizzly', \
-                              help='OpenStack version')       
 
         [self.opts, args] = parser.parse_args()
 
@@ -77,6 +76,7 @@ class CreateUpdateDpkg:
 
         self._should_cleanup = (self.opts.should_cleanup == "True")
         self._should_generate = (self.opts.should_generate == "True")
+        self._compute_node = (self.opts.compute_node == "True")
 
 
     def update_file(self, filename, old_str, new_str):
@@ -91,16 +91,29 @@ class CreateUpdateDpkg:
 
         # Create the directory structure
         self._execCommand("mkdir -p " + self.opts.deb_location)
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/opt")
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/etc")
         self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram")
+        self._execCommand("mkdir -p " + self.opts.deb_location + "/home/gram/.gcf")
 
         # Copy source and data files into their package locations
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram " + \
                               self.opts.deb_location + "/home/gram")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/gcf_config " \
+                              + self.opts.deb_location + "/home/gram/.gcf")
+        self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
+                              self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
+                              + self.opts.deb_location + "/etc")
+        self._execCommand("cp " + self.opts.gram_root + \
+                              "/gram/src/gram/am/gram/config.json " + \
+                              self.opts.deb_location + "/etc/gram")
 
         debian_source = "/DEBIAN_update"
+        if self._compute_node: debian_source = "/DEBIAN_compute"
         self._execCommand("cp -Rf " + \
                               self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
-                              self.opts.os_version + debian_source + " " + self.opts.deb_location)
+                              debian_source + " " + self.opts.deb_location)
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
                               " " + self.opts.deb_location + "/DEBIAN")
@@ -111,6 +124,20 @@ class CreateUpdateDpkg:
 #        sed_command = template % (self.opts.deb_location + "/DEBIAN/control")
         sed_command = ['sed', '-i', 's/Version.*/Version: ' + self.opts.version + '/', self.opts.deb_location + "/DEBIAN/control"]
         res  = subprocess.check_output(sed_command)
+
+        #  Install GCF on all nodes
+        simple_gcf_root = os.path.basename(self.opts.gcf_root)
+        if simple_gcf_root != 'gcf':
+             self._execCommand("mv " + self.opts.deb_location + "/opt/" + \
+                                simple_gcf_root + " " + \
+                                self.opts.deb_location + "/opt/gcf")
+
+        #  Only install POX on control node
+        if not self._compute_node:
+            self._execCommand("git clone -b betta http://github.com/noxrepo/pox")
+            self._execCommand("mv pox " + self.opts.deb_location + "/opt")
+            #self._execCommand("cp -Rf /opt/pox " + \
+            #                      self.opts.deb_location + "/opt")
 
 
         # Cleaup up some junk before creating archive
@@ -123,6 +150,10 @@ class CreateUpdateDpkg:
                               "/home/gram/gram/pkg/gram_dpkg/tmp")
         self._execCommand("rm -rf " + \
                               self.opts.deb_location + "/home/gram//gram/.git")
+        if not self._compute_node:
+            self._execCommand("rm -rf " + \
+                                  self.opts.deb_location + "/opt/pox/.git")
+
 
         # Create the package
         self._execCommand("dpkg-deb -b " + self.opts.deb_location + \
@@ -135,5 +166,5 @@ class CreateUpdateDpkg:
             self.generate()
 
 if __name__ == "__main__":
-    CreateUpdateDpkg().run()
+    CreateDpkg().run()
 

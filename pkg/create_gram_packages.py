@@ -39,11 +39,6 @@ class PackageCreator:
         parser.add_option("--gcf_root", \
                               help="Location of local GCF root", \
                               default="/opt/gcf-2.2", dest="gcf_root")
-        parser.add_option("--os_version",type='choice', action='store', \
-                              dest='os_version', \
-                              choices=['folsom', 'grizzly'], \
-                              default='grizzly', \
-                              help='OpenStack version')
         parser.add_option("--is_update", \
                               help="Use this option to create an update package rather than the full package", \
                               default=False, dest="is_update")
@@ -63,19 +58,20 @@ class PackageCreator:
 
         # Check if it's an update packager
         if self.opts.is_update:
-            template = "python createupdatedpkg.py --os_version=%s --version=%s --gram_root=%s"
-            cmd = template % (self.opts.os_version, self.opts.version,self.opts.gram_root)
+            template = "python createupdatedpkg.py --gcf_root=%s --version=%s --gram_root=%s --deb_filename=%s/gram_%s.deb"
+            cmd = template % (self.opts.gcf_root,self.opts.version,self.opts.gram_root,self.opts.output_directory, \
+                 "update")
             self._execCommand(cmd)
             return
 
         # Generate the two deb files
-        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s_%s.deb --version=%s"
+        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s.deb --version=%s"
         control_command = template % \
             ("False", self.opts.gcf_root, self.opts.output_directory, \
-                 self.opts.os_version,"control", self.opts.version)
+                 "control", self.opts.version)
         compute_command = template % \
             ("True", self.opts.gcf_root, self.opts.output_directory, \
-                 self.opts.os_version,"compute",  self.opts.version)
+                 "compute",  self.opts.version)
         self._execCommand(control_command)
         self._execCommand(compute_command)
         

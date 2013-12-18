@@ -67,11 +67,6 @@ class CreateDpkg:
         parser.add_option("--version", \
                               help="Version of this GRAM deb release", \
                               default=None, dest="version")
-        parser.add_option("--os_version",type='choice', action='store', \
-                              dest='os_version', \
-                              choices=['folsom', 'grizzly'], \
-                              default='grizzly', \
-                              help='OpenStack version')       
 
         [self.opts, args] = parser.parse_args()
 
@@ -118,7 +113,7 @@ class CreateDpkg:
         if self._compute_node: debian_source = "/DEBIAN_compute"
         self._execCommand("cp -Rf " + \
                               self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
-                              self.opts.os_version + debian_source + " " + self.opts.deb_location)
+                              debian_source + " " + self.opts.deb_location)
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
                               " " + self.opts.deb_location + "/DEBIAN")
