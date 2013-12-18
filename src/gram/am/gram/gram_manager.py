@@ -95,6 +95,8 @@ class GramManager :
 
         self._stitching = stitching.Stitching()
 
+        self._persistent_state = {"FOO" : "BAR"}
+
         # Client interface to VMOC - update VMOC on current
         # State of all slices and their associated 
         # network VLAN's and controllers
@@ -118,6 +120,10 @@ class GramManager :
 
     def getStitchingState(self) : return self._stitching
 
+    # Maintain some persistent state on the gram manager that 
+    # is stored into and retrieved from snapshots
+    def setPersistentState(self, ps) : self._persistent_state = ps
+    def getPersistentState(self) : return self._persistent_state;
 
     def allocate(self, slice_urn, creds, rspec, options) :
 
@@ -585,7 +591,7 @@ class GramManager :
         filename = "%s/%s_%d.json" % (self._snapshot_directory, \
                                          base_filename, counter)
         GramManager.__recent_base_filename = base_filename
-        Archiving.write_slices(filename, SliceURNtoSliceObject._slices,
+        Archiving.write_state(filename, self, SliceURNtoSliceObject._slices,
                                self._stitching)
         end_time = time.time()
         config.logger.info("Persisting state to %s in %.2f sec" % \
@@ -727,7 +733,7 @@ class GramManager :
                 config.logger.info("Restoring state from snapshot : %s" \
                                        % snapshot_file)
                 SliceURNtoSliceObject._slices = \
-                    Archiving.read_slices(snapshot_file, self._stitching)
+                    Archiving.read_state(snapshot_file, self, self._stitching)
                 # Restore the state of the VLAN pools
                 # Go through all the network links and 
                 # if the vlan tag is in the internal pool, allocate it
