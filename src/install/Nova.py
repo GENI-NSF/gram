@@ -134,7 +134,7 @@ class Nova(GenericInstaller):
         self.add('service nova-consoleauth restart')
         self.add('service nova-scheduler restart')
 
-        self.sed('s/.*compute:create:forced_host.*/"compute:create:forced_host": ""/',nova_pol)
+        self.sed('s/.*compute:create:forced_host.*/    \\"compute:create:forced_host\\": \\"\\",/',nova_pol)
 
     def installCommandsCompute(self):
         self.comment("*** Nova Install (compute) ***")
