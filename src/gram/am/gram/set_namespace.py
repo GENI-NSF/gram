@@ -28,7 +28,37 @@ import sys
 import config
 import netaddr
 import re
-from open_stack_interface import _execCommand, _getConfigParam
+import json
+
+
+def _execCommand(cmd_string) :
+    """
+       Execute the specified command.  Return the output of the command or
+       raise and exception if the command execution fails.
+    """
+    command = cmd_string.split()
+    try :
+        return subprocess.check_output(command)
+    except :
+        raise
+
+def _getConfigParam(config_file,param):
+    """
+       Function to parse the gram config file and return the value of the specified parameter
+    """
+
+    data = None
+    try:
+        f = open(config_file, 'r')
+        data = f.read()
+        f.close()
+    except Exception, e:
+        print "Failed to read GRAM config file: " + config_file + str(e)
+        return
+
+    data_json = json.loads(data)
+
+    return data_json[param]
 
 
 def _getPublicIp(ns):
@@ -85,10 +115,13 @@ def _getMgmtNamespace() :
     return None
 
 
-def _setField(field,value):
+def _setField(field,value,final=False):
     for line in fileinput.input('/etc/gram/config.json', inplace=1):
         if field in line:
-            line = line.replace(line,'   "' + field + '": "' + value + '",\n' )
+            if not final:
+                line = line.replace(line,'   "' + field + '": "' + value + '",\n' )
+            else:
+                line = line.replace(line,'   "' + field + '": "' + value + '"\n' )
         sys.stdout.write(line)
 
 if __name__ == "__main__":
@@ -101,7 +134,7 @@ if __name__ == "__main__":
  
    # edit config.json to update the namespace
    if ns:
-     _setField('mgmt_ns',ns)
+     _setField('mgmt_ns',ns,True)
    else:
      print 'Failed to set namespace'
 
@@ -110,7 +143,6 @@ if __name__ == "__main__":
      _setField('public_ip',pub_ip)
    else:
      print 'Failed to set public IP address'
-
 
 
 
