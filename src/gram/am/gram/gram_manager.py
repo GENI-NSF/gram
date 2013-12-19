@@ -752,6 +752,8 @@ class GramManager :
     def periodic_cleanup(self):
         while True:
             config.logger.info("Cleaning up expired slivers")
+            cmd = "echo mysql -uroot -p" + config.mysql_password + " -h" + config.control_host_addr +" -e 'USE keystone ; DELETE FROM token WHERE NOT DATE_SUB(CURDATE(),INTERVAL 2 DAY) <= expires;'"
+            os.system(cmd)
             self.expire_slivers()
             time.sleep(3000)
 
