@@ -54,10 +54,11 @@ class Nova(GenericInstaller):
         self.os_password = config.os_password
         self.backup_directory = config.backup_directory
         self.control_host = config.control_host
+        self.control_host_addr = config.control_host_addr
 
         self.connection = "sql_connection = mysql://" + \
             self.nova_user + ":" + \
-            self.nova_password + "@" + self.control_host + "/nova"
+            self.nova_password + "@" + self.control_host_addr + "/nova"
 
         if self._control_node:
             self.connection = "sql_connection = mysql://" + \
@@ -152,8 +153,8 @@ class Nova(GenericInstaller):
         self.appendToFile("api_paste_config=/etc/nova/api-paste.ini",nova_conf)
 
         self.appendToFile("compute_scheduler_driver=nova.scheduler.simple.SimpleScheduler",nova_conf)
-        self.appendToFile("rabbit_host=" + self.control_host ,nova_conf)
-        self.appendToFile("nova_url=http://" +  self.control_host + ":8774/v1.1/",nova_conf)
+        self.appendToFile("rabbit_host=" + self.control_host_addr ,nova_conf)
+        self.appendToFile("nova_url=http://" +  self.control_host_addr + ":8774/v1.1/",nova_conf)
         self.appendToFile(self.connection,nova_conf)
         self.appendToFile("root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf",nova_conf)
 
@@ -162,24 +163,24 @@ class Nova(GenericInstaller):
         self.appendToFile("auth_strategy=keystone",nova_conf)
 
         self.appendToFile("# Imaging service",nova_conf)
-        self.appendToFile("glance_api_servers=" + self.control_host + ":9292",nova_conf)
+        self.appendToFile("glance_api_servers=" + self.control_host_addr + ":9292",nova_conf)
         self.appendToFile("image_service=nova.image.glance.GlanceImageService",nova_conf)
 
         self.appendToFile("# Vnc configuration",nova_conf)
         self.appendToFile("novnc_enable=true",nova_conf)
-        self.appendToFile("novncproxy_base_url=http://" + self.control_host + ":6080/vnc_auto.html",nova_conf)
+        self.appendToFile("novncproxy_base_url=http://" + self.control_host_addr + ":6080/vnc_auto.html",nova_conf)
         self.appendToFile("novncproxy_port=6080",nova_conf)
-        self.appendToFile("vncserver_proxyclient_address=" + self.control_host,nova_conf)
+        self.appendToFile("vncserver_proxyclient_address=" + self.control_host_addr,nova_conf)
         self.appendToFile("vncserver_listen=0.0.0.0",nova_conf)
 
         self.appendToFile("# Networking #",nova_conf)
         self.appendToFile("network_api_class=nova.network.quantumv2.api.API",nova_conf)
-        self.appendToFile("quantum_url=http://" + self.control_host + ":9696",nova_conf)
+        self.appendToFile("quantum_url=http://" + self.control_host_addr + ":9696",nova_conf)
         self.appendToFile("quantum_auth_strategy=keystone",nova_conf)
         self.appendToFile("quantum_admin_tenant_name=service",nova_conf)
         self.appendToFile("quantum_admin_username=" + self.quantum_user,nova_conf)
         self.appendToFile("quantum_admin_password=service_pass",nova_conf)
-        self.appendToFile("quantum_admin_auth_url=http://" + self.control_host + ":35357/v2.0",nova_conf)
+        self.appendToFile("quantum_admin_auth_url=http://" + self.control_host_addr + ":35357/v2.0",nova_conf)
         self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver",nova_conf)
         self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver",nova_conf)
         self.appendToFile("firewall_driver=nova.virt.libvirt.firewall.IptablesFirewallDriver",nova_conf)
@@ -245,7 +246,7 @@ class Nova(GenericInstaller):
          #            self.api_paste_filename)
 
 
-        self.sed("s/^auth_host.*/auth_host = " + self.control_host + "/",self.nova_directory + "/" +self.api_paste_filename)
+        self.sed("s/^auth_host.*/auth_host = " + self.control_host_addr + "/",self.nova_directory + "/" +self.api_paste_filename)
         self.sed("s/^auth_port.*/auth_port = 35357/",self.nova_directory + "/" +self.api_paste_filename)
         self.sed("s/^admin_tenant_name.*/admin_tenant_name = service/",self.nova_directory + "/" +self.api_paste_filename)
         self.sed("s/^admin_user.*/admin_user = nova/",self.nova_directory + "/" +self.api_paste_filename)

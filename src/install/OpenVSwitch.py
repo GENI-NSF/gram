@@ -125,7 +125,7 @@ class OpenVSwitch(GenericInstaller):
         self.backup(self.quantum_plugin_directory, backup_directory, \
                         self.quantum_plugin_filename)
         connection = "sql_connection = mysql:\/\/" + quantum_user + ":" +\
-            quantum_password + "@" + control_host + ":3306\/quantum"
+            quantum_password + "@" + config.control_host_addr + ":3306\/quantum"
         self.sed("s/sql_connection.*/" + connection + "/", 
                  self.quantum_plugin_conf)
 #        self.sed("s/reconnect_interval.*/reconnect_interval=2/", 

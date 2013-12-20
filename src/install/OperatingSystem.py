@@ -23,6 +23,7 @@
 
 from GenericInstaller import GenericInstaller
 from gram.am.gram import config
+import os
 
 # We assume at this point that these have been completed:
 # steps #1 (install Ubuntu) and #3 (configure the network)
@@ -139,8 +140,8 @@ class OperatingSystem(GenericInstaller):
         self.add('service networking restart')
 
         # configure ~/.gcf/gcf_config
-        self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.service_token + "\/\/gcf/","/home/gram/.gcf/gcf_config")
-        self.sed("s/host=.*/host=" + config.control_host + "/","/home/gram/.gcf/gcf_config")
+        self.sed("s/base_name=geni.*/base_name=geni\/\/" + config.control_host + "\/\/gcf/","/home/gram/.gcf/gcf_config")
+        self.sed("s/host=.*/host=" + config.control_host_addr + "/","/home/gram/.gcf/gcf_config")
 
         # set up the /etc/hosts file
         self.writeToFile("127.0.0.1       localhost", "~\hosts")
@@ -163,7 +164,7 @@ class OperatingSystem(GenericInstaller):
         self.appendToFile("default_cf = my_gcf", self.omni_config)
         self.appendToFile("[my_gcf]",self.omni_config)
         self.appendToFile("type=gcf",self.omni_config)
-        self.appendToFile("authority=geni:" + config.service_token + ":gcf",self.omni_config)
+        self.appendToFile("authority=geni:" + config.control_host + ":gcf",self.omni_config)
         self.appendToFile("cert=~/.gcf/gramuser-cert.pem", self.omni_config)
         self.appendToFile("key=~/.gcf/gramuser-key.pem", self.omni_config)
         self.appendToFile("ch = https://" + config.external_address + ":8000", self.omni_config)
