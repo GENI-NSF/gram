@@ -120,7 +120,7 @@ class OpenStack:
             module_installer = module["installer"]
 
 
-            if module_name != "operating_system_control" and module name != "operating_system_compute": 
+            if module_name != "operating_system_control" and module_name != "operating_system_compute": 
                 install_file.write("%s/install_%s.sh\n" % \
                                    (directory, module_name))
                 uninstall_file.write("%s/uninstall_%s.sh\n" % \
