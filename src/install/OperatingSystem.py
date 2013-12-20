@@ -173,7 +173,7 @@ class OperatingSystem(GenericInstaller):
         self.appendToFile("urn=urn:publicid:IDN+geni:dell:gcf+user+gramuser", self.omni_config)
         self.appendToFile("keys=~/.ssh/id_rsa.pub", self.omni_config)
         self.appendToFile("[aggregate_nicknames]", self.omni_config)
-        self.appendToFile("gram=,https://" + config.external_address, self.omni_config)
+        self.appendToFile("gram=,https://" + config.external_address + ":5001", self.omni_config)
         
         # generate  credentials for this user
         self.add("/opt/gcf/src/gen-certs.py --exp -u gramuser") 
