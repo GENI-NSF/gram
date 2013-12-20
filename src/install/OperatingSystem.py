@@ -80,7 +80,7 @@ class OperatingSystem(GenericInstaller):
         self.appendToFile('down ip link set $IFACE promisc off','interfaces')
         self.appendToFile('down ifconfig $IFACE down','interfaces')
 
-        #self.add("module-assistant auto-install openvswitch-datapath")
+        self.add("module-assistant auto-install openvswitch-datapath")
         self.add("/etc/init.d/openvswitch-switch start")
 
         self.add('ovs-vsctl add-br br-int')
