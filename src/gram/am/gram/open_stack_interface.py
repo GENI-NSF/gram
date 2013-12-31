@@ -454,6 +454,17 @@ def deleteSlivers(geni_slice, slivers) :
         else :
             return_val = False
 
+    if len(links_to_be_deleted) == 0 and geni_slice.getTenantRouterUUID():
+        # Delete the router
+        print 'this'
+        router_uuid = geni_slice.getTenantRouterUUID()
+        cmd_string = 'quantum router-delete %s' % router_uuid
+        try:
+            _execCommand(cmd_string)
+            geni_slice.setTenantRouterUUID(None)
+        except:
+            config.logger.error("Failed to delete router %s" % router_uuid)
+
     # Delete the networks and subnets associated with the links to be deleted 
     for link in links_to_be_deleted :
         success = _deleteNetworkLink(geni_slice,  link.getNetworkUUID())
@@ -1463,7 +1474,7 @@ def _getConfigParam(config_file,param):
         f.close()
     except Exception, e:
         print "Failed to read GRAM config file: " + config_file + str(e)
-        config.logger.info("Failed to read GRAM config file: " + config_file)
+        #config.logger.info("Failed to read GRAM config file: " + config_file)
         return
 
     data_json = json.loads(data)
