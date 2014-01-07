@@ -201,9 +201,7 @@ class Quantum(GenericInstaller):
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.add("service quantum-l3-agent restart")
         self.add("export PYTHONPATH=$PYTHONPATH:/opt/gcf/src:/home/gram/gram/src:/home/gram/gram/src/gram/am/gram")
-        self.add("python /home/gram/gram/src/gram/am/gram/set_namespace.py") 
 
-        
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_dhcp_conf_filename)
 
     # Return a list of command strings for uninstalling this component
