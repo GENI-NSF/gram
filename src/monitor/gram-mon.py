@@ -25,10 +25,14 @@ from gram.am.gram import open_stack_interface
 from gram.am.gram import Archiving
 from gram.am.gram import config
 from gram.am.gram import stitching
+import sys
+import getopt
 import gmoc
 import os
 import getpass
 import time
+import uuid
+import re
 
 # all these variables should be in config.json  +++++
 # submission staging server
@@ -49,25 +53,75 @@ MONPASSWORD='gramMonitoring'
 MONDEBUGLEVEL= gmoc.GMOC_DEBUG_VERBOSE  
 # all these variables should be in config.json  +++++
 
+def usage():
+  print "As a service daemon:"
+  print "\tgram-mon.py"
+  print "As a tool to help map information to a sliver or slice:"
+  print '\tgram-mon.py -i <ipaddress>'
+  print '\tgram-mon.py -m <macaddr>'
+  print '\tgram-mon.py -v <vlantag>'
 
-def monitor():
+def printDiagInfo(curSlice, curSliver):
+  print "\tSlice URN : " + curSlice.getSliceURN()
+  print "\tUser URN  : " + curSliver.getUserURN()
+  slivers = curSlice.getAllSlivers()
+  for k, v in slivers.iteritems():
+    if isinstance(v, Archiving.VirtualMachine):
+      print "\tVM UUID   : " + v.getUUID() + " on " + v.getHost() 
+    elif isinstance(v, Archiving.NetworkLink):
+      print "\tLink UUID : " + v.getUUID()
+    elif isinstance(v, Archiving.NetworkInterface):
+      print "\tNIC UUID  : " + v.getUUID()
+
+def monitor(parms):
+
+ try:
+   opts, args = getopt.getopt(parms,"hdv:m:i:", ["vlan=", "mac=", "ip="])
+
+ except getopt.GetoptError:
+   print "gram_mon.py: Error parsing args"
+   sys.exit(2)
+
+ found = False
+ sip = None
+ smac = None
+ svlan = None
+
+ for opt, arg in opts:
+#   print opt, arg
+   if opt == '-h':
+     usage()
+     sys.exit()
+   elif opt in ("-i", "--ip"):
+     sip = arg
+     print "Searching for Slice Information for ipaddr " + sip
+   elif opt in ("-m", "--mac"):
+     smac = arg
+     print "Searching for Slice Information for mac " + smac
+   elif opt in ("-v", "--vlan"):
+     svlan = arg
+     print "Searching for Slice Information for vlan " + svlan
+
+
+ config.initialize("/etc/gram/config.json")
+
  organization = gmoc.Organization( ORGNAME )
  pop = gmoc.POP( POPNAME )
- aggregate = gmoc.Aggregate('urn:publicid:geni:bos:gcf+authority+am', type='gram', version='3', pop = pop, operator=organization)
+ aggregate = gmoc.Aggregate('urn:publicid:IDN+bbn-cam-ctrl-1+authority+am', type='gram', version='3', pop = pop, operator=organization)
+ #print config.stitching_info['aggregate_id']
+#import pdb; pdb.set_trace()
 
  #get vmresources
- config.initialize("/etc/gram/config.json")
- #vmresources = open_stack_interface._getConfigParam('/etc/gram/config.json', 'compute_hosts')
  vmresources = config.compute_hosts
  stitching_handler = stitching.Stitching()
 
 
  resources={}
  for k in vmresources:
-  print k
+  #print k
   #weird - if you don't use str - component_id comes back as type unicode
   component_id = str(config.urn_prefix + "node+" + k)
-  print component_id
+  #print component_id
   #import pdb; pdb.set_trace()
   resources[k] = gmoc.Resource(component_id, type = 'vmserver', pop = pop, operator = organization)     
  aggregate.resources = resources.values()
@@ -79,7 +133,7 @@ def monitor():
  for f in files:
   filename = os.path.join(snapshot_dir, f)
   if(os.path.isfile(filename)):
-    print filename
+#    print filename
     allF.append(filename)
 
  if allF:
@@ -87,44 +141,119 @@ def monitor():
   oldest = nfiles[0]
   newest = nfiles[-1]
 
-  myslices = Archiving.read_slices(newest, stitching_handler)
+  print "Latest snapshot file: " + newest + "\n"
+  myslices = Archiving.read_state(newest, None, stitching_handler)
   sliver = {}
 
   for i, slice in myslices.iteritems():
-   gmoc.Slice(str(slice.getSliceURN()))
+   slice_obj = gmoc.Slice(str(slice.getSliceURN()))
+   #print "Slice:  "+ str(slice.getSliceURN())
    slivers = slice.getAllSlivers()
    for k, v in slivers.iteritems():
-    print "*********************"
+    #print "*********************"
     #import pdb; pdb.set_trace()
     #sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), v.getExpiration(), v.getOperationalState(), aggregate, v.getUserURN())                                                    
     #sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), v.getExpiration(), gmoc.SLIVER_STATE_UP, aggregate, gmoc.Contact(str(v.getUserURN())))
     sliver[v.getSliverURN()] = gmoc.Sliver(str(v.getSliverURN()), expires = v.getExpiration(), state = gmoc.SLIVER_STATE_UP, aggregate = aggregate, creator = gmoc.Contact(str(v.getUserURN())))
-    print v.getCreation()
-    print v.getExpiration()
-    print v.getSliverURN()
-    print v.getOperationalState()
-    print v.getUserURN()
-    print v.getUUID()
-    print slice.getSliceURN()
+    sliver[v.getSliverURN()].slice = slice_obj
+    sliver[v.getSliverURN()].created = v.getCreation()
+    if v.getUUID() is not None:
+      sliver[v.getSliverURN()].uuid = uuid.UUID(v.getUUID())
+
+    #print v.getCreation()
+    #print v.getExpiration()
+    #print v.getSliverURN()
+    #print v.getOperationalState()
+    #print v.getUserURN()
+    #print v.getUUID()
+    #print slice.getSliceURN()
+    #import pdb; pdb.set_trace()
+    #print v
+
     if isinstance(v, Archiving.VirtualMachine):
-      print "vm"
-      print v.getHost()
-      #have a question about the UUID and the slivers class assigned at the end of this function
-      gmoc.ResourceMapping(str(v.getUUID()), type = 'vm', resource = resources[v.getHost()], sliver = sliver[v.getSliverURN()])                                                                             
+      #print "vm"
+      #print v.getHost()
+      #print v.getExternalIp()
+      #why is ExternalIp not set - have to ask Stephen RRH
+      #if v.getExternalIp() is not None:
+      #  print "IP " + v.getExternalIp()
+      #  if sip == str(v.getExternalIp()):
+      if sip is not None:
+        match = re.search(sip, str(v))
+        if match:
+          #print "FOUND IP " + match.group()
+          print "Diagnostic Information for ip = " + sip + ":"
+          printDiagInfo(slice, v)
+          found = True
+          sliver[v.getSliverURN()].extIP = match.group()
+          return
+
+
+      #else:
+      #  print "No external IP "
+      #print "v.getHost " + v.getHost()
+      #print "v.getSliverURN " + v.getSliverURN()
+      if v.getHost() != None and v.getSliverURN() != None:
+        gmoc.ResourceMapping(str(v.getUUID()), type = 'vm', resource = resources[v.getHost()], sliver = sliver[v.getSliverURN()])
+      #print "*********************"
+
+    elif isinstance(v, Archiving.NetworkLink):
+      #print "Link"
+      if v.getVLANTag() is not None:
+        #print "vlan " + str(v.getVLANTag())
+        if svlan == str(v.getVLANTag()):
+          print "Diagnostic Information for vlan = " + svlan + ":"
+          printDiagInfo(slice, v)
+          found = True
+          return
+
+        sliver[v.getSliverURN()].vlan = str(v.getVLANTag())
+      #else:
+      #  print "No VLAN Tag"
+      #print "*********************"
+
+    elif isinstance(v, Archiving.NetworkInterface):
+      #print "NIC"
+      #print "mac " + v.getMACAddress()
+      if smac == str(v.getMACAddress()):
+        print "Diagnostic Information for mac = " + smac + ":"
+        printDiagInfo(slice, v)
+        found = True
+        return
+
+      sliver[v.getSliverURN()].mac = str(v.getMACAddress())
+      if v.getVLANTag() is not None:
+        #print "vlan " + str(v.getVLANTag())
+        if svlan == str(v.getVLANTag()):
+          print "Diagnostic Information for vlan = " + svlan + ":"
+          printDiagInfo(slice, v)
+          found = True
+          return
+
+        sliver[v.getSliverURN()].vlan = str(v.getVLANTag())
+      #else:
+      #  print "No VLAN Tag"
+      #print "*********************"
     else:
-      print "link"
+      print "Unknown Sliver Type"
       print "*********************"
-
-
-
+    
+#    print sliver
  # Now actually setup and report stuff
- client = gmoc.GMOCClient(                                                                         
-           serviceURL = 'https://gmoc-db.grnoc.iu.edu/',                                          
-           username = MONUSERNAME,
-           password = MONPASSWORD,
-         )
+ #client = gmoc.GMOCClient(                                                                         
+ #          serviceURL = 'https://gmoc-db.grnoc.iu.edu/',                                          
+ #          username = MONUSERNAME,
+ #          password = MONPASSWORD,
+ #        )
 
- print pop
+# import pdb; pdb.set_trace()
+ if found == False:
+   print "\n\n*********************"
+   print "PRINTING ALL CURRENT INFORMATION FOR " + time.strftime("%c")
+   print pop
+   print "*********************"
+
+
 #if DEBUG:  # assuming you set an optional debugging flag, which is a good idea                    
 #  client.debugLevel = gmoc.GMOC_DEBUG_VERBOSE                                                      
 
@@ -136,6 +265,13 @@ def monitor():
 
 if __name__ == "__main__":
 
+  if len(sys.argv) > 1:
+    if len(sys.argv) <= 3:
+      monitor(sys.argv[1:]) 
+    else:
+      usage()
+  else:
+  #run as a daemon
     while True:
-    	monitor() 
-        time.sleep(10)
+      monitor('-d') 
+      time.sleep(10)
