@@ -196,7 +196,7 @@ class GramJSONEncoder(json.JSONEncoder):
 
 # THis should create a JSON structure which is a list
 # of the JSON encoding of all slices and then all slivers
-def write_slices(filename, slices, stitching_handler):
+def write_state(filename, gram_manager, slices, stitching_handler):
     #print "WS.CALL " + str(slices) + " " + filename
     file = open(filename, "w")
     objects = []
@@ -210,6 +210,9 @@ def write_slices(filename, slices, stitching_handler):
             #print " ++ appending : " + str(sliver)
             objects.append(sliver)
 
+    if gram_manager:
+        manager_persistent_state = gram_manager.getPersistentState()
+        objects.append({"GRAM_MANAGER_STATE" : manager_persistent_state})
 
     data = GramJSONEncoder(stitching_handler).encode(objects)
     file.write(data)
@@ -438,7 +441,7 @@ class GramJSONDecoder:
                 network_interface.setLink(link)
                 link.addEndpoint(network_interface)
 
-def read_slices(filename, stitching_handler):
+def read_state(filename, gram_manager, stitching_handler):
     file = open(filename, "r")
     data = file.read()
     file.close()
@@ -447,6 +450,14 @@ def read_slices(filename, stitching_handler):
     # This should be a list of JSON-enocded objects
     # Need to turn this into a list of objects
     # Resolve links among them
+
+    # Pull the persistent gram_manager state from the json_data
+    if gram_manager:
+        for json_obj in json_data:
+            if "GRAM_MANAGER_STATE" in json_obj:
+                manager_persistent_state = json_obj['GRAM_MANAGER_STATE']
+                gram_manager.setPersistentState(manager_persistent_state)
+                print "GMPS = %s " % gram_manager.getPersistentState()
 
     slices = dict()
     decoder = GramJSONDecoder(stitching_handler)

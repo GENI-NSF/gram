@@ -80,6 +80,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         result['code']['am_type'] = 'GRAM'
         return result
 
+
     # The list of credentials are options - some single cred
     # must give the caller required permissions.
     # The semantics of the API are unclear on this point, so

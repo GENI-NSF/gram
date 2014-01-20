@@ -109,7 +109,7 @@ class CreateDpkg:
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")
 
-        debian_source = "/DEBIAN_control"
+        debian_source = "/DEBIAN_update"
         if self._compute_node: debian_source = "/DEBIAN_compute"
         self._execCommand("cp -Rf " + \
                               self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \

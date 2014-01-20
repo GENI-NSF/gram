@@ -53,11 +53,12 @@ class Nova(GenericInstaller):
         self.rabbit_password = config.rabbit_password
         self.os_password = config.os_password
         self.backup_directory = config.backup_directory
-        self.control_host = config.control_address
+        self.control_host = config.control_host
+        self.control_host_addr = config.control_host_addr
 
         self.connection = "sql_connection = mysql://" + \
             self.nova_user + ":" + \
-            self.nova_password + "@" + self.control_host + ":3306/nova"
+            self.nova_password + "@" + self.control_host_addr + "/nova"
 
         if self._control_node:
             self.connection = "sql_connection = mysql://" + \
@@ -75,53 +76,57 @@ class Nova(GenericInstaller):
         self.backup(self.nova_directory, self.backup_directory, \
                         self.config_filename)
         nova_conf = self.nova_directory + "/" + self.config_filename
+        nova_pol = self.nova_directory + "/policy.json"
 
-        self.writeToFile("[DEFAULT]", nova_conf)
-        self.writeToFile("logdir=/var/log/nova", nova_conf)
-        self.writeToFile("state_path=/var/lib/nova", nova_conf)
-        self.writeToFile("lock_path=/run/lock/nova", nova_conf)
-        self.writeToFile("verbose=True", nova_conf)
-        self.writeToFile("api_paste_config=/etc/nova/api-paste.ini", nova_conf)
+        self.writeToFile("[DEFAULT]",nova_conf)
+        self.appendToFile("logdir=/var/log/nova",nova_conf)
+        self.appendToFile("state_path=/var/lib/nova",nova_conf)
+        self.appendToFile("lock_path=/run/lock/nova",nova_conf)
+        self.appendToFile("verbose=True",nova_conf)
+        self.appendToFile("api_paste_config=/etc/nova/api-paste.ini",nova_conf)
         
-        #self.appendToFile("rabbit_host=127.0.0.1", nova_conf)
-        self.sed("s/^\# rabbit_host.*/rabbit_host = 127.0.0.1", nova_conf)
-        self.appendToFile("nova_url=http://localhost:8774/v1.1/", nova_conf)
-        self.appendToFile(self.connection, nova_conf)
-        self.appendToFile("root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf", nova_conf)
+        self.appendToFile("scheduler_driver=nova.scheduler.filter_scheduler.FilterScheduler",nova_conf)
+        self.appendToFile("rabbit_host=127.0.0.1",nova_conf)
+        self.appendToFile("nova_url=http://localhost:8774/v1.1/",nova_conf)
+        self.appendToFile(self.connection,nova_conf)
+        self.appendToFile("root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf",nova_conf)
 
-        self.appendToFile("# Auth", nova_conf)
-        self.appendToFile("use_deprecated_auth=false", nova_conf)
-        self.appendToFile("auth_strategy=keystone", nova_conf)
+        self.appendToFile("quota_cores=150",nova_conf)
+        self.appendToFile("quota_instances=15",nova_conf)
 
-        self.appendToFile("# Imaging service", nova_conf)
-        self.appendToFile("glance_api_servers=localhost:9292", nova_conf)
-        self.appendToFile("image_service=nova.image.glance.GlanceImageService", nova_conf)
+        self.appendToFile("# Auth",nova_conf)
+        self.appendToFile("use_deprecated_auth=false",nova_conf)
+        self.appendToFile("auth_strategy=keystone",nova_conf)
+
+        self.appendToFile("# Imaging service",nova_conf)
+        self.appendToFile("glance_api_servers=localhost:9292",nova_conf)
+        self.appendToFile("image_service=nova.image.glance.GlanceImageService",nova_conf)
       
-        self.appendToFile("# Vnc configuration", nova_conf)
-        self.appendToFile("novnc_enable=true", nova_conf)
-        self.appendToFile("novncproxy_base_url=http://localhost:6080/vnc_auto.html", nova_conf)
-        self.appendToFile("novncproxy_port=6080", nova_conf)
-        self.appendToFile("vncserver_proxyclient_address=127.0.0.1", nova_conf)
-        self.appendToFile("vncserver_listen=0.0.0.0", nova_conf) 
+        self.appendToFile("# Vnc configuration",nova_conf)
+        self.appendToFile("novnc_enable=true",nova_conf)
+        self.appendToFile("novncproxy_base_url=http://localhost:6080/vnc_auto.html",nova_conf)
+        self.appendToFile("novncproxy_port=6080",nova_conf)
+        self.appendToFile("vncserver_proxyclient_address=127.0.0.1",nova_conf)
+        self.appendToFile("vncserver_listen=0.0.0.0",nova_conf) 
 
-        self.appendToFile("# Networking #", nova_conf)
-        self.appendToFile("network_api_class=nova.network.quantumv2.api.API", nova_conf)
-        self.appendToFile("quantum_url=http://localhost:9696", nova_conf)
-        self.appendToFile("quantum_auth_strategy=keystone", nova_conf)
-        self.appendToFile("quantum_admin_tenant_name=service", nova_conf)
-        self.appendToFile("quantum_admin_username=" + self.quantum_user, nova_conf)
-        self.appendToFile("quantum_admin_password=" + self.os_password, nova_conf)
-        self.appendToFile("quantum_admin_auth_url=http://localhost:35357/v2.0", nova_conf)
-        self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver", nova_conf)
-        self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver", nova_conf)
-        self.appendToFile("firewall_driver=nova.virt.libvirt.firewall.IptablesFirewallDriver", nova_conf)
+        self.appendToFile("# Networking #",nova_conf)
+        self.appendToFile("network_api_class=nova.network.quantumv2.api.API",nova_conf)
+        self.appendToFile("quantum_url=http://localhost:9696",nova_conf)
+        self.appendToFile("quantum_auth_strategy=keystone",nova_conf)
+        self.appendToFile("quantum_admin_tenant_name=service",nova_conf)
+        self.appendToFile("quantum_admin_username=" + self.quantum_user,nova_conf)
+        self.appendToFile("quantum_admin_password=service_pass",nova_conf)
+        self.appendToFile("quantum_admin_auth_url=http://localhost:35357/v2.0",nova_conf)
+        self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver",nova_conf)
+        self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver",nova_conf)
+        self.appendToFile("firewall_driver=nova.virt.libvirt.firewall.IptablesFirewallDriver",nova_conf)
 
-        self.appendToFile("service_quantum_metadata_proxy = True", nova_conf)
-        self.appendToFile("quantum_metadata_proxy_shared_secret = helloOpenStack", nova_conf)
-        self.appendToFile("compute_driver=libvirt.LibvirtDriver", nova_conf)
+        self.appendToFile("service_quantum_metadata_proxy = True",nova_conf)
+        self.appendToFile("quantum_metadata_proxy_shared_secret = helloOpenStack",nova_conf)
+        self.appendToFile("compute_driver=libvirt.LibvirtDriver",nova_conf)
         
-        self.appendToFile("# Cinder #", nova_conf)
-        self.appendToFile("volume_api_class=nova.volume.cinder.API", nova_conf)
+        self.appendToFile("# Cinder #",nova_conf)
+        self.appendToFile("volume_api_class=nova.volume.cinder.API",nova_conf)
         self.appendToFile("osapi_volume_listen_port=5900",nova_conf)
 
         self.add('nova-manage db sync')
@@ -130,11 +135,64 @@ class Nova(GenericInstaller):
         self.add('service nova-consoleauth restart')
         self.add('service nova-scheduler restart')
 
+        self.sed('s/.*compute:create:forced_host.*/    \\"compute:create:forced_host\\": \\"\\",/',nova_pol)
+
     def installCommandsCompute(self):
         self.comment("*** Nova Install (compute) ***")
 
 
         self.comment("Configure NOVA")
+        self.backup(self.nova_directory, self.backup_directory, self.config_filename)
+        nova_conf = self.nova_directory + "/" + self.config_filename
+
+        self.writeToFile("[DEFAULT]",nova_conf)
+        self.appendToFile("logdir=/var/log/nova",nova_conf)
+        self.appendToFile("state_path=/var/lib/nova",nova_conf)
+        self.appendToFile("lock_path=/run/lock/nova",nova_conf)
+        self.appendToFile("verbose=True",nova_conf)
+        self.appendToFile("api_paste_config=/etc/nova/api-paste.ini",nova_conf)
+
+        self.appendToFile("compute_scheduler_driver=nova.scheduler.simple.SimpleScheduler",nova_conf)
+        self.appendToFile("rabbit_host=" + self.control_host_addr ,nova_conf)
+        self.appendToFile("nova_url=http://" +  self.control_host_addr + ":8774/v1.1/",nova_conf)
+        self.appendToFile(self.connection,nova_conf)
+        self.appendToFile("root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf",nova_conf)
+
+        self.appendToFile("# Auth",nova_conf)
+        self.appendToFile("use_deprecated_auth=false",nova_conf)
+        self.appendToFile("auth_strategy=keystone",nova_conf)
+
+        self.appendToFile("# Imaging service",nova_conf)
+        self.appendToFile("glance_api_servers=" + self.control_host_addr + ":9292",nova_conf)
+        self.appendToFile("image_service=nova.image.glance.GlanceImageService",nova_conf)
+
+        self.appendToFile("# Vnc configuration",nova_conf)
+        self.appendToFile("novnc_enable=true",nova_conf)
+        self.appendToFile("novncproxy_base_url=http://" + self.control_host_addr + ":6080/vnc_auto.html",nova_conf)
+        self.appendToFile("novncproxy_port=6080",nova_conf)
+        self.appendToFile("vncserver_proxyclient_address=" + self.control_host_addr,nova_conf)
+        self.appendToFile("vncserver_listen=0.0.0.0",nova_conf)
+
+        self.appendToFile("# Networking #",nova_conf)
+        self.appendToFile("network_api_class=nova.network.quantumv2.api.API",nova_conf)
+        self.appendToFile("quantum_url=http://" + self.control_host_addr + ":9696",nova_conf)
+        self.appendToFile("quantum_auth_strategy=keystone",nova_conf)
+        self.appendToFile("quantum_admin_tenant_name=service",nova_conf)
+        self.appendToFile("quantum_admin_username=" + self.quantum_user,nova_conf)
+        self.appendToFile("quantum_admin_password=service_pass",nova_conf)
+        self.appendToFile("quantum_admin_auth_url=http://" + self.control_host_addr + ":35357/v2.0",nova_conf)
+        self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver",nova_conf)
+        self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver",nova_conf)
+        self.appendToFile("firewall_driver=nova.virt.libvirt.firewall.IptablesFirewallDriver",nova_conf)
+
+        self.appendToFile("service_quantum_metadata_proxy = True",nova_conf)
+        self.appendToFile("quantum_metadata_proxy_shared_secret = helloOpenStack",nova_conf)
+        self.appendToFile("compute_driver=libvirt.LibvirtDriver",nova_conf)
+
+        self.appendToFile("# Cinder #",nova_conf)
+        self.appendToFile("volume_api_class=nova.volume.cinder.API",nova_conf)
+        self.appendToFile("osapi_volume_listen_port=5900",nova_conf)
+
         self.modify_api_paste_file()
 
         self.backup(self.nova_directory, self.backup_directory, \
@@ -145,65 +203,6 @@ class Nova(GenericInstaller):
         self.appendToFile("libvirt_vif_type=ethernet", nova_compute_file)
         self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver", nova_compute_file)
         self.appendToFile("libvirt_use_virtio_for_bridges=True", nova_compute_file)
-
-        self.backup(self.nova_directory, self.backup_directory, self.config_filename)
-        nova_conf = self.nova_directory + "/" + self.config_filename
-        self.writeToFile("[DEFAULT]", nova_conf)
-        self.appendToFile("# MySQL Connection #", nova_conf)
-        self.appendToFile(self.connection, nova_conf)
-        self.appendToFile("rabbit_host=" + self.control_host, nova_conf)
-        #self.appendToFile("rabbit_password=" + self.rabbit_password, nova_conf)
-        self.appendToFile("scheduler_driver=nova.scheduler.filter_scheduler.FilterScheduler", nova_conf)
-        self.appendToFile("# nova-api #", nova_conf)
-        self.appendToFile("cc_host=" + self.control_host, nova_conf)
-        self.appendToFile("auth_strategy=keystone", nova_conf)
-        self.appendToFile("s3_host=" + self.control_host, nova_conf)
-        self.appendToFile("ec2_host=" + self.control_host, nova_conf)
-        self.appendToFile("nova_url=http://" + self.control_host + ":8774/v1.1/", nova_conf)
-        self.appendToFile("ec2_url=http://" + self.control_host + ":8773/services/Cloud", nova_conf)
-        self.appendToFile("keystone_ec2_url=http://" + self.control_host + ":5000/v2.0/ec2tokens", nova_conf)
-        self.appendToFile("api_paste_config=/etc/nova/api-paste.ini", nova_conf)
-        self.appendToFile("allow_admin_api=true", nova_conf)
-        self.appendToFile("use_deprecated_auth=false", nova_conf)
-        self.appendToFile("ec2_private_dns_show_ip=True", nova_conf)
-        self.appendToFile("dmz_cidr=169.254.169.254/32", nova_conf)
-        self.appendToFile("ec2_dmz_host=" + self.control_host, nova_conf)
-        self.appendToFile("metadata_host=" + self.control_host, nova_conf)
-        self.appendToFile("metadata_listen=0.0.0.0", nova_conf)
-        self.appendToFile("enabled_apis=metadata", nova_conf)
-        self.appendToFile("# Networking #", nova_conf)
-        self.appendToFile("network_api_class=nova.network.quantumv2.api.API", nova_conf)
-        self.appendToFile("quantum_url=http://" + self.control_host + ":9696", nova_conf)
-        self.appendToFile("quantum_auth_strategy=keystone", nova_conf)
-        self.appendToFile("quantum_admin_tenant_name=service", nova_conf)
-        self.appendToFile("quantum_admin_username=" + self.quantum_user, nova_conf)
-        self.appendToFile("quantum_admin_password=" + self.os_password, nova_conf)
-        self.appendToFile("quantum_admin_auth_url=http://" + self.control_host + ":35357/v2.0", nova_conf)
-        self.appendToFile("libvirt_vif_driver=nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver", nova_conf)
-        self.appendToFile("linuxnet_interface_driver=nova.network.linux_net.LinuxOVSInterfaceDriver", nova_conf)
-        self.appendToFile("firewall_driver=nova.virt.libvirt.firewall.IptablesFirewallDriver", nova_conf)
-        self.appendToFile("# Compute #", nova_conf)
-        self.appendToFile("compute_driver=libvirt.LibvirtDriver", nova_conf)
-        self.appendToFile("# Cinder #", nova_conf)
-        self.appendToFile("volume_api_class=nova.volume.cinder.API", nova_conf)
-        self.appendToFile("# Glance #", nova_conf)
-        self.appendToFile("glance_api_servers=" + self.control_host + ":9292", nova_conf)
-        self.appendToFile("image_service=nova.image.glance.GlanceImageService", nova_conf)
-        self.appendToFile("# novnc #", nova_conf)
-        self.appendToFile("novnc_enable=true", nova_conf)
-        self.appendToFile("novncproxy_base_url=http://" + self.control_host + ":6080/vnc_auto.html", nova_conf)
-        self.appendToFile("vncserver_proxyclient_address=127.0.0.1", nova_conf)
-        self.appendToFile("novncproxy_port=6080", nova_conf)
-        self.appendToFile("vncserver_listen=0.0.0.0", nova_conf)
-        self.appendToFile("# Misc #", nova_conf)
-        self.appendToFile("logdir=/var/log/nova", nova_conf)
-        self.appendToFile("state_path=/var/lib/nova", nova_conf)
-        self.appendToFile("lock_path=/var/lock/nova", nova_conf)
-        self.appendToFile("root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf", nova_conf)
-        self.appendToFile("verbose=true", nova_conf)
-        self.appendToFile("compute_scheduler_driver=nova.scheduler.simple.SimpleScheduler", nova_conf)
-        self.appendToFile("service_quantum_metadata_proxy = True", nova_conf)
-        self.appendToFile("quantum_metadata_proxy_shared_secret = helloOpenStack", nova_conf)
         
         self.comment("Restart Nova Services")
         self.add("service nova-api-metadata restart")
@@ -242,11 +241,17 @@ class Nova(GenericInstaller):
         self.backup(self.nova_directory, self.backup_directory, \
                         self.api_paste_filename)
 
-        self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host =" control_host + "\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = quantum\nadmin_password = service_pass\n" + "/", \
-                     self.nova_directory + "/" + \
-                     self.api_paste_filename)
+        #self.sed("s/^\[filter:authtoken\].*/\[filter:authtoken\]\nauth_host =" control_host + "\nauth_port = 35357\nauth_protocol = http\nadmin_tenant_name = service\nadmin_user = quantum\nadmin_password = service_pass\n" + "/", \
+         #            self.nova_directory + "/" + \
+         #            self.api_paste_filename)
 
 
+        self.sed("s/^auth_host.*/auth_host = " + self.control_host_addr + "/",self.nova_directory + "/" +self.api_paste_filename)
+        self.sed("s/^auth_port.*/auth_port = 35357/",self.nova_directory + "/" +self.api_paste_filename)
+        self.sed("s/^admin_tenant_name.*/admin_tenant_name = service/",self.nova_directory + "/" +self.api_paste_filename)
+        self.sed("s/^admin_user.*/admin_user = nova/",self.nova_directory + "/" +self.api_paste_filename)
+        self.sed("s/^admin_password.*/admin_password = service_pass/",self.nova_directory + "/" +self.api_paste_filename)
+        self.sed("s/^#signing_dir.*/signing_dirname = \/tmp\/keystone-signing-nova/",self.nova_directory + "/" +self.api_paste_filename)
 #        self.sed("s/admin_tenant_name.*/admin_tenant_name = " + \
 #                     self.service_tenant_name + "/", 
 #                 self.nova_directory + "/" + self.api_paste_filename)

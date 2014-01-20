@@ -1,7 +1,0 @@
-Package: gram
-Version: 0.1
-Priority: optional
-Architecture: all
-Depends: git, cloud-utils, kvm, xmlsec1, python-software-properties, ubuntu-cloud-keyring, ntp, mysql-server, python-mysqldb, rabbitmq-server, keystone, python-keystone, python-keystoneclient, glance, glance-api, python-glanceclient, glance-common, nova-api, nova-cert, nova-common, nova-scheduler, python-nova, python-novaclient, nova-consoleauth, novnc, nova-novncproxy, openvswitch-switch, quantum-server, python-cliff, quantum-plugin-openvswitch-agent, quantum-l3-agent, quantum-dhcp-agent, python-pyparsing, module-assistant
-Maintainer: GRAM Developers <gram-dev@bbn.com>
-Description: GRAM installation package

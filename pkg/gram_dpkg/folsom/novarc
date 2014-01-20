@@ -1,7 +1,0 @@
-export OS_TENANT_NAME=admin
-export OS_USERNAME=admin
-export OS_PASSWORD=openstack
-export OS_AUTH_URL="http://localhost:5000/v2.0/"
-export SERVICE_ENDPOINT="http://localhost:35357/v2.0"
-export SERVICE_TOKEN=gram
-export OS_NO_CACHE=1

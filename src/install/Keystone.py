@@ -60,7 +60,12 @@ class Keystone(GenericInstaller):
         data_script_filename = 'keystone_basic.sh'
         self.add("rm -f " + data_script_filename)
         self.add("wget " + data_script_url)
-        self.add("chmod a+x ./keystone-data.sh")
+        self.sed("s/HOST_IP=.*/HOST_IP=" + config.control_host_addr +  "/",data_script_filename)
+        self.sed("s/^ADMIN_PASSWORD.*/ADMIN_PASSWORD=$\{ADMIN_PASSWORD:-" + config.os_password + "\}/",data_script_filename)
+        #self.sed("s/SERVICE_PASSWORD.*/SERVICE_PASSWORD=" + keystone_password + "/",data_script_filename)
+        #self.sed("s/SERVICE_TOKEN.*/SERVICE_TOKEN=" + service_token + "/",data_script_filename)
+        #self.sed("s/SERVICE_TENANT_NAME.*/SERVICE_TENANT_NAME=" + config.os_tenant_name + "/",data_script_filename) 
+        self.add("chmod a+x ./" + data_script_filename)
         self.add("./" + data_script_filename)
 
         self.comment("Step 5. Download data script")
@@ -68,6 +73,11 @@ class Keystone(GenericInstaller):
         endpoints_script_filename = "keystone_endpoints_basic.sh"
         self.add("rm -f " + endpoints_script_filename)
         self.add("wget " + endpoints_script_url)
+        self.sed("s/^HOST_IP=.*/HOST_IP=localhost/",endpoints_script_filename)
+        self.sed("s/^EXT_HOST_IP.*/EXT_HOST_IP=localhost/",endpoints_script_filename)
+        #self.sed("s/^EXT_HOST_IP.*/EXT_HOST_IP=" + config.external_address + "/",endpoints_script_filename)
+        self.sed("s/^MYSQL_USER=.*/MYSQL_USER=" + keystone_user + "/",endpoints_script_filename)
+        self.sed("s/^MYSQL_PASSWORD=.*/MYSQL_PASSWORD=" + keystone_password + "/",endpoints_script_filename)
         self.add("chmod a+x ./" + endpoints_script_filename)
         self.add("./" + endpoints_script_filename)
 
@@ -75,15 +85,15 @@ class Keystone(GenericInstaller):
         self.comment("Step 6. Create novarc file")
         novarc_file = "/etc/novarc"
         self.backup("/etc", backup_directory, "novarc")
-        self.writeToFile("export OS_TENANT_NAME=" + config.os_tenant_name, novarc_file)
+        self.writeToFile("export OS_TENANT_NAME=admin", novarc_file)
 
-        self.appendToFile("export OS_USERNAME=" + config.os_username, novarc_file)
-        self.appendToFile("export OS_PASSWORD=" + config.os_password, novarc_file)
-        self.appendToFile("export OS_AUTH_URL=" + config.os_auth_url, novarc_file)
-        self.appendToFile("export OS_NO_CACHE=" + str(config.os_no_cache), novarc_file)
-        self.appendToFile("export OS_REGION_NAME=" + config.os_region_name, novarc_file)
-        self.appendToFile("export SERVICE_TOKEN=" + config.service_token, novarc_file)
-        self.appendToFile("export SERVICE_ENDPOINT=" + config.service_endpoint, novarc_file)
+        self.appendToFile("export OS_USERNAME=admin", novarc_file)
+        self.appendToFile("export OS_PASSWORD=" + config.os_password , novarc_file)
+        self.appendToFile("export OS_AUTH_URL=http://localhost:5000/v2.0/", novarc_file)
+        #self.appendToFile("export OS_NO_CACHE=" + str(config.os_no_cache), novarc_file)
+        #self.appendToFile("export OS_REGION_NAME=" + config.os_region_name, novarc_file)
+        #self.appendToFile("export SERVICE_TOKEN=" + config.service_token, novarc_file)
+        #self.appendToFile("export SERVICE_ENDPOINT=" + config.service_endpoint, novarc_file)
 
         self.add("source " + novarc_file)
 

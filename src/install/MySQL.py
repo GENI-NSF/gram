@@ -63,14 +63,13 @@ class MySQL(GenericInstaller):
 
     def generatePrivileges(self, db, user_name, user_pwd, \
                            compute_nodes, filename):
-        self.generatePrivilegesForAddress(db, user_name, user_pwd, \
-                                              'localhost', filename)
+        self.generatePrivilegesForAddress(db, user_name, user_pwd, 'localhost', filename)
+        self.generatePrivilegesForAddress(db, user_name, user_pwd, config.control_address, filename)
         if compute_nodes:
             nodes = config.compute_hosts
             for node in nodes:
                 addr = nodes[node]
-                self.generatePrivilegesForAddress(db, user_name, user_pwd, \
-                                                      addr, filename)
+                self.generatePrivilegesForAddress(db, user_name, user_pwd, addr, filename)
 
     def generatePrivilegesForAddress(self, db, user_name, user_pwd, \
                                          address, filename):
