@@ -99,7 +99,7 @@ class Quantum(GenericInstaller):
         #             self.quantum_plugin_directory + "/" + \
         #             self.quantum_plugin_conf_filename)
         # TODO:  Figure out ranges
-        self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2000,physnet2:2001:3000/",
+        self.sed("s/\# Default: network_vlan_ranges.*/network_vlan_ranges=physnet1:1000:2100,physnet2:2101:3000/",
                      self.quantum_plugin_directory + "/" + \
                      self.quantum_plugin_conf_filename)
         self.sed("s/\# Default: bridge_mappings.*/bridge_mappings=physnet1:br-" + config.data_interface + ",physnet2:br-" + config.management_interface + "/",
