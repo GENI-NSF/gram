@@ -768,7 +768,8 @@ int main(int argc, char *argv[])
     add_proxy_cmd(addr, portNumber,namespace);
 
   } else if (mode == MODE_DELETE) {
-    if (port_not_found)
+    /* RRH - moved to !port_not_found - don't know why it was port_not_found only */
+    if (!port_not_found)
     {
       fprintf(stdout, "Deleting SSH Proxy for address %s\n", addr);
       portNumber = delete_proxy(addr);
