@@ -58,6 +58,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         v2_url = "https://%s:%d" % (hostname, config.gram_am_v2_port)
         geni_api_versions = {'2' : v2_url, '3' : v3_url}
         result['value']['geni_api_versions'] = geni_api_versions
+        result['code']['am_type'] = 'GRAM'
         return result
 
     def ListResources(self, credentials, options):
