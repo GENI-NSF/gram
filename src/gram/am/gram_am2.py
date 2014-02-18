@@ -47,7 +47,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
                            #                            urn_authority, 
                            #                            certfile, url)
         self._certfile = certfile
-        self._am_type = "gram"
+        self._am_type = "GRAM"
         self._server = server
         self._v3_am._server = server
 
