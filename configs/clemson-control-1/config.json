@@ -1,0 +1,104 @@
+{
+   "__001": "This file contains GRAM installation-specific", 
+   "__002": "parameters and structures. The values contained here",
+   "__003": "override values in the gram.am.gram.config module.",
+   "__004": "That is, a key/value pair  K, V  in this file", 
+   "__005": "sets gram.am.config.K = V",
+   "__006": "An error is given if the field (K) does not exist, ",
+   "__007": "Or the type of the value cannot be coerced",
+   "__008": "Further any parameter whose value is None in config.py", 
+   "__009": "and set as null here must be set in this file:",
+   "__010": "no default is provided",
+
+   "default_VM_flavor": "m1.small",
+   "default_OS_image": "ubuntu-12.04",
+   "default_OS_type": "Linux",
+   "default_OS_version": "12",
+
+   "disk_image_metadata": 
+   {
+   "ubuntu-12.04":
+       {
+        "os": "Linux",
+        "version": "12.0",
+        "description":" Standard Ubuntu"
+        },
+   "fedora-19":
+       {
+        "os": "Linux",
+        "version": "19.0",
+        "description":"Standard Fedora"
+        }
+   },
+
+   "external_interface": "ext",
+   "external_address": "130.127.88.98",
+   "external_netmask": "255.255.255.224",
+
+   "control_address": "10.10.8.100",
+   "control_interface": "ctl",
+   "data_interface": "dat",
+   "data_address": "10.10.5.100",
+   "management_interface": "mgt",
+   "management_address": "10.10.6.100",
+   "management_network_name": "GRAM-mgmt-net",
+   "management_network_cidr": "192.168.10.0/24", 
+   "management_network_vlan": "2500", 
+   "mysql_user": "admin",
+   "mysql_password": "os_pwd",
+   "rabbit_password": "guest",
+   "nova_password": "os_pwd",
+   "glance_password": "os_pwd",
+   "keystone_password": "os_pwd",
+   "quantum_password": "os_pwd",
+   "os_tenant_name": "admin",
+   "os_username": "admin",
+   "os_password": "admin_pass",
+   "os_auth_url": "http://localhost:5000/v2.0/",
+   "os_region_name" : "RegionOne", 
+   "os_no_cache" : "1",
+   "service_token" : "clemson-clemson-control-1",
+   "service_endpoint" : "http://localhost:35357/v2.0",
+
+   "public_gateway_ip" : "130.127.88.97",
+   "public_dns_nameservers" : "130.127.255.250 130.127.255.251",
+   "public_subnet_cidr" : "130.127.88.96/27",
+   "public_subnet_start_ip" : "130.127.88.101",
+   "public_subnet_end_ip" : "130.127.88.110",
+
+   "metadata_port" : "8775",
+
+   "backup_directory" : "/home/gram/.backup",
+   "control_host" : "clemson-clemson-control-1.clemson.edu",
+   "control_host_addr" : "10.10.8.100",
+   "compute_hosts": {
+		"clemson-clemson-compute-1":"10.10.8.101",
+		"clemson-clemson-compute-2":"10.10.8.102"},
+   "glance_images" : [],
+   "internal_vlans": "1001-2000",
+   "host_file_entries": {
+		"clemson-clemson-control-1":"130.127.88.98",
+		"clemson-clemson-compute-1":"130.127.88.99",
+		"clemson-clemson-compute-2":"130.127.88.100"},
+   "stitching_info" : {
+       "aggregate_id" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+cm",
+        "aggregate_url" : "https://clemson-clemson-control-1.clemson.edu:5001",
+        "edge_points" : [
+                {
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:16",
+                "remote_switch": "urn:publicid:IDN+ion.internet2.edu+interface+rtr.atla:xe-0/3/0:clemson-gr",
+                "vlans" : "3000-3020",
+                "traffic_engineering_metric" : "22",
+                "capacity": "2500000",
+                "maximum_reservable_capacity": "2400000",
+                "minimum_reservable_capacity": "1400000",
+                "interface_mtu": "1501"
+                }
+        ]
+   },
+   "public_ip": "130.127.88.101",
+   "mgmt_ns": "qrouter-a03127ba-7184-42e6-bd5d-2e5957193b86"
+
+
+}
