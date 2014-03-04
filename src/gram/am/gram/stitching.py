@@ -69,12 +69,13 @@ logger = logging.getLogger('gram.stitching')
 # Each has its own pool of VLAN allocations
 class StitchingEdgePoint:
 
-    def __init__(self, local_switch, port, remote_switch, vlans,
+    def __init__(self, local_switch, port,local_link, remote_switch, vlans,
                  traffic_engineering_metric, capacity, 
                  maximum_reservable_capacity, minimum_reservable_capacity,
                  granularity, interface_mtu):
         self._local_switch = local_switch
         self._port = port
+        self._local_link = local_link
         self._remote_switch = remote_switch
         self._vlans = VLANPool(vlans, port)
         self._traffic_engineering_metric = traffic_engineering_metric
@@ -119,8 +120,8 @@ class StitchingEdgePoint:
         return selected, selected != None
 
     def __str__(self):
-        return "[EP %s %s %s %s %s %s %s]" % \
-            (self._local_switch, self._port, self._remote_switch, 
+        return "[EP %s %s %s %s %s %s %s %s]" % \
+            (self._local_switch, self._port, self._local_link, self._remote_switch, 
              self._vlans, self._traffic_engineering_metric, 
              self._capacity, self._interface_mtu)
 
@@ -164,7 +165,7 @@ class Stitching:
 
             
             ep = StitchingEdgePoint(d['local_switch'], port,
-                                    d['remote_switch'], d['vlans'],
+                                    d['local_link'], d['remote_switch'], d['vlans'],
                                     traffic_engineering_metric, 
                                     capacity, maximum_reservable_capacity,
                                     minimum_reservable_capacity, 
@@ -249,6 +250,7 @@ class Stitching:
         for port_value, edge_point in self._edge_points.items():
             local_switch = edge_point._local_switch
             remote_switch = edge_point._remote_switch
+            local_link = edge_point._local_link
             vlans_value = str(edge_point._vlans)
             traffic_engineering_metric = edge_point._traffic_engineering_metric
             capacity = edge_point._capacity
