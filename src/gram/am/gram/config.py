@@ -64,6 +64,7 @@ interface_urn_prefix = sliver_urn_prefix + 'interface'
 link_urn_prefix = sliver_urn_prefix + 'link'
 image_urn_prefix = urn_prefix + 'image'
 aggregate_manager_urn = urn_prefix+"authority+cm"
+aggregate_id = " "
 
 allocation_expiration_minutes =  10      # allocations expire in 10 mins
 lease_expiration_minutes =  7 * 24 * 60  # resources can be leased for 7 days

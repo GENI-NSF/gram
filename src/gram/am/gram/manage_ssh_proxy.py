@@ -21,8 +21,8 @@
 # IN THE WORK.
 #----------------------------------------------------------------------
 
-#import open_stack_interface
-#import config
+import open_stack_interface
+import config
 import os
 
 # Table to map current IP addresses to ports
