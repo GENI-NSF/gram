@@ -32,7 +32,7 @@ from resources import Slice, VirtualMachine, NetworkLink, NetworkInterface
 import stitching
 import config
 from open_stack_interface import _execCommand
-from manage_ssh_proxy import _getIpTable,_addNewProxy
+from manage_ssh_proxy import SSHProxyTable, _addNewProxy
 import re
 #from AggregateState import AggregateState
 #from AllocationManager import AllocationManager
@@ -213,6 +213,9 @@ def write_state(filename, gram_manager, slices, stitching_handler):
     if gram_manager:
         manager_persistent_state = gram_manager.getPersistentState()
         objects.append({"GRAM_MANAGER_STATE" : manager_persistent_state})
+
+    # Save the SSH address/proxy table
+    objects.append({"SSH_PROXY": SSHProxyTable._get()})
 
     data = GramJSONEncoder(stitching_handler).encode(objects)
     file.write(data)
@@ -458,6 +461,9 @@ def read_state(filename, gram_manager, stitching_handler):
                 manager_persistent_state = json_obj['GRAM_MANAGER_STATE']
                 gram_manager.setPersistentState(manager_persistent_state)
                 print "GMPS = %s " % gram_manager.getPersistentState()
+            elif "SSH_PROXY" in json_obj:
+                # Restore SSH Proxy table (IP address to port)
+                SSHProxyTable._restore(json_obj['SSH_PROXY'])
 
     slices = dict()
     decoder = GramJSONDecoder(stitching_handler)
@@ -465,15 +471,7 @@ def read_state(filename, gram_manager, stitching_handler):
         decoder.decode(json_object)
     decoder.resolve()
 
-    # Get the port current port forwarding in the ip table
-    output = _getIpTable()
-    ip_table_entries = dict()
-    for line in output.split('\n'):
-        m = re.search(r'tcp dpt:(.*) to:(.*):22',line)
-        if m:
-            ip_table_entries[m.group(1)] = m.group(2)
-  
-
+    
     # Return a  dictionary of all slices indexed by slice_urn
     for slice in decoder._slices_by_tenant_uuid.values():
         slice_urn = slice.getSliceURN()
@@ -486,12 +484,13 @@ def read_state(filename, gram_manager, stitching_handler):
         for vm in vms:
             port = str(vm.getSSHProxyLoginPort())
             addr = vm.getMgmtNetAddr()
+            ip_table_entries = SSHProxyTable._get()
             if port and addr:
                 config.logger.info( " mgmt address " + addr + \
                    " is mapped to port: " + port)
-                if port in ip_table_entries.keys():
+                if port in ip_table_entries.values():
                     config.logger.info(" Port " + port + " is already in the iptable")
-                elif addr in ip_table_entries.values():
+                elif addr in ip_table_entries.keys():
                     config.logger.info(" Addr " + addr + " is already in the ipdatble")
                 else:
                     _addNewProxy(addr,int(port))
