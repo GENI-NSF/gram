@@ -186,6 +186,7 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
                     config.logger.error(error_string)
                     return error_string, error_code, sliver_list, None
 
+        
         # Get interfaces associated with the node
         interface_list = node.getElementsByTagName('interface')
         for interface in interface_list :
@@ -260,11 +261,17 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
                 info_string = 'Added executable %s of %s' % (exec_command, exec_shell)
                 config.logger.info(info_string)
 
+    print 'over here'
+
     # Done getting information about nodes in the rspec.  Now get information
     # about links.
-    link_list = [link for link in rspec_dom.childNodes[0].childNodes if
+    link_list = [link for link in rspec_dom.getElementsByTagName('rspec')[0].childNodes if
                  link.nodeName == 'link']
+
+
+    print link_list
     for link in link_list :
+        print 'link: ' + link.toxml()
         # Get information about this link from the rspec
         link_attributes = link.attributes
 
@@ -356,7 +363,8 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
     err_output = None
 
     req_rspec = geni_slice.getRequestRspec()
-    request = parseString(req_rspec).childNodes[0]
+    doc = parseString(req_rspec)
+    request = doc.getElementsByTagName('rspec')[0]
 
     root = Document()
     manifest = root.createElement("rspec")
@@ -402,8 +410,9 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
 
     return cleanXML(root, "Manifest"), err_output, err_code
 
+
 def getRequestElementForSliver(sliver):
-    full_request_rspec = parseString(sliver.getRequestRspec()).childNodes[0]
+    full_request_rspec = parseString(sliver.getRequestRspec()).getElementsByTagName('rspec')[0]
     for child in full_request_rspec.childNodes:
         if child.attributes is None or not child.attributes.has_key('client_id'):
             continue
@@ -414,6 +423,8 @@ def getRequestElementForSliver(sliver):
 
 def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_urn):
     node_name = "node"
+
+    print request.toxml()
     if geni_sliver.__class__ == NetworkLink: node_name = "link"
     node = root.createElement(node_name)
 
@@ -515,7 +526,6 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
                     login.setAttribute("hostname", config.public_ip)
                     login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
                 login.setAttribute("username", user)
-                print 'this'
                 print login
                 services.appendChild(login)
             node.appendChild(services)
@@ -835,6 +845,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
          <rspec xmlns="http://www.geni.net/resources/rspec/3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="%s" type="advertisement">''' % (' '.join(schema_locs))
 
     stitching_advertisement =""
+#    config.logger.error("STITCHING_HANDLER = %s" % stitching_handler)
     if stitching_handler:
         stitching_advertisement_doc = \
             stitching_handler.generateAdvertisement()

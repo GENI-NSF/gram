@@ -74,6 +74,7 @@ class GramManager :
             if part.find('URI:urn:publicid')>=0:
                 self._aggregate_urn = part[4:]
 
+        self._aggregate_urn = config.aggregate_id
         self._internal_vlans = \
             vlan_pool.VLANPool(config.internal_vlans, "INTERNAL")
 
@@ -206,10 +207,17 @@ class GramManager :
 
             # Set expiration time on the slice itself
                 slice_object.setExpiration(expiration);
-       
+
+            # Associate an external VLAN tag with every 
+            # stitching link
+#            print 'allocating external vlan'
+            # Allocate external vlans and set them on the slivers
+            for link_sliver_object in slice_object.getNetworkLinks():
+                self._stitching.allocate_external_vlan_tags(link_sliver_object, rspec)
 
             # Associate an internal VLAN tag with every link 
             # that isn't already set by stitching
+#            print 'allocating internal vlan'
             if not self.allocate_internal_vlan_tags(slice_object):
                 error_string = "No more internal VLAN tags available"
                 error_code = constants.VLAN_UNAVAILABLE
@@ -221,6 +229,7 @@ class GramManager :
             for sliver in slivers:
                 sliver.setRequestRspec(rspec);
             agg_urn = self._aggregate_urn
+            # At this point, we don't allocate VLAN's: they should already be allocated
             manifest, error_string, error_code =  \
                 rspec_handler.generateManifestForSlivers(slice_object, \
                                                              slivers, True, \

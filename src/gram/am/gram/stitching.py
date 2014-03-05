@@ -69,7 +69,7 @@ logger = logging.getLogger('gram.stitching')
 # Each has its own pool of VLAN allocations
 class StitchingEdgePoint:
 
-    def __init__(self, local_switch, port,local_link, remote_switch, vlans,
+    def __init__(self, local_switch, port, local_link, remote_switch, vlans,
                  traffic_engineering_metric, capacity, 
                  maximum_reservable_capacity, minimum_reservable_capacity,
                  granularity, interface_mtu):
@@ -132,10 +132,11 @@ class Stitching:
         data = config.stitching_info
         self._data = data
 
-        # A dictionary indexed by port
+        # A dictionary of edge points indexed by link
         self._edge_points = {}
         for d in data['edge_points']:
             port = d['port']
+            link = d['local_link']
 
             # Pull edge-point specific parameters 
             # (use defaults if not provided)
@@ -165,19 +166,19 @@ class Stitching:
 
             
             ep = StitchingEdgePoint(d['local_switch'], port,
-                                    d['local_link'], d['remote_switch'], d['vlans'],
+                                    link, d['remote_switch'], d['vlans'],
                                     traffic_engineering_metric, 
                                     capacity, maximum_reservable_capacity,
                                     minimum_reservable_capacity, 
                                     granularity, interface_mtu)
-            self._edge_points[port] = ep
-
+            self._edge_points[link] = ep
+       
         self._aggregate_id = data['aggregate_id']
         self._aggregate_url = data['aggregate_url']
         self._namespace = "http://hpn.east.isi.edu/rspec/ext/stitch/0.1"
 
         # Dictionary of sliver_urn => 
-        #      {'vlan_tag' : vlan_tag, 'port' : port}
+        #      {'vlan_tag' : vlan_tag, 'link' : link }
         self._reservations = {}
 
     def parse(self, config_file):
@@ -195,8 +196,8 @@ class Stitching:
         data = json.loads(data)
         return data
 
-    def isPortOfEdgePoint(self, port):
-        return port in self._edge_points
+    def isLinkOfEdgePoint(self, link):
+        return link in self._edge_points
 
     def getLastUpdateTime(self):
         return datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -209,13 +210,13 @@ class Stitching:
             child.appendChild(content)
         return child
 
-    # Delete allocation of VLAN tag to sliver and port
+    # Delete allocation of VLAN tag to sliver and link
     def deleteAllocation(self, sliver_id):
         if sliver_id in self._reservations:
             reservation = self._reservations[sliver_id]
             tag = reservation['vlan_tag']
-            port_id = reservation['port']
-            edge_point = self._edge_points[port_id]
+            link_id = reservation['link']
+            edge_point = self._edge_points[link_id]
             edge_point._vlans.free(tag)
             del self._reservations[sliver_id]
             print "*** Deleting VLAN tag allocation %s : %s" % (sliver_id, tag)
@@ -247,10 +248,12 @@ class Stitching:
         for capability_type in ["consumer", "producer"]:
             self.createChild("capability", capabilities, doc, capability_type)
 
-        for port_value, edge_point in self._edge_points.items():
+        for link_value, edge_point in self._edge_points.items():
             local_switch = edge_point._local_switch
+            port = edge_point._port
             remote_switch = edge_point._remote_switch
             local_link = edge_point._local_link
+            #local_link = 'urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:16'
             vlans_value = str(edge_point._vlans)
             traffic_engineering_metric = edge_point._traffic_engineering_metric
             capacity = edge_point._capacity
@@ -267,7 +270,7 @@ class Stitching:
             port.setAttribute("id", port_value)
 
             link = self.createChild("link", port, doc)
-            link.setAttribute("id", local_switch)
+            link.setAttribute("id", local_link)
             
             remote_link_id = self.createChild("remoteLinkId", link, doc, remote_switch)
 
@@ -303,6 +306,49 @@ class Stitching:
 
         return doc
 
+    # Allocate VLAN's for stitching links
+    def allocate_external_vlan_tags(self, link_sliver_object, request_rspec):
+        if isinstance(request_rspec, basestring): request_rspec = parseString(request_rspec)
+        error_string, error_code, request_details = \
+            self.parseRequestRSpec(request_rspec)
+        if not request_details:
+            return # No stitching, no error
+
+        sliver_id = link_sliver_object.getSliverURN()
+
+        request = request_rspec.getElementsByTagName('rspec')[0]
+        stitching_request = request.getElementsByTagName('stitching')[0]
+        stitching_request_paths = stitching_request.getElementsByTagName('path')
+
+        for path in stitching_request_paths:
+            stitching_request_hops = path.getElementsByTagName('hop')
+            for hop in stitching_request_hops:
+                links = hop.getElementsByTagName('link')
+                for request_link in links:
+                    link_id = request_link.attributes['id'].value
+
+                    # Allocate a VLAN for manifest based on request
+                    # and stick in appropriate field of manifest
+#                    print 'allocating stitching vlan'
+#                    print self._edge_points
+		    stitchport = self._edge_points.keys()[0]
+		    edge_point = self._edge_points[stitchport]
+#		    print "%s" % edge_point
+#                    print link_id
+                    if link_id in self._edge_points: # One of my links
+                        success, tag = self.allocateVLAN(link_id, 
+                                                         request_link, 
+                                                         sliver_id, 
+                                                         True)
+                        if not success:
+                            return None, "Failure to allocate VLAN in requested range", constants.VLAN_UNAVAILABLE
+                        else:
+                            # Set the VLAN tag of the network_link sliver and 
+                            # associated network interface slivers
+                            link_sliver_object.setVLANTag(tag)
+                            for interface in link_sliver_object.getEndpoints():
+                                interface.setVLANTag(tag)
+
     # Notes from conversation with AH:
     # Take the request and copy the stitching portion into the manifest, but change
     # only the parts that are yours (that are links from your advertisement)
@@ -332,7 +378,7 @@ class Stitching:
         # We perform destructive operations on request to make manifest
         request = request.cloneNode(True)
 
-        request = request.childNodes[0]
+        request = request.getElementsByTagName('rspec')[0]
         stitching_request = request.getElementsByTagName('stitching')[0]
         stitching_request_paths = stitching_request.getElementsByTagName('path')
 
@@ -363,21 +409,6 @@ class Stitching:
                         child = manifest_link_children[i]
                         manifest_link.appendChild(child)
 
-                    # Allocate a VLAN for manifest based on request
-                    # and stick in appropriate field of manifest
-                    if link_id in self._edge_points: # One of my ports
-                        success, tag = self.allocateVLAN(link_id, 
-                                                         manifest_link, 
-                                                         allocate, sliver_id)
-                        if not success:
-                            return None, "Failure to allocate VLAN in requested range", constants.VLAN_UNAVAILABLE
-                        else:
-                            # Set the VLAN tag of the network_link sliver and 
-                            # associated network interface slivers
-                            sliver.setVLANTag(tag)
-                            for interface in sliver.getEndpoints():
-                                interface.setVLANTag(tag)
-
                 next_hop = hop.getElementsByTagName('nextHop')[0]
                 manifest_hop.appendChild(next_hop)
 
@@ -389,9 +420,9 @@ class Stitching:
     # If not 'allocate', use the one that is already allocated
     # Return True if successfully allocated, False if failed to allocate
     # As well as the tag_id (or None) allocated
-    def allocateVLAN(self, port_id, hop_link, allocate, sliver_id):
+    def allocateVLAN(self, link_id, hop_link, sliver_id, allocate):
         suggested, available = self.parseVLANTagInfo(hop_link)
-        edge_point = self._edge_points[port_id]
+        edge_point = self._edge_points[link_id]
         if allocate:
             # Grab a new tag from available list
             selected_vlan, success = \
@@ -399,7 +430,7 @@ class Stitching:
             if not success: return False, None # Failure
             available = edge_point.availableVLANs()
             self._reservations[sliver_id] = {'vlan_tag' : selected_vlan,
-                                             'port' : port_id}
+                                             'link' : link_id}
         else:
             # Use existing tag
             reservation = self._reservations[sliver_id]
@@ -455,7 +486,7 @@ class Stitching:
                 hop_links = hop.getElementsByTagName('link')
                 for hop_link in hop_links:
                     hop_link_id = hop_link.attributes['id'].value
-                    if self.isPortOfEdgePoint(hop_link_id):
+                    if self.isLinkOfEdgePoint(hop_link_id):
                         local_hop = hop
                         break
         return local_hop
@@ -491,10 +522,12 @@ class Stitching:
 
         if isinstance(request_rspec, basestring):
             request_rspec = parseString(request_rspec)
-        request = request_rspec.childNodes[0]
+        request = request_rspec.getElementsByTagName('rspec')[0]
 
         nodes = request.getElementsByTagName('node')
+        
 
+#        print ' parsing stitching rspec'
         # Find nodes that is mine that has an interface in a stitching link
         my_nodes_by_interface = {}
         for node in nodes:
@@ -540,9 +573,9 @@ class Stitching:
         return error_string, error_code, request_details
 
     # Restore stitching state from archive
-    def restoreStitchingState(self, sliver_urn, tag, port):
-        self._reservations[sliver_urn] = {'vlan_tag' : tag, 'port' : port}
-        self._edge_points[port]._vlans.allocate(tag)
+    def restoreStitchingState(self, sliver_urn, tag, link):
+        self._reservations[sliver_urn] = {'vlan_tag' : tag, 'link' : link}
+        self._edge_points[link]._vlans.allocate(tag)
 
 
 if __name__ == '__main__':
@@ -587,8 +620,8 @@ if __name__ == '__main__':
 
     stitching.deleteAllocation(sliver_id)
 
-    for port, edge_point in stitching._edge_points.items():
-        print "Port %s EP %s" % (port, edge_point)
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
 
 
 
