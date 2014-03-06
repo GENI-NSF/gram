@@ -250,7 +250,7 @@ class Stitching:
 
         for link_value, edge_point in self._edge_points.items():
             local_switch = edge_point._local_switch
-            port = edge_point._port
+            port_value = edge_point._port
             remote_switch = edge_point._remote_switch
             local_link = edge_point._local_link
             #local_link = 'urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:16'
