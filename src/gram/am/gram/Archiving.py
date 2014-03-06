@@ -412,9 +412,9 @@ class GramJSONDecoder:
                 if stitching_info:
                     sliver_urn = link.getSliverURN()
                     tag = stitching_info['vlan_tag']
-                    port = stitching_info['port']
+                    link = stitching_info['link']
                     self._stitching_handler.restoreStitchingState(sliver_urn, 
-                                                                  tag, port)
+                                                                  tag, link)
                 
                 return link
 
