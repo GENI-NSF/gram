@@ -1,0 +1,28 @@
+tag v2.7
+Tagger: Regina Hain <rrhain@bbn.com>
+Date:   Mon Mar 10 11:57:24 2014 -0400
+
+v2.7
+
+commit bb68133734a1027282286fad8efb6879b07ba6b1
+Author: Marshall Brinn <mbrinn@bbn.com>
+Date:   Thu Mar 6 13:18:48 2014 -0500
+
+    Accept merged change for portal not link for stitching handler
+
+diff --git a/src/gram/am/gram/Archiving.py b/src/gram/am/gram/Archiving.py
+index 73bd48c..2dac99f 100755
+--- a/src/gram/am/gram/Archiving.py
++++ b/src/gram/am/gram/Archiving.py
+@@ -412,9 +412,9 @@ class GramJSONDecoder:
+                 if stitching_info:
+                     sliver_urn = link.getSliverURN()
+                     tag = stitching_info['vlan_tag']
+-                    link = stitching_info['link']
++                    port = stitching_info['port']
+                     self._stitching_handler.restoreStitchingState(sliver_urn, 
+-                                                                  tag, link)
++                                                                  tag, port)
+                 
+                 return link
+ 
