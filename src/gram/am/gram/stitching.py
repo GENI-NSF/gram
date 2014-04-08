@@ -91,7 +91,7 @@ class StitchingEdgePoint:
     # Select and allocate a tag given a set of suggested and available
     # tags from the request
     # Return tag and success (whether successfully allocated)
-    def allocateTag(self, request_suggested, request_available):
+    def allocateTag(self, request_suggested, request_available, is_v2_allocation):
         request_suggested_values = VLANPool.parseVLANs(request_suggested)
         selected = None
         for candidate in request_suggested_values:
@@ -99,7 +99,7 @@ class StitchingEdgePoint:
                 selected = candidate
                 break
 
-        if not selected:
+        if not selected and not is_v2_allocation:
             if request_available == 'any':
                 my_available = self._vlans._available_vlans
                 if len(my_available) > 0:
@@ -307,12 +307,13 @@ class Stitching:
         return doc
 
     # Allocate VLAN's for stitching links
-    def allocate_external_vlan_tags(self, link_sliver_object, request_rspec):
+    # Return 
+    def allocate_external_vlan_tags(self, link_sliver_object, request_rspec, is_v2_allocation):
         if isinstance(request_rspec, basestring): request_rspec = parseString(request_rspec)
         error_string, error_code, request_details = \
             self.parseRequestRSpec(request_rspec)
         if not request_details:
-            return # No stitching, no error
+            return True, '', constants.SUCCESS # No stitching, no error
 
         sliver_id = link_sliver_object.getSliverURN()
 
@@ -320,34 +321,48 @@ class Stitching:
         stitching_request = request.getElementsByTagName('stitching')[0]
         stitching_request_paths = stitching_request.getElementsByTagName('path')
 
+#        print "SRP = %s" % stitching_request_paths
+
         for path in stitching_request_paths:
+#            print "PATH = %s" % path.toxml()
+            path_id = path.attributes['id'].value
+#            print "PATH_ID = %s LINK_ID = %s" % (path_id, link_sliver_object.getName())
+            if path_id != link_sliver_object.getName(): continue
             stitching_request_hops = path.getElementsByTagName('hop')
             for hop in stitching_request_hops:
+#                print "   HOP = %s" % hop.toxml()
                 links = hop.getElementsByTagName('link')
                 for request_link in links:
+#                    print "      REQUEST_LINK = %s" % request_link.toxml()
                     link_id = request_link.attributes['id'].value
 
                     # Allocate a VLAN for manifest based on request
                     # and stick in appropriate field of manifest
 #                    print 'allocating stitching vlan'
 #                    print self._edge_points
-		    stitchport = self._edge_points.keys()[0]
-		    edge_point = self._edge_points[stitchport]
+#                    print "EDGE_POINTS = %s" % self._edge_points
+#                    print "LINK_ID = %s " % link_id
+
+#		    stitchport = self._edge_points[link_id]
+#		    edge_point = self._edge_points[stitchport]
 #		    print "%s" % edge_point
 #                    print link_id
                     if link_id in self._edge_points: # One of my links
                         success, tag = self.allocateVLAN(link_id, 
                                                          request_link, 
                                                          sliver_id, 
-                                                         True)
+                                                         True,
+                                                         is_v2_allocation)
                         if not success:
-                            return None, "Failure to allocate VLAN in requested range", constants.VLAN_UNAVAILABLE
+                            return False, "Failure to allocate VLAN in requested range", constants.VLAN_UNAVAILABLE
                         else:
                             # Set the VLAN tag of the network_link sliver and 
                             # associated network interface slivers
                             link_sliver_object.setVLANTag(tag)
                             for interface in link_sliver_object.getEndpoints():
                                 interface.setVLANTag(tag)
+
+            return True, '', constants.SUCCESS
 
     # Notes from conversation with AH:
     # Take the request and copy the stitching portion into the manifest, but change
@@ -420,13 +435,16 @@ class Stitching:
     # If not 'allocate', use the one that is already allocated
     # Return True if successfully allocated, False if failed to allocate
     # As well as the tag_id (or None) allocated
-    def allocateVLAN(self, link_id, hop_link, sliver_id, allocate):
+    def allocateVLAN(self, link_id, hop_link, sliver_id, allocate, is_v2_allocation):
+
+        print "AllocateVLAN %s %s %s" % (link_id, hop_link.toxml(), sliver_id)
+
         suggested, available = self.parseVLANTagInfo(hop_link)
         edge_point = self._edge_points[link_id]
         if allocate:
             # Grab a new tag from available list
             selected_vlan, success = \
-                edge_point.allocateTag(suggested,available)
+                edge_point.allocateTag(suggested,available, is_v2_allocation)
             if not success: return False, None # Failure
             available = edge_point.availableVLANs()
             self._reservations[sliver_id] = {'vlan_tag' : selected_vlan,
