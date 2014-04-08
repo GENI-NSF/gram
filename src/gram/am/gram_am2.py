@@ -123,6 +123,9 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 #        print "OPTS = " + str(options)
         credentials = [self.transform_credential(c) for c in credentials]
         urns = [slice_urn]
+        # Pass to the allocate code that this is a V2 allocation
+        options['AM_API_V2'] = True 
+
         # Allocate
         ret_allocate_v3 = self._v3_am.Allocate(slice_urn, credentials, \
                                           rspec, options)
