@@ -91,7 +91,6 @@ class GramJSONEncoder(json.JSONEncoder):
                 "request_rspec":o.getRequestRspec(),
                 "last_subnet_assigned":o._last_subnet_assigned,
                 "next_vm_num":o._next_vm_num,
-                "controller_url":o.getControllerURL(),
                 "slivers":[sliver.getSliverURN() for sliver in o.getAllSlivers().values()]
                   
                 }
@@ -187,6 +186,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "subnet":o.getSubnet(),
                     "endpoints":[ep.getSliverURN() for ep in o.getEndpoints()],
                     'vlan_tag':o.getVLANTag(),
+                    "controller_url":o.getControllerURL(),
                     "network_uuid":o.getNetworkUUID(),
                     "subnet_uuid":o.getSubnetUUID(),
                     "stitching_info":stitching_info
@@ -272,7 +272,6 @@ class GramJSONDecoder:
                 slice.setRequestRspec(json_object["request_rspec"])
                 slice._last_subnet_assigned = json_object['last_subnet_assigned']
                 slice._next_vm_num = json_object['next_vm_num']
-                slice.setControllerURL(json_object['controller_url'])
                 
                 self._slivers_by_slice_tenant_uuid[tenant_uuid] = \
                     json_object['slivers']
@@ -403,7 +402,9 @@ class GramJSONDecoder:
                 link.setSubnetUUID(json_object["subnet_uuid"])
                 link.setVLANTag(json_object['vlan_tag'])
                 link.setRequestRspec(json_object["request_rspec"])
-                link.setManifestRspec(json_object["manifest_rspec"])                
+                link.setManifestRspec(json_object["manifest_rspec"]) 
+                lin.setControllerURL(json_object['controller_url'])
+               
                 self._network_links_by_urn[sliver_urn] = link
                 self._slivers_by_urn[sliver_urn] = link
 

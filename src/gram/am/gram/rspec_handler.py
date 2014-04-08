@@ -43,13 +43,14 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
             error string: String describing any error encountered during parsing
                           None if there is no error.
             sliver list: List of slivers created while parsing the rspec
-            controller is the url of the OF controller or None
+            controller_link_info: {link_name : controller_url} for links
+                for which the URL of the OF controller is set
     """
     # Initialize return values
     error_string = None
     error_code = constants.SUCCESS
     sliver_list = []
-    controller = None
+    controller_link_info = {}
         
     # Parse the xml rspec
     rspec_dom = parseString(rspec)
@@ -300,6 +301,13 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
         link_object.setName(link_name)
         sliver_list.append(link_object)
 
+        # Gather OF Controller for this link (if any)
+        controllers = link.getElementsByTagName('openflow:controller')
+        if len(controllers) > 0:
+            controller_node = controllers[0]
+            controller_url = controller_node.attributes['url'].value
+            controller_link_info[link_name] = controller_url
+
         # Get the end-points for this link.  Each end_point is a network
         # interface
         end_points = link.getElementsByTagName('interface_ref')
@@ -342,16 +350,11 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
             sliver_list.remove(link_object)
             geni_slice.removeSliver(link_object)
 
-    controllers = rspec_dom.getElementsByTagName('openflow:controller')
-    if len(controllers) > 0:
-        controller_node = controllers[0]
-        controller = controller_node.attributes['url'].value
-
     if stitching_handler:
         error_string, error_code, request_details =  \
             stitching_handler.parseRequestRSpec(rspec_dom)
 
-    return error_string, error_code, sliver_list, controller
+    return error_string, error_code, sliver_list, controller_link_info
 
 
 def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \

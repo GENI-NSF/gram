@@ -149,7 +149,6 @@ class Slice:
                               #  starting with 100.  This number is used as the
                               #  last octet for all IP addresses assigned to 
                               #  that VM.
-      self._controller_url = None    # Provided experimenter controller, if any
 
    def __str__(self):
       return resource_image(self, "Slice");
@@ -328,12 +327,6 @@ class Slice:
       
    def getRequestRspec(self) :
       return self._request_rspec
-      
-   def setControllerURL(self, controller_url):
-      self._controller_url = controller_url
-
-   def getControllerURL(self):
-      return self._controller_url
       
 
 # Base class for resource slivers
@@ -644,6 +637,7 @@ class NetworkLink(Sliver): # was Link
         self._network_uuid = None # quantum UUID of the link's network 
         self._subnet_uuid = None  # quantum UUID of the link's subnet 
         self._vlan_tag = None
+        self._controller_url = None  # Provided experimenter controller, if any
         Sliver.__init__(self, my_slice, uuid=uuid,urn=urn);
 
      def __str__(self):
@@ -679,6 +673,13 @@ class NetworkLink(Sliver): # was Link
 
      def getVLANTag(self) :
         return self._vlan_tag
+
+     def setControllerURL(self, controller_url):
+        self._controller_url = controller_url
+
+     def getControllerURL(self):
+        return self._controller_url
+      
     
 def _execCommand(cmd_string) :
     """

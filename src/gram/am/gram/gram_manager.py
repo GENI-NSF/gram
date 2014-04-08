@@ -158,9 +158,10 @@ class GramManager :
             # Parse the request rspec.  Get back any error message from parsing
             # the rspec and a list of slivers created while parsing
             # Also OF controller, if any
-            err_output, err_code, slivers, controller_url = \
-                rspec_handler.parseRequestRspec(self._aggregate_urn,slice_object, rspec, \
-                                                    self._stitching)
+            err_output, err_code, slivers, controller_link_info = \
+                rspec_handler.parseRequestRspec(self._aggregate_urn,
+                                                slice_object, rspec, 
+                                                self._stitching)
 
             if err_output != None :
                 # Something went wrong.  First remove from the slice any sliver
@@ -172,10 +173,11 @@ class GramManager :
                 code = {'geni_code': err_code}
                 return {'code': code, 'value': '', 'output': err_output}
 
-            # If we're associating an OpenFlow controller to this slice, 
+            # If we're associating an OpenFlow controller to 
+            # any link of this slice, 
             # Each VM must go on its own host. If there are more nodes
             # than hosts, we fail
-            if controller_url:
+            if len(controller_link_info) > 0:
                 hosts = open_stack_interface._listHosts('compute')
                 num_vms = 0
                 for sliver in slivers:
@@ -196,7 +198,11 @@ class GramManager :
                                 'output':error_output}
         
             # Set the experimenter provider controller URL (if any)
-            slice_object.setControllerURL(controller_url)
+            for link_object in slice_object.getNetworkLinks():
+                link_name = link_object.getName()
+                if link_name in controller_link_info:
+                    controller_url_for_link = controller_link_info[link_name]
+                    link_object.setControllerURL(controller_url_for_link)
 
             # Set expiration times on the allocated resources
             expiration = utils.min_expire(creds, 
@@ -618,7 +624,6 @@ class GramManager :
         if not config.vmoc_slice_autoregister: return
 
         slice_id = slice.getSliceURN()
-        controller_url = slice.getControllerURL()
 
         vlan_configs = []
 
@@ -636,6 +641,7 @@ class GramManager :
 
         # Register/unregister data networks
         for link in slice.getNetworkLinks():
+            controller_url = link.getControllerURL()
             data_network_vlan = link.getVLANTag()
             if data_network_vlan is None: continue
             data_net_config = \
