@@ -263,7 +263,7 @@ def check_mgmt_ns():
         for x in range(0,10):
             print "Restarting Quantum-L3 service to attempt to recover the namespace - attempt " + str(x)
             osi._execCommand('service quantum-l3-agent restart')
-            time.sleep(5)
+            time.sleep(20)
             mgmt_ns = _getMgmtNamespace()
             if mgmt_ns:
                 continue
