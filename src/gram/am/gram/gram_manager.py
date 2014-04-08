@@ -212,8 +212,14 @@ class GramManager :
             # stitching link
 #            print 'allocating external vlan'
             # Allocate external vlans and set them on the slivers
+            is_v2_allocation = 'AM_API_V2' in options
             for link_sliver_object in slice_object.getNetworkLinks():
-                self._stitching.allocate_external_vlan_tags(link_sliver_object, rspec)
+                success, error_string, error_code = \
+                    self._stitching.allocate_external_vlan_tags(link_sliver_object, \
+                                                                    rspec, is_v2_allocation)
+                if not success:
+                    return {'code' : {'geni_code' : error_code}, 'value' : "",
+                            'output' : error_string}
 
             # Associate an internal VLAN tag with every link 
             # that isn't already set by stitching
