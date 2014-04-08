@@ -403,7 +403,7 @@ class GramJSONDecoder:
                 link.setVLANTag(json_object['vlan_tag'])
                 link.setRequestRspec(json_object["request_rspec"])
                 link.setManifestRspec(json_object["manifest_rspec"]) 
-                lin.setControllerURL(json_object['controller_url'])
+                link.setControllerURL(json_object['controller_url'])
                
                 self._network_links_by_urn[sliver_urn] = link
                 self._slivers_by_urn[sliver_urn] = link
