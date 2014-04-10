@@ -46,7 +46,6 @@ from VMOCSliceRegistry import slice_registry_lookup_slices_by_url, slice_registr
 from VMOCUtils import *
 import gram.am.gram.config as config
 
-
 log = core.getLogger() # Use central logging service
 
 # Thread to manage connection with a controller:
@@ -188,15 +187,26 @@ class VMOCControllerConnection(threading.Thread):
     def _receive_get_config_request(self, ofp):
         log.debug("CC " + self._url + " recvd " + \
                       "'OFPT_GET_CONFIG_REQUEST" + str(ofp))
+        config_reply = ofp_get_config_reply(xid = ofp.xid)
 #        log.debug("CC " + self._url + " recvd " + "'OFPT_GET_CONFIG_REQUEST ")
+        log.debug("CONFIG %s" % (config_reply))
+        self.send(config_reply)
 
     def _receive_set_config(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_SET_CONFIG")
 #        log.debug("CC " + str(ofp))
 
     def _receive_stats_request(self, ofp):
-        log.debug("CC " + self._url + " recvd " + "'OFPT_STATS_REQUEST")
+        log.debug("CC " + self._url + " recvd " + "'OFPT_STATS_REQUEST " + str(ofp.type))
 #        log.debug("CC " +  str(ofp))
+        desc = ofp_desc_stats(mfr_desc="POX",
+                              hw_desc=core._get_platform_info(),
+                              sw_desc=core.version_string,
+                              serial_num=str(self._dpid),
+                              dp_desc=type(self).__name__)
+
+        stats_reply = ofp_stats_reply(xid=ofp.xid, body=desc)
+        self.send(stats_reply)
 
     def _receive_vendor(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_VENDOR")
