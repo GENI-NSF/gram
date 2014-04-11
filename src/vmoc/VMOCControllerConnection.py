@@ -211,6 +211,17 @@ class VMOCControllerConnection(threading.Thread):
     def _receive_vendor(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_VENDOR")
 #        log.debug("CC " +  str(ofp))
+        err = ofp_error(type=OFPET_BAD_REQUEST, code=OFPBRC_BAD_VENDOR)
+        if ofp:
+          err.xid = ofp.xid
+          err.data = ofp.pack()
+        else:
+          err.xid = 0
+
+        self.send(err)
+
+
+
 
     def _receive_echo_reply(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_ECHO_REPLY")
