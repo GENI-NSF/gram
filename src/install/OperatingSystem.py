@@ -144,17 +144,17 @@ class OperatingSystem(GenericInstaller):
         self.sed("s/host=.*/host=" + config.control_host_addr + "/","/home/gram/.gcf/gcf_config")
 
         # set up the /etc/hosts file
-        self.writeToFile("127.0.0.1       localhost", "~\hosts")
-        self.appendToFile(config.control_host_addr + " " + config.control_host, "~\hosts")
+        self.writeToFile("127.0.0.1       localhost", "~/hosts")
+        self.appendToFile(config.control_host_addr + " " + config.control_host, "~/hosts")
         self.appendToFile("", "\etc\hosts")
-        self.appendToFile("::1     ip6-localhost ip6-loopback", "~\hosts")
-        self.appendToFile("fe00::0 ip6-localne", "~\hosts")
-        self.appendToFile("ff00::0 ip6-mcastprefix", "~\hosts")
-        self.appendToFile("ff02::1 ip6-allnodes", "~\hosts")
-        self.appendToFile("ff02::2 ip6-allrouters", "~\hosts")
-        nodes = config.compute_hosts
-        for node in nodes:
-            self.appendToFile(nodes[node] + " " + node,"~/hosts")
+        self.appendToFile("::1     ip6-localhost ip6-loopback", "~/hosts")
+        self.appendToFile("fe00::0 ip6-localne", "~/hosts")
+        self.appendToFile("ff00::0 ip6-mcastprefix", "~/hosts")
+        self.appendToFile("ff02::1 ip6-allnodes", "~/hosts")
+        self.appendToFile("ff02::2 ip6-allrouters", "~/hosts")
+        #nodes = config.compute_hosts
+        #for node in nodes:
+        #    self.appendToFile(nodes[node] + " " + node,"~/hosts")
 
 
 
