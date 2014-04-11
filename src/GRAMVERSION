@@ -1,28 +1,21 @@
-tag v2.7
-Tagger: Regina Hain <rrhain@bbn.com>
-Date:   Mon Mar 10 11:57:24 2014 -0400
+tag v3.33
+Tagger: dabideen <dabideen@bbn.com>
+Date:   Fri Apr 11 11:25:44 2014 -0400
 
-v2.7
+v3.33
 
-commit bb68133734a1027282286fad8efb6879b07ba6b1
-Author: Marshall Brinn <mbrinn@bbn.com>
-Date:   Thu Mar 6 13:18:48 2014 -0500
+commit 7dac576409fef349f2f2d53bee5de2e00c66a539
+Author: dabideen <dabideen@bbn.com>
+Date:   Fri Apr 11 11:12:22 2014 -0400
 
-    Accept merged change for portal not link for stitching handler
+    The update package will move gcf to prevent error
 
-diff --git a/src/gram/am/gram/Archiving.py b/src/gram/am/gram/Archiving.py
-index 73bd48c..2dac99f 100755
---- a/src/gram/am/gram/Archiving.py
-+++ b/src/gram/am/gram/Archiving.py
-@@ -412,9 +412,9 @@ class GramJSONDecoder:
-                 if stitching_info:
-                     sliver_urn = link.getSliverURN()
-                     tag = stitching_info['vlan_tag']
--                    link = stitching_info['link']
-+                    port = stitching_info['port']
-                     self._stitching_handler.restoreStitchingState(sliver_urn, 
--                                                                  tag, link)
-+                                                                  tag, port)
-                 
-                 return link
- 
+diff --git a/pkg/gram_dpkg/DEBIAN_update/preinst b/pkg/gram_dpkg/DEBIAN_update/preinst
+index 2c361f2..0fe41bb 100755
+--- a/pkg/gram_dpkg/DEBIAN_update/preinst
++++ b/pkg/gram_dpkg/DEBIAN_update/preinst
+@@ -1,3 +1,4 @@
+ #!/bin/bash
++mv /opt/gcf/ ~/gcf.old
+ cp /etc/gram/config.json  ~/config_backup.json
+ cp /home/gram/.gcf/gcf_config  ~/gcf_config_backup
