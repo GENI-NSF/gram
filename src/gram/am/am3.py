@@ -39,6 +39,7 @@ import traceback
 import uuid
 import xml.dom.minidom as minidom
 import zlib
+import re
 
 import geni
 from geni.util.urn_util import publicid_to_urn
@@ -73,9 +74,19 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         #self._gram_manager.expire_slivers()
         result = ReferenceAggregateManager.GetVersion(self, options)
         hostname = socket.getfqdn()
+
+        version_file = open('/home/gram/gram/src/GRAMVERSION','r')
+        line = version_file.readline()
+        v = re.search("(\d*)\.(\d*)",line)
+        version_file.close()
+        if v:
+          gram_version = v.group(1) + "." + v.group(2)
+
+
         v3_url = "https://%s:%d" % (hostname, config.gram_am_port)
         v2_url = "https://%s:%d" % (hostname, config.gram_am_v2_port)
         geni_api_versions = {'2' : v2_url, '3' : v3_url}
+        result['value']['GRAM_version'] = gram_version
         result['value']['geni_api_versions'] = geni_api_versions
         result['code']['am_type'] = 'GRAM'
         return result
