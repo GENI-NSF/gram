@@ -362,7 +362,7 @@ class Stitching:
                             for interface in link_sliver_object.getEndpoints():
                                 interface.setVLANTag(tag)
 
-            return True, '', constants.SUCCESS
+        return True, '', constants.SUCCESS
 
     # Notes from conversation with AH:
     # Take the request and copy the stitching portion into the manifest, but change
