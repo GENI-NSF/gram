@@ -1,3 +1,4 @@
 #!/bin/bash
+mv /opt/gcf/ ~/gcf.old
 cp /etc/gram/config.json  ~/config_backup.json
 cp /home/gram/.gcf/gcf_config  ~/gcf_config_backup
