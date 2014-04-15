@@ -92,9 +92,26 @@ def compute_host_ping_status(host):
 def get_host_status():    
     compute_hosts = osi._listHosts('compute').keys()
 #    print "HOSTS = " + str(compute_hosts)
+
     status = {}
+    cmd = "nova-manage service list"
+    ret = subprocess.check_output(cmd, shell=True)
+    lines = ret.split('\n');
     for host in compute_hosts:
-        status[host] = compute_host_ping_status(host)
+        found = 0
+        for line in lines:
+            if line.find(host):
+                if line.find(':-)'):
+                    status[host] = ':-)'
+                    found = 0
+                    continue
+                else:
+                    status[host] = 'xxx'
+            if found == 0:
+                status[host] = 'xxx'
+          
+
+        #status[host] = compute_host_ping_status(host)
 
     return  status
 
@@ -113,7 +130,7 @@ def get_compute_status():
 
 def get_quantum_agent_status():
     cmd = "quantum agent-list"
-    print "Checking status of Openstack newtworking software modules: \n"
+    print "Checking status of Openstack networking software modules: \n"
     ret = subprocess.check_output(cmd, shell=True)
     lines = ret.split('\n');
     print lines[0]
@@ -266,7 +283,7 @@ def check_mgmt_ns():
             time.sleep(20)
             mgmt_ns = _getMgmtNamespace()
             if mgmt_ns:
-                continue
+                break
         if not mgmt_ns:
             print "WARNING: Unable to recover management namespace" 
             input_var = raw_input("Do you wish to recreate the management network? [y/N]: ")
