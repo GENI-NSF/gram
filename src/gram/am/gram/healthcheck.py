@@ -401,14 +401,14 @@ def perform_gram_healthcheck():
     else:
         print "Quantum - fail"
 
-    host_status = {}
-    if nova_status:
-        host_status = get_host_status()
-        for state in host_status:
-            if not host_status[state]:
-                print "Host " + state + " is not reachable by ping"
-            else:
-                print "Host " + state + " is reachable by ping"
+    #host_status = {}
+    #if nova_status:
+    #    host_status = get_host_status()
+    #    for state in host_status:
+    #        if not host_status[state]:
+    #            print "Host " + state + " is not reachable by ping"
+    #        else:
+    #            print "Host " + state + " is reachable by ping"
 
     am_status = compute_am_status(hostname)
     if am_status:
@@ -428,13 +428,13 @@ def perform_gram_healthcheck():
     # Turn this into a service that logs to a log file
         
 
-    template = \
-    "GRAM Healthcheck %s: KEY %s NOVA %s GLN %s" + \
-        " QNTM %s HOST %s AM %s GRAM %s"
-    print template % \
-        (hostname, keystone_status, nova_status, \
-             glance_status, quantum_status, str(host_status), \
-             am_status, gram_status)
+    #template = \
+    #"GRAM Healthcheck %s: KEY %s NOVA %s GLN %s" + \
+    #    " QNTM %s HOST %s AM %s GRAM %s"
+    #print template % \
+    #    (hostname, keystone_status, nova_status, \
+    #         glance_status, quantum_status, str(host_status), \
+    #         am_status, gram_status)
 
 
 
