@@ -417,9 +417,9 @@ def perform_gram_healthcheck():
         print "AM is down : Get-Version failed at AM"
 
 
-#    gram_status = compute_gram_status(hostname)
-#    if gram_status:
-#        print "AM is functioning"
+    gram_status = compute_gram_status(hostname)
+    if gram_status:
+        print "AM is functioning"
 
 
     # TTD
