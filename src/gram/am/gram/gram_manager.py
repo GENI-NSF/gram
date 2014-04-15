@@ -310,7 +310,7 @@ class GramManager :
         with slice_object.getLock() :
             err_str = open_stack_interface.provisionResources(slice_object,
                                                               sliver_objects,
-                                                              users)
+                                                              users, self)
             if err_str != None :
                 # We failed to provision this slice for some reason (described
                 # in err_str)
@@ -590,6 +590,17 @@ class GramManager :
         output = ret_val['output']
         value = code == constants.SUCCESS
         return {'code':code, 'value':value, 'output':output}
+
+    # Update manifest of sliver 
+    # (for slivers whose state is updated in background thread processing)
+    def update_sliver_manifest(self, slice_object, sliver_object):
+        sliver_request_element = rspec_handler.getRequestElementForSliver(sliver_object)
+        manifest = \
+            rspec_handler.generateManifestForSliver(slice_object, sliver_object, None,
+                                                    sliver_request_element, 
+                                                    self._aggregate_urn)
+        if manifest is not None:
+            sliver_object.setManifestRspec(manifest.toxml())
 
 
     # Persist state to file based on current timestamp

@@ -425,6 +425,7 @@ def getRequestElementForSliver(sliver):
     return None
 
 def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_urn):
+    if root == None: root = Document()
     node_name = "node"
 
     print request.toxml()
@@ -532,7 +533,6 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
                 print login
                 services.appendChild(login)
             node.appendChild(services)
-
 
         host = root.createElement("host")
         host_name = geni_sliver.getName()

@@ -32,6 +32,7 @@ import sys
 import string
 import netaddr
 import json
+import threading
 
 import resources
 import config
@@ -39,6 +40,8 @@ import constants
 import utils
 import gen_metadata
 import manage_ssh_proxy
+
+from xml.dom.minidom import *
 
 import compute_node_interface
 from compute_node_interface import compute_node_command, \
@@ -82,7 +85,7 @@ def cleanup(signal, frame) :
     pass
         
 
-def provisionResources(geni_slice, slivers, users) :
+def provisionResources(geni_slice, slivers, users, gram_manager) :
     """
         Allocate network and VM resources for this slice.
            geni_slice is the slice_object of the slice being provisioned
@@ -339,6 +342,14 @@ def provisionResources(geni_slice, slivers, users) :
     num_compute_nodes = _getComputeNodeCount()
     config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
     
+    # Now create the VMs in a background thread (so we return immediately while they are being created/booted)
+    create_vms_thread = threading.Thread(target=_createAllVMs, args=(vms_to_be_provisioned, num_compute_nodes, users, gram_manager, geni_slice))
+    create_vms_thread.start()
+
+def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager, slice_object):
+    num_vms_created = 0    # number of VMs created in this provision call
+    vm_uuids = []  # List of uuids of VMs created in this provision call
+
     # Before we create the VMs, we get a list of usernames that get accounts
     # on the VMs when they are created
     user_names = list() 
@@ -350,11 +361,7 @@ def provisionResources(geni_slice, slivers, users) :
                 # urn that follows the last +
                 user_names.append(user[key].split('+')[-1])
           
-    # Now create the VMs.
-    num_vms_created = 0    # number of VMs created in this provision call
-    vm_uuids = []  # List of uuids of VMs created in this provision call
-    vms_created_this_call = [] # List of VM objects corresponding to VMs 
-                               # created during this call to provision
+
     for vm in vms_to_be_provisioned  :
         if vm.getUUID() == None :
             # This VM object does not have an openstack VM associated with it.
@@ -388,10 +395,15 @@ def provisionResources(geni_slice, slivers, users) :
                 vm.setAllocationState(constants.provisioned)
                 num_vms_created += 1
                 vm_uuids.append(vm_uuid)
-                vms_created_this_call.append(vm)
                 vm.setAuthorizedUsers(user_names)
                 vm.setAllocationState(constants.provisioned)
                 vm.setOperationalState(constants.notready)
+#                print "VM = %s" % vm
+                # Recompute manifest for VM
+                gram_manager.update_sliver_manifest(slice_object, vm)
+
+    gram_manager.persist_state() # Save updated state after the VM's are set up
+    config.logger.info("Exiting createAllVMs thread...")
 
 # Delete all ports associated with given slice/tenant
 # Allow some failures: there will be some that can't be deleted
@@ -921,9 +933,8 @@ def _getPortsForTenant(tenant_uuid,device_id=None):
 
     return ports_info
 
-
 # users is a list of dictionaries [keys=>list_of_ssh_keys, urn=>user_urn]
-def _createVM(vm_object, users, placement_hint) :
+def _createVM(vm_object, users, placement_hint):
     """
         Create a OpenStack VM 
     """

@@ -115,6 +115,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "mgmt_net_addr":o.getMgmtNetAddr(),
                     "installs":o.getInstalls(),
                     "executes":o.getExecutes(),
+                    "authorized_users" : o.getAuthorizedUsers(), 
                     "network_interfaces":[nic.getSliverURN() for nic in o.getNetworkInterfaces()],
                     "last_octet":o.getLastOctet(),
                     "os_image":o.getOSImageName(),
@@ -311,6 +312,7 @@ class GramJSONDecoder:
                 vm.setOperationalState(json_object["operational_state"])
                 vm._installs = json_object["installs"]
                 vm._executes = json_object["executes"]
+                vm._authorized_users = json_object["authorized_users"]
                 vm._ip_last_octet = json_object["last_octet"]
                 vm._os_image = json_object["os_image"]
                 vm._os_type = json_object["os_type"]
