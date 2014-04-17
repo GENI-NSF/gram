@@ -783,17 +783,19 @@ class GramManager :
     # Clean up expired slices periodically
     def periodic_cleanup(self):
         token_table_user = 'keystone'
+        token_table_database = 'keystone'
         token_retention_window_days = 1
         while True:
             cmd = None
             try:
                 config.logger.info("Cleaning up expired slivers")
-                cmd = "echo mysql -u%s -p%s -h%s -e 'USE keystone ; DELETE FROM token WHERE NOT DATE_SUB(CURDATE(),INTERVAL %d DAY) <= expires;'" % \
+                cmd = "mysql -u%s -p%s -h%s %s -e 'DELETE FROM token WHERE NOT DATE_SUB(CURDATE(),INTERVAL %d DAY) <= expires'" % \
                     (token_table_user, config.mysql_password, 
-                     config.control_host_addr, token_retention_window_days)
+                     config.control_host_addr, token_table_database, 
+                     token_retention_window_days)
             except Exception, e:
                 print e
-#            print "CMD = %s" % cmd
+            print cmd
             os.system(cmd)
             self.expire_slivers()
             time.sleep(3000)
