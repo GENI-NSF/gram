@@ -563,7 +563,7 @@ def _createTenantAdmin(tenant_name, tenant_uuid) :
         Create an admin user account for this tenant.
     """
     admin_name = 'admin-' + tenant_name
-    if len(admin_name) > 36:
+    if len(admin_name) > 63:
         admin_name = str(uuid.uuid4())
     cmd_string = 'keystone user-create --name %s --pass %s --enabled true --tenant-id %s' % (admin_name, config.tenant_admin_pwd, tenant_uuid)
                                 
