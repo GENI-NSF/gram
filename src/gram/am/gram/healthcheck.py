@@ -38,6 +38,7 @@ import logging
 import fileinput
 import sys
 import os
+import random
 
 import open_stack_interface as osi
 
@@ -165,7 +166,7 @@ def compute_am_status(hostname):
 
 def compute_gram_status(hostname):
     gram_port = compute_gram_port()
-    slice_name = "DUMMY"
+    slice_name = "DUMMY" + str(random.randint(1,100000))
 
     rspec_name = "/tmp/dummy.rspec"
     f = open(rspec_name, 'w')
@@ -263,7 +264,7 @@ def _setField(field,value):
                 line = line.replace(line,'   "' + field + '": "' + value + '",\n' )
         sys.stdout.write(line)
 
-def check_mgmt_ns():
+def check_mgmt_ns(recreate=False):
     mgmt_ns = _getMgmtNamespace()
     conf_mgmt_ns = osi._getConfigParam('/etc/gram/config.json','mgmt_ns')
     mgmt_net_name = osi._getConfigParam('/etc/gram/config.json','management_network_name')
@@ -275,7 +276,7 @@ def check_mgmt_ns():
     public_subnet_cidr = osi._getConfigParam('/etc/gram/config.json','public_subnet_cidr')
     quantum_conf = "/etc/quantum/l3_agent.ini"
 
-    if not mgmt_ns:
+    if not mgmt_ns or recreate:
         print "WARNING: Management namespace NOT found"
         for x in range(0,10):
             print "Restarting Quantum-L3 service to attempt to recover the namespace - attempt " + str(x)
@@ -459,9 +460,13 @@ def perform_gram_healthcheck():
 
 if __name__ == "__main__":
         logging.basicConfig()
-        perform_gram_healthcheck()
-        #time.sleep(GRAM_HEALTHCHECK_INTERVAL)
 
+        if len(sys.argv) > 1:
+          if sys.argv[1] == 'recreate':
+            check_mgmt_ns(True) 
+        perform_gram_healthcheck()
+        #check_mgmt_ns(True)
+        #time.sleep(GRAM_HEALTHCHECK_INTERVAL)
 
         
     
