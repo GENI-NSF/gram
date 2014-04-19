@@ -154,47 +154,46 @@ class L2SimpleLearningSwitch (object):
 
     if packet.dst.is_multicast:
       flood() # 3a
+    elif packet.dst not in self.macToPort: # 4
+      flood("Port for %s unknown -- flooding" % (packet.dst,)) # 4a
     else:
-      if packet.dst not in self.macToPort: # 4
-        flood("Port for %s unknown -- flooding" % (packet.dst,)) # 4a
-      else:
-        port = self.macToPort[packet.dst]
-        if port == event.port: # 5
-          # 5a
-          log.warning("Same port for packet from %s -> %s on %s.%s.  Drop."
-              % (packet.src, packet.dst, dpid_to_str(event.dpid), port))
-          drop(10)
-          return
+      port = self.macToPort[packet.dst]
+      if port == event.port: # 5
+        # 5a
+        log.warning("Same port for packet from %s -> %s on %s.%s.  Drop."
+                    % (packet.src, packet.dst, dpid_to_str(event.dpid), port))
+        drop(10)
+        return
 
-        # 6
-        # Install the flow and send the packet out
-        log.debug("installing flow for %s.%d -> %s.%d" %
-                  (packet.src, event.port, packet.dst, port))
+      # 6
+      # Install the flow and send the packet out
+      log.debug("installing flow for %s.%d -> %s.%d" %
+                (packet.src, event.port, packet.dst, port))
 
-        # This is the change from the POX release l2_learning
-        # Only match on the dst MAC
-        msg = of.ofp_flow_mod()
-        msg.out_port = of.OFPP_NONE
+      # This is the change from the POX release l2_learning
+      # Only match on the dst MAC
+      msg = of.ofp_flow_mod()
+      msg.out_port = of.OFPP_NONE
 
 #        msg.match = of.ofp_match.from_packet(packet, event.port)
 #        msg.match = of.ofp_match(dl_src = packet.src, dl_dst = packet.dst);
-        msg.match = of.ofp_match()
-        msg.match.dl_src = packet.src
-        msg.match.dl_dst = packet.dst
+      msg.match = of.ofp_match()
+      msg.match.dl_src = packet.src
+      msg.match.dl_dst = packet.dst
 
-        p = packet.next
-        if isinstance(p, vlan):
-          msg.match.dl_vlan = p.id
-          msg.match.dl_vlan_pcp = p.pcp
+      p = packet.next
+      if isinstance(p, vlan):
+        msg.match.dl_vlan = p.id
+        msg.match.dl_vlan_pcp = p.pcp
 #          log.debug("Matching on VLAN " + str(p))
 
-        msg.idle_timeout = 10
-        msg.hard_timeout = 30
-        msg.actions.append(of.ofp_action_output(port = port))
+      msg.idle_timeout = 0
+      msg.hard_timeout = 0
+      msg.actions.append(of.ofp_action_output(port = port))
 #        msg.data = event.ofp # 6a
 
 #        log.debug("MSG = " + str(msg))
-        self.connection.send(msg)
+      self.connection.send(msg)
 
 
 class l2_simple_learning (object):

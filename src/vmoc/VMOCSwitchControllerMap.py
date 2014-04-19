@@ -88,6 +88,8 @@ class VMOCSwitchControllerMap(object):
         switch_conn = self._switch_connection_by_controller[controller_conn]
         vlan = controller_conn.getVLAN()
 
+        controller_conn.close()
+
         assert self._switch_connection_by_controller.has_key(controller_conn)
         del self._switch_connection_by_controller[controller_conn]
 

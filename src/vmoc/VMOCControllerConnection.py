@@ -127,6 +127,7 @@ class VMOCControllerConnection(threading.Thread):
         self.send(hello_msg)
 
     def close(self):
+        self._delete_old_vlan_flows()
 #        print "CLOSING " + str(self)
         self._sock.close()
 #        print "SOCKET CLOSED " + str(self)
@@ -148,6 +149,7 @@ class VMOCControllerConnection(threading.Thread):
     def _receive_hello(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_HELLO")
 #        log.debug("CC " +  str(ofp))
+        self._delete_old_vlan_flows()
 
     def _receive_echo(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_ECHO_REQUEST")
@@ -220,8 +222,14 @@ class VMOCControllerConnection(threading.Thread):
 
         self.send(err)
 
-
-
+    # Delete all flows for given VLAN prior to starting new slice or deleting existing slice
+    def _delete_old_vlan_flows(self):
+#        print "*** DELETING OLD VLANS %s *** " % self._vlan
+        match = of.ofp_match()
+        match.dl_vlan = self._vlan
+        flow_mod = of.ofp_flow_mod(match=match, command=of.OFPFC_DELETE)
+        print "FM = %s" % str(flow_mod)
+        self.forwardToAllAppropriateSwitches(flow_mod)
 
     def _receive_echo_reply(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_ECHO_REPLY")
