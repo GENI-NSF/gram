@@ -269,6 +269,15 @@ class ControllerURLCreationThread(threading.Thread):
                                                                   switch_conn)
                     self._running = False
             else:
+                # See if the controller URL is still associated with a 
+                # current slice. Otherwise, stop trying to connect.
+                url = self._controller_url
+                slice_configs_for_url = \
+                    slice_registry_lookup_slices_by_url(url)
+#                print "URL = %s CONFIG = %s" % (url, slice_configs_for_url)
+                if slice_configs_for_url is None or \
+                        len(slice_configs_for_url) == 0: 
+                    self._running = False
                 time.sleep(1)
 
         log.debug("Exiting ControllerURLCreationThread");
