@@ -1512,6 +1512,10 @@ def _execCommand(cmd_string) :
         raise
 
 
+# Number of seconds must wait before actually updating sliver status
+# Calls to 'nova show' and 'nova console-log' are rate limited
+# and give errors if you call them too frequenty
+UPDATE_OPERATIONAL_STATUS_RATE_LIMIT = 2
 def updateOperationalStatus(geni_slice) :
     """
         Update the operational status of all VM resources.
@@ -1520,7 +1524,22 @@ def updateOperationalStatus(geni_slice) :
     for i in range(0, len(vms)) :
         vm_object = vms[i]
         vm_uuid = vm_object.getUUID()
+        last_status_update = vm_object.getLastStatusUpdate()
+        now = time.time()
+        if last_status_update is not None and \
+                (now - last_status_update) < UPDATE_OPERATIONAL_STATUS_RATE_LIMIT:
+            config.logger.info("Not updating operational status until %f" % \
+                                    last_status_update)
+            continue;
+        vm_object.setLastStatusUpdate(now)
         if vm_uuid != None :
+            # If this is an image for which we can look in log
+            # to determine successful completion of boot, use that instead
+            # of nova show status
+            setting_status_by_boot_complete_msg = \
+                _set_status_by_boot_complete_msg(vm_object)
+            if setting_status_by_boot_complete_msg: continue
+
             cmd_string = 'nova show %s' % vm_uuid
             try :
                 output = _execCommand(cmd_string) 
@@ -1542,6 +1561,38 @@ def updateOperationalStatus(geni_slice) :
         network_uuid = link_object.getNetworkUUID() 
         if network_uuid != None :
             link_object.setOperationalState(constants.ready)
+
+# If the VM is booted with an image for which a 'boot_complete_msg' is
+# registered in the config.disk_image_metadata, use the console-log
+# rather than the nova show to determine the operational status
+def _set_status_by_boot_complete_msg(vm_object):
+    vm_uuid = vm_object.getUUID()
+    image_name = vm_object.getOSImageName()
+    if not image_name in config.disk_image_metadata or not \
+            'boot_complete_msg' in config.disk_image_metadata[image_name]:
+        return False
+
+    cmd_string = 'nova console-log --length 2 %s' % vm_uuid
+    try :
+        output = _execCommand(cmd_string)
+    except Exception, e:
+        config.logger.error("Failed to get console log %s" % vm_uuid)
+        vm_object.setOperationalState(constants.failed)
+    else:
+#        config.logger.info("VM IMAGE %s TYPE %s VERSION %s" % \
+#                               (image_name, vm_object.getOSType(), 
+#                                vm_object.getOSVersion()))
+        boot_complete_msg = \
+            config.disk_image_metadata[image_name]['boot_complete_msg']
+        
+        boot_done = output.find(boot_complete_msg) >= 0
+        config.logger.info("BOOT DONE MATCH = %s %s %s" % (boot_complete_msg, output, boot_done))
+        if boot_done:
+            vm_object.setOperationalState(constants.ready)
+        else:
+            vm_object.setOperationalState(constants.notready)
+
+    return True
 
 
 if __name__ == "__main__":

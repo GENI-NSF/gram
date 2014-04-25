@@ -484,6 +484,7 @@ class VirtualMachine(Sliver): #
       self._authorized_users =  None # List of User names with accts on the VM
       self._ssh_proxy_login_port = None # Port number assigned for remote 
                                         # SSH proxy login
+      self._last_status_update = None # Time of last status update
       self._external_ip = None  # floating ip assigned to the VM
       Sliver.__init__(self, my_slice, uuid=uuid, urn=urn)
 
@@ -564,8 +565,13 @@ class VirtualMachine(Sliver): #
 
    def getSSHProxyLoginPort(self) :
       return self._ssh_proxy_login_port
- 
 
+   def getLastStatusUpdate(self):
+      return self._last_status_update
+
+   def setLastStatusUpdate(self, update_time):
+      self._last_status_update = update_time
+ 
 # A NIC (Network Interface Card) resource
 class NetworkInterface(Sliver):  
      def __init__(self, my_slice, myVM, uuid=None,urn=None) :

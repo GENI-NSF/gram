@@ -125,6 +125,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "os_version":o.getOSVersion(),
                     "vm_flavor":o.getVMFlavor(),
                     "host":o.getHost(),
+                    "last_status_update" : o.getLastStatusUpdate(),
                     "port":o.getSSHProxyLoginPort()
                     }
         
@@ -321,6 +322,10 @@ class GramJSONDecoder:
                 vm.setRequestRspec(json_object["request_rspec"])
                 vm.setManifestRspec(json_object["manifest_rspec"])
                 vm.setHost(json_object['host'])
+                last_status_update = None
+                if 'last_status_update' in json_object:
+                    last_status_update = json_object['last_status_update']
+                vm.setLastStatusUpdate(last_status_update)
                 
                 # network_interfaces
                 self._network_interfaces_by_virtual_machine_urn[sliver_urn]  = \
