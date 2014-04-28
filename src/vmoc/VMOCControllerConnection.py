@@ -107,6 +107,9 @@ class VMOCControllerConnection(threading.Thread):
             (switch_connection._dpid & 0x000fffffffffffff)  
         self._dpid = controller_connection_dpid
 
+        log.info("DPID = %d %x %x"% (self._vlan, switch_connection._dpid, self._dpid))
+
+
         self._url = url
         (host, port) = VMOCControllerConnection.parseURL(url)
         self._host = host;
@@ -128,11 +131,11 @@ class VMOCControllerConnection(threading.Thread):
 
     def close(self):
         self._delete_old_vlan_flows()
-#        print "CLOSING " + str(self)
+        print "CLOSING " + str(self)
         self._sock.close()
-#        print "SOCKET CLOSED " + str(self)
+        print "SOCKET CLOSED " + str(self)
         self._running = False
-#        print "RUNNING = FALSE " + str(self)
+        print "RUNNING = FALSE (from close)" + str(self)
 
     def __str__(self):
         return "[VMOCControllerConnection DPID %s URL %s VLAN %d]" % (self._dpid, self._url, self._vlan)
@@ -161,10 +164,20 @@ class VMOCControllerConnection(threading.Thread):
         log.debug("CC " + self._url + " recvd " + "'OFPT_FEATURES_REQUEST")
 #        log.debug("CC " +  str(ofp))
         switch = scmap.lookup_switch_for_controller_connection(self)
+        if not switch:
+            print "No switch for controller (FEAT_REQ), dropping %s " % self
+            return
+
+        # Take the features reply from switch, clone it and set the DPID
+        # to the unique DPID for this connection 
+        # (based on switch DPID and VLAN)
         features_reply = switch._features_reply
+        conn_features_reply = of.ofp_features_reply()
+        conn_features_reply.unpack(features_reply.pack())
+        conn_features_reply.datapath_id = self._dpid
 #        print "Features Request " + str(ofp.xid) + " " + str(features_reply.xid)
-        features_reply.xid = ofp.xid
-        self.send(features_reply)
+        conn_features_reply.xid = ofp.xid
+        self.send(conn_features_reply)
 
     def _receive_flow_mod(self, ofp):
         log.debug("CC " + self._url + " recvd " + "'OFPT_FLOW_MOD")
@@ -247,6 +260,10 @@ class VMOCControllerConnection(threading.Thread):
 
         # Get switch for this connection
         switch = scmap.lookup_switch_for_controller_connection(self)
+        if not switch:
+            print "No switch for controller (FORWARD), dropping %s: %s" % \
+                (self, str(type(ofp)))
+            return 
 
         ofp_revised = self.validateMessage(ofp, switch)
         if ofp_revised is None:
@@ -425,6 +442,7 @@ class VMOCControllerConnection(threading.Thread):
                 if len(new_buf) == 0:
                     self._sock.close()
                     self._running = False;
+                    log.info("LEN(NEW_BUF) = 0 ... closing socket and setting self._running to False");
                     break
                 else:
                     buf = buf + new_buf
@@ -468,7 +486,9 @@ class VMOCControllerConnection(threading.Thread):
                 except Exception as e:
 #                    print "Exception " + str(e)
                     log.exception(e)
+                    log.exception(str(e))
                     self._running = False
+                    log.info("After Exception, setting self._running to False");
 
         scmap.remove_controller_connection(self)
         # If the controller connection died, we should try to restart 

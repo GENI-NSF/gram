@@ -40,11 +40,18 @@ log = core.getLogger() # Use the central logging service
 #    and controller connections (one per managed vlan per switch)
 class VMOCSwitchControllerMap(object):
 
+    # Lock on the map (class variable)
+    _lock = threading.RLock()
+
+    # Static class instance
+    _instance = None
+
     def __init__(self):
         self._switch_connections = []
         self._controller_connections_by_switch = {}
         self._controller_connections_by_vlan = {}
         self._switch_connection_by_controller = {}
+        VMOCSwitchControllerMap._instance = self
 
     # Find the controller connections associated 
     # with a given switch connection
@@ -57,6 +64,8 @@ class VMOCSwitchControllerMap(object):
     # Find the switch connection associated with the 
     # given controller connection
     def lookup_switch_for_controller(self, controller_conn):
+        if not controller_conn in self._switch_connection_by_controller:
+            return None
         return self._switch_connection_by_controller[controller_conn]
 
     # Add a new controller connection for given switch connection
@@ -181,44 +190,51 @@ class VMOCSwitchControllerMap(object):
         return image
 
 
-# Singleton instance
-_switch_controller_map = VMOCSwitchControllerMap()
-
 # static methods
+
+__static_map = VMOCSwitchControllerMap()
 
 # Find the controller connections associated with a given switch connection
 def lookup_controllers_for_switch_connection(switch_conn):
-    return _switch_controller_map.lookup_controllers_for_switch(switch_conn)
+    with VMOCSwitchControllerMap._lock:
+        return VMOCSwitchControllerMap._instance.lookup_controllers_for_switch(switch_conn)
 
 # Find the switch connection associated with the given controller connection
 def lookup_switch_for_controller_connection(controller_conn):
-    return _switch_controller_map.lookup_switch_for_controller(controller_conn)
+    with VMOCSwitchControllerMap._lock:
+        return VMOCSwitchControllerMap._instance.lookup_switch_for_controller(controller_conn)
 
 # Create a new controller connection at given URL and VLAN
 # and associate with all current switches
 def create_controller_connection(controller_url, vlan, open_on_create=True):
-    _switch_controller_map.create_controller_connection(controller_url, vlan, open_on_create)
+    with VMOCSwitchControllerMap._lock:
+        VMOCSwitchControllerMap._instance.create_controller_connection(controller_url, vlan, open_on_create)
 
 # Remove all controllere connections for a given slice id
 def remove_controller_connections_for_slice(slice_id):
-    _switch_controller_map.remove_controller_connections_for_slice(slice_id)
+    with VMOCSwitchControllerMap._lock:
+        VMOCSwitchControllerMap._instance.remove_controller_connections_for_slice(slice_id)
 
 # Remove this specific controller connection
 def remove_controller_connection(controller_conn):
-    _switch_controller_map.remove_controller_connection(controller_conn)
+    with VMOCSwitchControllerMap._lock:
+        VMOCSwitchControllerMap._instance.remove_controller_connection(controller_conn)
 
 # Add a new switch connection to the map, 
 # adding associated controller connections
 def add_switch_connection(switch_conn, open_on_create=True):
-    _switch_controller_map.add_switch(switch_conn, open_on_create)
+    with VMOCSwitchControllerMap._lock:
+        VMOCSwitchControllerMap._instance.add_switch(switch_conn, open_on_create)
 
 # Remove switch connection from map and all associated controller connections
 def remove_switch_connection(switch_conn, close_controller_connections=False):
-    _switch_controller_map.remove_switch(switch_conn, close_controller_connections)
+    with VMOCSwitchControllerMap._lock:
+        VMOCSwitchControllerMap._instance.remove_switch(switch_conn, close_controller_connections)
 
 # Dump contents of current switch controller map state
 def dump_switch_controller_map(print_results=False):
-    return _switch_controller_map.dump(print_results)
+    with VMOCSwitchControllerMap._lock:
+        return VMOCSwitchControllerMap._instance.dump(print_results)
 
 # Class that that spanws a thread and creates a connection to a controller
 # URL when the URL responds

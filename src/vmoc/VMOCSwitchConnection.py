@@ -53,6 +53,10 @@ class VMOCSwitchConnection(object):
     def getConnection(self): 
         return self._connection
 
+    def __str__(self):
+        return "[VMOCSwitchrConnection DPID %x]" % (self._dpid)
+
+
     # Handle OF event message received from switch
     def _handle_ConnectionUp(self, event):
         log.debug(str(event))
@@ -188,7 +192,7 @@ class VMOCSwitchConnection(object):
                 try:
                     matched_controller_conn.send(event.ofp)
                 except Exception as e:
-                    log.debug("Error writing to controller connection: resetting")
+                    log.debug("Error writing to controller connection: resetting %s" % e)
                     matched_controller_conn.close()
             else:
                 log.debug("Dropping packet : " + str(event) + " " + str(ethernet_packet) + " " + str(vlan_id))

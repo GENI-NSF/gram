@@ -31,13 +31,22 @@
 
 from VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
 import pdb
+import threading
 
 class VMOCSliceRegistry:
+
+    # Lock on the registry (class variable)
+    _lock = threading.RLock()
+
+    # Static class instance
+    _instance = None;
 
     def __init__(self):
         self._slices_by_url = dict()
         self._slice_by_slice_id = dict()
         self._slice_by_vlan = dict()
+        VMOCSliceRegistry._instance = self
+        
 
     # Return list of registered slices
     def get_slice_configs(self):
@@ -120,38 +129,46 @@ class VMOCSliceRegistry:
 
 # Static interface
 
-__registry = VMOCSliceRegistry(); # Singleton class instance
+__static_isntance = VMOCSliceRegistry()
 
 def slice_registry_get_slice_configs():
-    return __registry.get_slice_configs()
+    with VMOCSliceRegistry._lock:
+        return VMOCSliceRegistry._instance.get_slice_configs()
 
 # Register slice configuration with slice registry
 def slice_registry_register_slice(slice_config):
-    __registry.register_slice(slice_config)
-
+    with VMOCSliceRegistry._lock:
+        VMOCSliceRegistry._instance.register_slice(slice_config)
+    
 # Remove slice configuration with slice registry
 def slice_registry_unregister_slice(slice_id):
-    __registry.unregister_slice(slice_id)
+    with VMOCSliceRegistry._lock:
+        VMOCSliceRegistry._instance.unregister_slice(slice_id)
 
 # Lookup slice_configs associated with given URL
 def slice_registry_lookup_slices_by_url(controller_url):
-    return __registry.lookup_slices_by_url(controller_url)
+    with VMOCSliceRegistry._lock:
+        return VMOCSliceRegistry._instance.lookup_slices_by_url(controller_url)
 
 # Lookup slice_config associated with given slice_id
 def slice_registry_lookup_slice_config_by_slice_id(slice_id):
-    return __registry.lookup_slice_config_by_slice_id(slice_id)
+    with VMOCSliceRegistry._lock:
+        return VMOCSliceRegistry._instance.lookup_slice_config_by_slice_id(slice_id)
 
 # Lookup slice_config for given vlan tag
 def slice_registry_lookup_slice_config_by_vlan(vlan_tag):
-    return __registry.lookup_slice_config_by_vlan(vlan_tag)
+    with VMOCSliceRegistry._lock:
+        return VMOCSliceRegistry._instance.lookup_slice_config_by_vlan(vlan_tag)
 
 # Is given slice configuraiton already registered (by name and url)?
 def slice_registry_is_registered(slice_config):
-    return __registry.is_registered(slice_config)
+    with VMOCSliceRegistry._lock:
+        return VMOCSliceRegistry._instance.is_registered(slice_config)
 
 # Dump contents of slice registry
 def slice_registry_dump(print_results=False):
-    return __registry.dump(print_results)
+    with VMOCSliceRegistry._lock:
+        return VMOCSliceRegistry._instance.dump(print_results)
 
 
 if __name__ == "__main__":
