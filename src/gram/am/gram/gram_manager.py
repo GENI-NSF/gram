@@ -517,6 +517,8 @@ class GramManager :
                 open_stack_interface.expireSlice(slice_object)
                 # Update VMOC
                 self.registerSliceToVMOC(slice_object, False)
+                # Remove slice from GRAM
+                SliceURNtoSliceObject.remove_slice_object(slice_object.getSliceURN());
 
             # Free all stitching VLAN allocations
             for sliver in sliver_objects:
