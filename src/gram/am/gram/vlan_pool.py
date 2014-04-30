@@ -30,6 +30,8 @@ import threading
 
 class VLANPool:
 
+    ANY_TAG = 'any'
+
     def __init__(self, vlan_spec, name):
         self._lock = threading.RLock()
         self._all_vlans = VLANPool.parseVLANs(vlan_spec)
@@ -38,32 +40,51 @@ class VLANPool:
         self._name = name
 
     # Parse a comma-separated set of sorted tags into a list of tags
+    # if 'any' return 'any'
     @staticmethod
     def parseVLANs(vlan_spec):
+        vlan_spec = vlan_spec.strip()
+        if vlan_spec == VLANPool.ANY_TAG:
+            return vlan_spec
         ranges = (x.split("-") for x in vlan_spec.split(","))
         return [i for r in ranges for i in range(int(r[0]), int(r[-1]) + 1)]
+
+    # Turn a sorted list of tags into a string synposis of the tags
+    # hyphen-separated between groups, comma-separated between gaps
+    @staticmethod
+    def dumpVLANs(tags):
+        segments = []
+        if len(tags) == 0: return ""
+        current_start = tags[0]
+        current_end = tags[0]
+        for i in range(len(tags)):
+            if tags[i] <= current_end+1: 
+                # Continue current segment
+                current_end = tags[i]
+            else:
+                # end current segment, start new one
+                segments.append((current_start, current_end))
+                current_start = tags[i]
+                current_end = tags[i]
+        segments.append((current_start, current_end))
+            
+        return ",".join("%d-%d" % (seg[0], seg[1]) for seg in segments)
+
+
+
+    # Produce list of tags intersecting the available vlans with given set
+    # if given set is ANY, return available list. Otherwise compute intersection
+    def intersectAvailable(self, tags):
+        if tags == VLANPool.ANY_TAG:
+            return self._available_vlans
+        intersection = [tag for tag in tags if tag in self._available_vlans]
+        return intersection
 
     def __str__(self): return self.dumpAvailableVLANs()
 
     # Return available VLAN's as a comma-separated string of sequences
     def dumpAvailableVLANs(self):
-        segments = []
-        avail = self._available_vlans # Assumed to be sorted
-        if len(avail) == 0: return ""
-        current_start = avail[0]
-        current_end = avail[0]
-        for i in range(len(avail)):
-            if avail[i] <= current_end+1: 
-                # Continue current segment
-                current_end = avail[i]
-            else:
-                # end current segment, start new one
-                segments.append((current_start, current_end))
-                current_start = avail[i]
-                current_end = avail[i]
-        segments.append((current_start, current_end))
-            
-        return ",".join("%d-%d" % (seg[0], seg[1]) for seg in segments)
+        return VLANPool.dumpVLANs(self._available_vlans)
 
     # Return list of all VLAN tags for this pool (allocated and not)
     def getAllVLANs(self):
@@ -116,20 +137,33 @@ class VLANPool:
             return True
 
 if __name__ == "__main__":
-    pool = VLANPool('3-50,60-90')
+    pool = VLANPool('3-50,60-90', 'FOO')
     print pool.dumpAvailableVLANs()
-    print "Alloc 2 = %s " % pool.allocate(2)
+
+    success, tag = pool.allocate(2)
+    print "Alloc 2 = %s " % tag
     print pool.dumpAvailableVLANs()
-    print "Alloc 10 = %s " % pool.allocate(10)
+
+    success, tag = pool.allocate(10)
+    print "Alloc 10 = %s " % tag
     print pool.dumpAvailableVLANs()
-    print "Alloc 10 = %s " % pool.allocate(10)
+
+    success, tag = pool.allocate(10)
+    print "Alloc 10 = %s " % tag
     print pool.dumpAvailableVLANs()
-    print "Alloc 20 = %s " % pool.allocate(20)
+
+    success, tag = pool.allocate(20)
+    print "Alloc 20 = %s " % tag
     print pool.dumpAvailableVLANs()
-    print "Alloc 20 = %s " % pool.allocate(20)
+
+    success, tag = pool.allocate(20)
+    print "Alloc 20 = %s " % tag
     print pool.dumpAvailableVLANs()
-    print "Alloc 89 = %s " % pool.allocate(89)
+
+    success, tag = pool.allocate(89)
+    print "Alloc 89 = %s " % tag
     print pool.dumpAvailableVLANs()
+
     print "Free 88 = %s " % pool.free(88)
     print pool.dumpAvailableVLANs()
     print "Free 88 = %s " % pool.free(89)
@@ -140,6 +174,12 @@ if __name__ == "__main__":
     print pool.dumpAvailableVLANs()
     print "Free 20 = %s " % pool.free(20)
     print pool.dumpAvailableVLANs()
+
+    tags = pool.intersectAvailable(VLANPool.parseVLANs('1-10'))
+    print "TAGS = %s" % tags
+
+    tags = pool.intersectAvailable(VLANPool.ANY_TAG)
+    print "TAGS = %s" % tags
     
     
 

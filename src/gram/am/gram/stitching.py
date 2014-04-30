@@ -28,6 +28,7 @@ import datetime
 import json
 import logging
 import sys
+import resources
 from vlan_pool import VLANPool
 
 logger = logging.getLogger('gram.stitching')
@@ -92,25 +93,29 @@ class StitchingEdgePoint:
     # tags from the request
     # Return tag and success (whether successfully allocated)
     def allocateTag(self, request_suggested, request_available, is_v2_allocation):
-        request_suggested_values = VLANPool.parseVLANs(request_suggested)
+        request_suggested_tags = VLANPool.parseVLANs(request_suggested)
         selected = None
-        for candidate in request_suggested_values:
-            if self._vlans.isAvailable(candidate):
-                selected = candidate
-                break
+
+        # If 'suggested' is any
+        # Then pick from from the intersection of request_available
+        # and edge_point available
+        #     If 'request is any' then just pick from among 
+        #     edge_point available
+
+
+        # Find a tag that is both available and suggested
+        suggested_and_available_tags = \
+            self._vlans.intersectAvailable(request_suggested_tags)
+        if len(suggested_and_available_tags) > 0:
+            selected = suggested_and_available_tags[0]
 
         if not selected and not is_v2_allocation:
-            if request_available == 'any':
-                my_available = self._vlans._available_vlans
-                if len(my_available) > 0:
-                    selected = my_available[0]
-            else:
-                request_available_values = \
-                    VLANPool.parseVLANs(request_available)
-                for candidate in request_available_values:
-                    if self._vlans.isAvailable(candidate):
-                        selected = candidate
-                        break
+            request_available_tags = \
+                VLANPool.parseVLANs(request_available)
+            requested_and_available_tags = \
+                self._vlans.intersectAvailable(request_available_tags)
+            if len(requested_and_available_tags) > 0:
+                selected = requested_and_available_tags[0]
 
         if selected:
             self._vlans.allocate(selected)
@@ -307,7 +312,7 @@ class Stitching:
         return doc
 
     # Allocate VLAN's for stitching links
-    # Return 
+    # Return success, message, error_code
     def allocate_external_vlan_tags(self, link_sliver_object, request_rspec, is_v2_allocation):
         if isinstance(request_rspec, basestring): request_rspec = parseString(request_rspec)
         error_string, error_code, request_details = \
@@ -376,11 +381,9 @@ class Stitching:
     # Allocate = false: return manifest for provision call
     #
     # Return manifest doc and successfully allocated VLANs
-    def generateManifest(self, request, allocate, sliver):
+    def generateManifest(self, request, allocate, sliver_id):
 
         success = True
-
-        sliver_id = sliver.getSliverURN()
 
         if isinstance(request, basestring): request = parseString(request)
 
@@ -437,16 +440,21 @@ class Stitching:
     # As well as the tag_id (or None) allocated
     def allocateVLAN(self, link_id, hop_link, sliver_id, allocate, is_v2_allocation):
 
-        print "AllocateVLAN %s %s %s" % (link_id, hop_link.toxml(), sliver_id)
+        print "AllocateVLAN %s %s %s %s %s" % \
+            (link_id, sliver_id, allocate, is_v2_allocation, hop_link.toxml())
 
-        suggested, available = self.parseVLANTagInfo(hop_link)
+        request_suggested, request_available = self.parseVLANTagInfo(hop_link)
         edge_point = self._edge_points[link_id]
         if allocate:
             # Grab a new tag from available list
+            request_available_tags = VLANPool.parseVLANs(request_available)
+            available_intersection_tags = \
+                edge_point._vlans.intersectAvailable(request_available_tags)
+            available = VLANPool.dumpVLANs(available_intersection_tags)
             selected_vlan, success = \
-                edge_point.allocateTag(suggested,available, is_v2_allocation)
+                edge_point.allocateTag(request_suggested, request_available, \
+                                           is_v2_allocation)
             if not success: return False, None # Failure
-            available = edge_point.availableVLANs()
             self._reservations[sliver_id] = {'vlan_tag' : selected_vlan,
                                              'link' : link_id}
         else:
@@ -463,7 +471,7 @@ class Stitching:
         availability_node = availability_nodes[0]
         suggested_nodes = hop_link.getElementsByTagName('suggestedVLANRange')
         suggested_node = suggested_nodes[0]
-        suggested_node.childNodes[0].nodeValue = suggested
+        suggested_node.childNodes[0].nodeValue = str(suggested)
         availability_node.childNodes[0].nodeValue = available
 
     def parseVLANTagInfo(self, hop_link):
@@ -618,28 +626,76 @@ if __name__ == '__main__':
     is_stitching = stitching.isStitchingRSpec(request)
     print("IS STITCHING " + str(is_stitching))
 
-    sliver_id = "777"
+    slice = resources.Slice('foo')
+    link_sliver1 = resources.NetworkLink(slice)
+    link_sliver1.setName('link-bos-cal')
+    sliver_id1 = link_sliver1.getSliverURN()
+
+    link_sliver2 = resources.NetworkLink(slice)
+    link_sliver2.setName('link-bos-cal')
+    sliver_id2 = link_sliver2.getSliverURN()
+
+    success, msg, code = \
+        stitching.allocate_external_vlan_tags(link_sliver1, request, True);
+    if not success:
+        print "Error: %s %s %s" % (success, msg, code)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   True, sliver_id1)
+    print manifest.toxml()
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
 
     manifest, output, code = stitching.generateManifest(request, 
-                                                   True, sliver_id)
+                                                        False, sliver_id1)
     print manifest.toxml()
-    manifest, output, code = stitching.generateManifest(request, 
-                                                   True, sliver_id)
-    print manifest.toxml()
-    manifest, output, code = stitching.generateManifest(request, 
-                                                   False, sliver_id)
-    print manifest.toxml()
-    manifest, output_code = stitching.generateManifest(request, 
-                                                   True, sliver_id)
-    print manifest.toxml()
-    manifest, output_code = stitching.generateManifest(request, 
-                                                   False, sliver_id)
-    print manifest.toxml()
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
 
-    stitching.deleteAllocation(sliver_id)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   True, sliver_id2)
+    print manifest.toxml()
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
+
+    success, msg, code = \
+        stitching.allocate_external_vlan_tags(link_sliver2, request, True);
+    if not success:
+        print "Error: %s %s %s" % (success, msg, code)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   False, sliver_id2)
+    print manifest.toxml()
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
+
+
+    success, msg, code = \
+        stitching.allocate_external_vlan_tags(link_sliver2, request, False);
+    if not success:
+        print "Error: %s %s %s" % (success, msg, code)
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   False, sliver_id2)
+    print manifest.toxml()
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
+
+    manifest, output, code = stitching.generateManifest(request, 
+                                                   True, sliver_id2)
+    print manifest.toxml()
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
+
+
+
+    stitching.deleteAllocation(sliver_id1)
 
     for link, edge_point in stitching._edge_points.items():
         print "Link %s EP %s" % (link, edge_point)
+
+    stitching.deleteAllocation(sliver_id2)
+
+    for link, edge_point in stitching._edge_points.items():
+        print "Link %s EP %s" % (link, edge_point)
+
 
 
 
