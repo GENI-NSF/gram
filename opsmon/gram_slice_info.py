@@ -27,47 +27,30 @@ def parse_snapshot(snapshot_filename):
         for object in snapshot_data:
             if "__type__" in object:
                 obj_type = object['__type__']
-                expiration = object['expiration']
-                creation = None
-                user_urn = object['user_urn']
-                urn = None
-                host = None
-                uuid = None
-                vm = None
-                slice_uid = None
                 if obj_type == 'Slice':
                     urn = object['slice_urn']
-                    slice_uid = object['tenant_uuid']
-                    obj_name = None
-                    objects_by_uid[slice_uid] = urn
+                    uid = object['tenant_uuid']
+                    object['slice'] = uid
                 elif obj_type in ['VirtualMachine', 'NetworkInterface', \
                                       'NetworkLink']:
                     urn = object['sliver_urn']
-                    uuid = object['uuid']
-                    slice_uid = object['slice']
-                    obj_name = object['name']
-                    creation = object['creation']
-                    if 'host' in object: host = object['host']
-                    if obj_type == 'NetworkInterface': 
-                        vm = object['virtual_machine']
-                    
-                objects_by_urn[urn] = \
-                    {'type' : obj_type, 'name' : obj_name, 
-                     'slice' : slice_uid, 'expiration' : expiration,
-                     'host' : host, 'virtual_machine' : vm, 
-                     'uuid' : uuid,
-                     'creation' : creation, 'user_urn' : user_urn}
+                    uid = object['uuid']
+
+                if urn is not None and uid is not None:
+                    objects_by_urn[urn] = object
+                    objects_by_uid[uid] = object
 
     # Connect slice uuid into slice_urn
     for obj_urn, obj_attributes in objects_by_urn.items():
         slice_uid = obj_attributes['slice']
-        if slice is not None:
-            slice_urn = objects_by_uid[slice_uid]
+        if slice_uid is not None:
+            slice = objects_by_uid[slice_uid]
+            slice_urn = slice['slice_urn']
             obj_attributes['slice_urn'] = slice_urn
 
     # Set up hosts for interfaces from associated VM
     for obj_urn, obj_attributes in objects_by_urn.items():
-        if obj_attributes['type'] == 'NetworkInterface':
+        if obj_attributes['__type__'] == 'NetworkInterface':
             vm_urn = obj_attributes['virtual_machine']
             vm_attributes = objects_by_urn[vm_urn]
             vm_host = vm_attributes['host']
