@@ -88,6 +88,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         geni_api_versions = {'2' : v2_url, '3' : v3_url}
         result['value']['GRAM_version'] = gram_version
         result['value']['geni_api_versions'] = geni_api_versions
+        result['value']['geni_am_type'] = 'GRAM'
+        result['value']['geni_am_urn'] = self._gram_manager._aggregate_urn
         result['code']['am_type'] = 'GRAM'
         return result
 
