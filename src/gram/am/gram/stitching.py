@@ -381,7 +381,7 @@ class Stitching:
     # Allocate = false: return manifest for provision call
     #
     # Return manifest doc and successfully allocated VLANs
-    def generateManifest(self, request, allocate, sliver_id):
+    def generateManifest(self, request, allocate, sliver_object):
 
         success = True
 
@@ -399,6 +399,8 @@ class Stitching:
         request = request.getElementsByTagName('rspec')[0]
         stitching_request = request.getElementsByTagName('stitching')[0]
         stitching_request_paths = stitching_request.getElementsByTagName('path')
+
+        sliver_id = sliver_object.getSliverURN()
 
         doc = Document()
 
@@ -426,6 +428,13 @@ class Stitching:
                     for i in range(len(manifest_link_children)):
                         child = manifest_link_children[i]
                         manifest_link.appendChild(child)
+
+                    # Copy the VLAN allocation information
+                    if link_id in self._edge_points: # One of my links
+                        success, tag = self.allocateVLAN(link_id,
+                                                         manifest_link,
+                                                         sliver_id,
+                                                         False, False)
 
                 next_hop = hop.getElementsByTagName('nextHop')[0]
                 manifest_hop.appendChild(next_hop)
