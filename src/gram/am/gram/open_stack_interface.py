@@ -469,7 +469,6 @@ def deleteSlivers(geni_slice, slivers) :
 
     if len(links_to_be_deleted) == 0 and geni_slice.getTenantRouterUUID():
         # Delete the router
-        print 'this'
         router_uuid = geni_slice.getTenantRouterUUID()
         cmd_string = 'quantum router-delete %s' % router_uuid
         try:

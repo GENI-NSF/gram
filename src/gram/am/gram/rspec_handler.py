@@ -262,7 +262,6 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
                 info_string = 'Added executable %s of %s' % (exec_command, exec_shell)
                 config.logger.info(info_string)
 
-    print 'over here'
 
     # Done getting information about nodes in the rspec.  Now get information
     # about links.
