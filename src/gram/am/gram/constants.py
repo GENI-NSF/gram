@@ -44,6 +44,7 @@ SUCCESS = 0
 REQUEST_PARSE_FAILED = 1        # aka BADARGS
 UNKNOWN_SLICE = 12              # aka SEARCHFAILED
 UNSUPPORTED = 13                
+RESOURCE_BUSY = 14
 SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
 OUT_OF_RANGE = 19               # typically for time mismatches
 VLAN_UNAVAILABLE = 24
