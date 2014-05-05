@@ -468,7 +468,7 @@ def read_state(filename, gram_manager, stitching_handler):
             if "GRAM_MANAGER_STATE" in json_obj:
                 manager_persistent_state = json_obj['GRAM_MANAGER_STATE']
                 gram_manager.setPersistentState(manager_persistent_state)
-                print "GMPS = %s " % gram_manager.getPersistentState()
+#                print "GMPS = %s " % gram_manager.getPersistentState()
             elif "SSH_PROXY" in json_obj:
                 # Restore SSH Proxy table (IP address to port)
                 SSHProxyTable._restore(json_obj['SSH_PROXY'])
