@@ -362,6 +362,9 @@ def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager,
                 user_names.append(user[key].split('+')[-1])
           
 
+    # For efficiency, create all VM's in parallel and then wait for them
+    # these threads to finish before returning
+    creation_threads = {}
     for vm in vms_to_be_provisioned  :
         if vm.getUUID() == None :
             # This VM object does not have an openstack VM associated with it.
@@ -370,34 +373,44 @@ def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager,
                 # We are in Step 1 or Step 3 of the VM placement algorithm
                 # described above.  We don't give openstack any hints on
                 # where this VM should go
-                vm_uuid = _createVM(vm, users, None)
+                creation_thread = \
+                    threading.Thread(target=_createVM, args=(vm, users, None))
+                creation_threads[vm] = creation_thread
+                creation_thread.start()
             else :
-                vm_uuid = _createVM(vm, users, vm_uuids)
-            if vm_uuid == None :
-                # Failed to create this vm.  Cleanup actions before
-                # we return:
-                #    - delete all the VMs created in this call to provision
-                #    - delete the network links created so far in this
-                #      call to provisionResources
-                #    - delete tenant admin
-                #    - delete tenant
-                #for i in range (0, len(vms_created_this_call)) :
-                #    _deleteVM(vms_created_this_call[i])
-                #    for i in range(0, len(links_created_this_call)) :
-                #        _deleteNetworkLink(geni_slice, links_created_this_call)
-                #    _deleteUserByUUID(admin_user_info['admin_uuid'])
-                #    _deleteTenantByUUID(tenant_uuid)
-                #config.logger.error('Failed to create vm for node %s' % \
-                #                        vm.getName())
-                return 'GRAM internal error: Failed to create a VM for node %s' % vm.getName()
-            else :
-                vm.setUUID(vm_uuid)
-                vm.setAllocationState(constants.provisioned)
-                num_vms_created += 1
-                vm_uuids.append(vm_uuid)
-                vm.setAuthorizedUsers(user_names)
-                vm.setAllocationState(constants.provisioned)
-                vm.setOperationalState(constants.notready)
+                creation_thread = \
+                    threading.Thread(target=_createVM, args=(vm, users, vm_uuids))
+                creation_threads[vm] = creation_thread
+                creation_thread.start()
+
+    for vm, creation_thread in creation_threads.items():
+        creation_thread.join()
+        vm_uuid = vm.getUUID()
+        if vm_uuid == None :
+            # Failed to create this vm.  Cleanup actions before
+            # we return:
+            #    - delete all the VMs created in this call to provision
+            #    - delete the network links created so far in this
+            #      call to provisionResources
+            #    - delete tenant admin
+            #    - delete tenant
+            #    for i in range (0, len(vms_created_this_call)) :
+            #    _deleteVM(vms_created_this_call[i])
+            #    for i in range(0, len(links_created_this_call)) :
+            #        _deleteNetworkLink(geni_slice, links_created_this_call)
+            #    _deleteUserByUUID(admin_user_info['admin_uuid'])
+            #    _deleteTenantByUUID(tenant_uuid)
+            #    config.logger.error('Failed to create vm for node %s' % \
+            #                        vm.getName())
+            return 'GRAM internal error: Failed to create a VM for node %s' % vm.getName()
+        else :
+            vm.setUUID(vm_uuid)
+            vm.setAllocationState(constants.provisioned)
+            num_vms_created += 1
+            vm_uuids.append(vm_uuid)
+            vm.setAuthorizedUsers(user_names)
+            vm.setAllocationState(constants.provisioned)
+            vm.setOperationalState(constants.notready)
 #                print "VM = %s" % vm
 
     gram_manager.persist_state() # Save updated state after the VM's are set up
@@ -1083,7 +1096,7 @@ def _createVM(vm_object, users, placement_hint):
         config.logger.info('SSH Proxy assigned port number %d to host %s' % \
                                (portNumber, vm_name))
 
-    return vm_uuid
+    vm_object.setUUID(vm_uuid)
 
 def _createImage(slivers,options):
     found  = False
