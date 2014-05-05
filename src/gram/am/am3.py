@@ -316,7 +316,6 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         statuses.'''
         # Loop over the resources in a sliver gathering status.
         #import pdb; pdb.set_trace()
-        self.logger.info('got here')
         self.logger.info('Status(%r)' % (urns))
         #self._gram_manager.expire_slivers()
         the_slice, slivers = self._gram_manager.decode_urns(urns)
