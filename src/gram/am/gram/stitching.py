@@ -369,80 +369,42 @@ class Stitching:
 
         return True, '', constants.SUCCESS
 
-    # Notes from conversation with AH:
-    # Take the request and copy the stitching portion into the manifest, but change
-    # only the parts that are yours (that are links from your advertisement)
-    # and replace the vlan tag 
-    # Find hops whose links are mine
-    # Requested VLAN can be 'any' or a specific value
-    # Stitching: Two different component managers (one is me)
-    # request_details: parsed from request: My nodes, my links, my hops
-    # Allocate = true: return manifest for allocate call
-    # Allocate = false: return manifest for provision call
-    #
-    # Return manifest doc and successfully allocated VLANs
-    def generateManifest(self, request, allocate, sliver_object):
+    # Copy the VLAN allocation info into the appropriate stitching link
+    # in manifest. 
+    # If allocate, allocate VLAN's based on suggested, available
+    # If not (provision), use the VLAN's
+    # Return err_value, error_code
+    def updateManifestForSliver(self, manifest, sliver_object, allocate):
 
-        success = True
-
-        if isinstance(request, basestring): request = parseString(request)
-
-        error_string, error_code, request_details = \
-            self.parseRequestRSpec(request)
-
-        if not request_details:
-            return None, None, constants.SUCCESS # No stitching, no error
-
-        # We perform destructive operations on request to make manifest
-        request = request.cloneNode(True)
-
-        request = request.getElementsByTagName('rspec')[0]
-        stitching_request = request.getElementsByTagName('stitching')[0]
-        stitching_request_paths = stitching_request.getElementsByTagName('path')
+       #/ We only update manifests on network links
+        if not isinstance(sliver_object, resources.NetworkLink): 
+            return None, constants.SUCCESS
 
         sliver_id = sliver_object.getSliverURN()
 
-        doc = Document()
+        stitching_elts = manifest.getElementsByTagName('stitching')
+        if len(stitching_elts) == 0: return None, constants.SUCCESS
+        stitching = stitching_elts[0]
 
-        base = self.createChild("stitching", doc, doc)
-        last_update_time = self.getLastUpdateTime()
-        base.setAttribute("lastUpdateTime", last_update_time)
-        base.setAttribute("xmlns", self._namespace)
-
-        for path in stitching_request_paths:
-            path_id = path.attributes['id'].value
-#            print "PID = " + path_id
-            manifest_path = self.createChild("path", base, doc)
-            manifest_path.setAttribute('id', path_id)
-            stitching_request_hops = path.getElementsByTagName('hop')
-            for hop in stitching_request_hops:
-                hop_id = hop.attributes['id'].value
-                manifest_hop = self.createChild("hop", manifest_path, doc)
-                manifest_hop.setAttribute('id', hop_id)
-                links = hop.getElementsByTagName('link')
-                for link in links:
+        for path in stitching.getElementsByTagName('path'):
+            for hop in path.getElementsByTagName('hop'):
+                for link in hop.getElementsByTagName('link'):
                     link_id = link.attributes['id'].value
-                    manifest_link = self.createChild("link", manifest_hop, doc)
-                    manifest_link.setAttribute('id', link_id)
-                    manifest_link_children = [child for child in link.childNodes] 
-                    for i in range(len(manifest_link_children)):
-                        child = manifest_link_children[i]
-                        manifest_link.appendChild(child)
-
-                    # Copy the VLAN allocation information
-                    if link_id in self._edge_points: # One of my links
-                        success, tag = self.allocateVLAN(link_id,
-                                                         manifest_link,
+                    # One of my links
+                    if link_id in self._edge_points:
+                        success, tag = self.allocateVLAN(link_id, link, 
                                                          sliver_id,
-                                                         False, False)
+                                                         allocate, 
+                                                         False)
+                        if not success:
+                            return "Failure to allocate VLAN", \
+                                constants.VLAN_UNAVAILABLE
 
-                next_hop = hop.getElementsByTagName('nextHop')[0]
-                manifest_hop.appendChild(next_hop)
+        return None, constants.SUCCESS                       
 
-        return doc, None, constants.SUCCESS
 
     # Set the suggested and availability fields of manifest hop_link
-    # For a given sliver
+    # For a given link sliver
     # If 'allocate', pick a new tag (if available)
     # If not 'allocate', use the one that is already allocated
     # Return True if successfully allocated, False if failed to allocate

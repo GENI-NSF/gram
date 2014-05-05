@@ -400,8 +400,6 @@ def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager,
                 vm.setAllocationState(constants.provisioned)
                 vm.setOperationalState(constants.notready)
 #                print "VM = %s" % vm
-                # Recompute manifest for VM
-                gram_manager.update_sliver_manifest(slice_object, vm)
 
     gram_manager.persist_state() # Save updated state after the VM's are set up
     config.logger.info("Exiting createAllVMs thread...")

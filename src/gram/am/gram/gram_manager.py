@@ -611,17 +611,6 @@ class GramManager :
         value = code == constants.SUCCESS
         return {'code':code, 'value':value, 'output':output}
 
-    # Update manifest of sliver 
-    # (for slivers whose state is updated in background thread processing)
-    def update_sliver_manifest(self, slice_object, sliver_object):
-        sliver_request_element = rspec_handler.getRequestElementForSliver(sliver_object)
-        manifest = \
-            rspec_handler.generateManifestForSliver(slice_object, sliver_object, None,
-                                                    sliver_request_element, 
-                                                    self._aggregate_urn)
-        if manifest is not None:
-            sliver_object.setManifestRspec(manifest.toxml())
-
 
     # Persist state to file based on current timestamp
     __persist_filename_format="%Y_%m_%d_%H_%M_%S"

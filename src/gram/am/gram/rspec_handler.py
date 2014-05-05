@@ -269,7 +269,6 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
                  link.nodeName == 'link']
 
 
-    print link_list
     for link in link_list :
         print 'link: ' + link.toxml()
         # Get information about this link from the rspec
@@ -360,57 +359,46 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
                                    allocate, 
                                    aggregate_urn,  \
                                    stitching_handler = None):
-
+    
     err_code = constants.SUCCESS
     err_output = None
 
-    req_rspec = geni_slice.getRequestRspec()
-    doc = parseString(req_rspec)
-    request = doc.getElementsByTagName('rspec')[0]
-
-    root = Document()
-    manifest = root.createElement("rspec")
+    # Clone the request and set the 'type' to 'manifest
+    request = geni_slice.getRequestRspec()
+    if isinstance(request, basestring): request = parseString(request)
+    manifest_doc = request.cloneNode(True)
+    config.logger.error("DOC = %s" % manifest_doc.toxml())
+    manifest = manifest_doc.getElementsByTagName('rspec')[0]
     manifest.setAttribute('type', 'manifest')
-    root.appendChild(manifest)
+    root = Document()
 
-    namespace = request.attributes['xmlns'].value
-    manifest.setAttribute("xmlns", namespace)
-    xml_schema_instance = request.attributes['xmlns:xsi'].value
-    manifest.setAttribute("xmlns:xsi", xml_schema_instance)
-    xsi_schema_location = request.attributes['xsi:schemaLocation'].value
-    xsi_schema_location = xsi_schema_location.replace('request.xsd', 
-                                                      'manifest.xsd')
-    manifest.setAttribute("xsi:schemaLocation", xsi_schema_location)
-
+    # For each sliver, find the corresponding manifest element
+    # and copy relevant information
     for sliver in geni_slivers:
-        sliver_request_element = getRequestElementForSliver(sliver)
-        sliver_manifest = None
-        sliver_manifest_raw = sliver.getManifestRspec()
-        if sliver_manifest_raw is not None: 
-            sliver_manifest = parseString(sliver_manifest_raw).childNodes[0]
-        if recompute:
-            sliver_manifest = \
-                generateManifestForSliver(geni_slice, sliver, \
-                                              root, sliver_request_element,aggregate_urn)
+        sliver_element  = None
+        client_id = sliver.getName()
+        sliver_id = sliver.getSliverURN()
+        for child in manifest.childNodes:
+            if (isinstance(sliver, NetworkLink) and child.nodeName == 'link')\
+                    or \
+                    (isinstance(sliver, VirtualMachine) and child.nodeName =='node'):
+                if child.attributes['client_id'].value == client_id:
+                    sliver_element = child
+                    break
 
-            sliver.setManifestRspec(sliver_manifest.toxml())
-        if sliver_manifest is not None:
-            manifest.appendChild(sliver_manifest)
+        if sliver_element:
+            
+            updateManifestForSliver(sliver, sliver_element, root)
 
-    for sliver in geni_slivers:
         if stitching_handler:
-            if isinstance(sliver, NetworkLink):
-                stitching_manifest, err_output,  err_code = \
-                   stitching_handler.generateManifest(req_rspec, allocate, \
-                                                       sliver)
-                if err_code != constants.SUCCESS:
-                    return None, err_output, err_code
+            err_output, err_code = \
+                stitching_handler.updateManifestForSliver(manifest, sliver,
+                                                          allocate)
 
-                if stitching_manifest:
-                    stitching_manifest_element = stitching_manifest.childNodes[0]
-                    manifest.appendChild(stitching_manifest_element)
+            if err_code != constants.SUCCESS:
+                return None, err_output, err_code
 
-    return cleanXML(root, "Manifest"), err_output, err_code
+    return cleanXML(manifest, "MANIFEST"), err_output, err_code
 
 
 def getRequestElementForSliver(sliver):
@@ -423,97 +411,90 @@ def getRequestElementForSliver(sliver):
             return child
     return None
 
-def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_urn):
-    if root == None: root = Document()
-    node_name = "node"
 
-    print request.toxml()
-    if geni_sliver.__class__ == NetworkLink: node_name = "link"
-    node = root.createElement(node_name)
+# Update XML element in manifest with information from given sliver
+def updateManifestForSliver(sliver_object, sliver_elt, root):
+    client_id = sliver_object.getName()
+    sliver_id = sliver_object.getSliverURN()
 
-    if geni_sliver.__class__ == NetworkInterface:
-        return None
+    if isinstance(sliver_object, NetworkLink):
 
-    client_id = geni_sliver.getName()
-    node.setAttribute("client_id", client_id)
-    sliver_id = geni_sliver.getSliverURN()
-    node.setAttribute("sliver_id", sliver_id)
-    if geni_sliver.__class__ == NetworkLink:
+        sliver_elt.setAttribute('vlantag', str(sliver_object.getVLANTag()))
 
-        link_list = geni_slice.getNetworkLinks()
-        for i in range(len(link_list)) :
-                if client_id == link_list[i].getName() :
-                    link_object = link_list[i]
-                    break
+    elif isinstance(sliver_object, VirtualMachine):
 
-        node.setAttribute("vlantag", str(link_object.getVLANTag()))
-
-        for interface in geni_sliver.getEndpoints():
-            interface_ref = root.createElement('interface_ref')
-            client_id = interface.getName()
-            interface_ref.setAttribute('client_id', client_id)
-            node.appendChild(interface_ref)
-
-        property_nodes = request.getElementsByTagName('property')
-        for property_node in property_nodes:
-            node.appendChild(property_node)
-
-        link_type_nodes = request.getElementsByTagName('link_type')
-        for link_type_node in link_type_nodes:
-            node.appendChild(link_type_node)
-
-
-    elif geni_sliver.__class__ == VirtualMachine:
-        hostname = geni_sliver.getHost()
+        hostname = sliver_object.getHost()
         if hostname is not None:
-            component_id = config.urn_prefix + "node+" + hostname
-            node.setAttribute("component_id", component_id)
+            component_id = config.urn_prefix + 'node+' + hostname
+            sliver_elt.setAttribute('component_id', component_id)
 
-        component_manager_id = aggregate_urn
-        node.setAttribute("component_manager_id", component_manager_id)
+        # Add addresses to interfaces on VM
+        for interface in sliver_object.getNetworkInterfaces():
+            interface_id = interface.getName()
+            interface_node = None
+            for iface_node in sliver_elt.getElementsByTagName('interface'):
+                if iface_node.attributes['client_id'].value == interface_id:
+                    interface_node = iface_node
+                    break
+            if interface_node is not None:
+                # Set the MAC address
+                mac_address = interface.getMACAddress()
+                if mac_address is not None and mac_address != '':
+                    interface_node.setAttribute('mac_address', mac_address)
 
-        node.setAttribute('exclusive', 'false')
+                # Set the IP address
+                ip_address = interface.getIPAddress()
+                ip_netmask = interface.getNetmask()
+                if ip_address is not None and ip_address != '':
+                    ip_nodes = interface_node.getElementsByTagName('ip')
+                    if len(ip_nodes) == 0:
+                        ip_node = root.createElement('ip')
+                        interface_node.appendChild(ip_node)
+                    else:
+                        ip_node = ip_nodes[0]
+                    
+                    ip_node.setAttribute('address', ip_address)
+                    ip_node.setAttribute('netmask', ip_netmask) 
+                    ip_node.setAttribute('type', 'ip')
 
-        for interface in geni_sliver.getNetworkInterfaces():
-            interface_node = root.createElement("interface")
-            interface_client_id = interface.getName()
-            # Need to add the mac_address if there is one
-            mac_address = interface.getMACAddress()
-            if mac_address is not None:
-                interface_node.setAttribute("mac_address", mac_address)
-            interface_node.setAttribute("client_id", interface_client_id)
-            interface_node.setAttribute("sliver_id", interface.getSliverURN())
-            # Need to add IP_address if there is one
-            ip_address = interface.getIPAddress()
-            if ip_address is not None:
-                ip_node = root.createElement("ip")
-                ip_node.setAttribute("address", ip_address)
-                ip_node.setAttribute("type", "ip")
-                interface_node.appendChild(ip_node)
-            node.appendChild(interface_node)
+        # Add sliver type (if not already there)
+        sliver_types = sliver_elt.getElementsByTagName('sliver_type')
+        if len(sliver_types) == 0:
+            sliver_type = root.createElement('sliver_type')
+            sliver_elt.appendChild(sliver_type)
+        else:
+            sliver_type = sliver_types[0]
 
-        sliver_type = root.createElement("sliver_type")
-        sliver_type_name = geni_sliver.getVMFlavor()
-        sliver_type.setAttribute("name", sliver_type_name)
+        # Set VM flavor in sliver type node
+        sliver_type.setAttribute('name', sliver_object.getVMFlavor())
 
-        disk_image = root.createElement("disk_image")
-
+        # Add disk image info to sliver type
+        disk_image = root.createElement('disk_image')
         disk_image_name = config.image_urn_prefix + \
-            geni_sliver.getOSImageName()
+            sliver_object.getOSImageName()
         disk_image.setAttribute("name", disk_image_name)
 
-
-        disk_image_os = geni_sliver.getOSType()
+        disk_image_os = sliver_object.getOSType()
         disk_image.setAttribute("os", disk_image_os)
 
-        disk_image_version = geni_sliver.getOSVersion()
+        disk_image_version = sliver_object.getOSVersion()
         disk_image.setAttribute("version", disk_image_version)
 
         sliver_type.appendChild(disk_image)
-        node.appendChild(sliver_type)
 
-        # Need to add the services, if there are any
-        users = geni_sliver.getAuthorizedUsers()
+        # Add the 'host' tag
+        hosts = sliver_elt.getElementsByTagName('host')
+        if len(hosts) == 0:
+            host = root.createElement("host")
+            sliver_elt.appendChild(host)
+        else:
+            host = hosts[0]
+                
+        host_name = sliver_object.getName()
+        host.setAttribute('name', host_name)
+
+        # Add user services if there are any
+        users = sliver_object.getAuthorizedUsers()
         if users is not None and len(users) > 0:
             services = root.createElement("services")
             for user in users:
@@ -521,200 +502,17 @@ def generateManifestForSliver(geni_slice, geni_sliver, root, request,aggregate_u
                 login.setAttribute("authentication", "ssh-keys")
                 my_host_name = \
                     socket.gethostbyaddr(socket.gethostname())[0]
-                #login.setAttribute("externally-routable-ip", geni_sliver.getExternalIp())
-                if geni_sliver.getExternalIp():
-                    login.setAttribute("hostname", geni_sliver.getExternalIp())
+                #login.setAttribute("externally-routable-ip", sliver_object.getExternalIp())
+                if sliver_object.getExternalIp():
+                    login.setAttribute("hostname", sliver_object.getExternalIp())
                     login.setAttribute("port", "22")
                 else:    
                     login.setAttribute("hostname", config.public_ip)
-                    login.setAttribute("port", str(geni_sliver.getSSHProxyLoginPort()))
+                    login.setAttribute("port", str(sliver_object.getSSHProxyLoginPort()))
                 login.setAttribute("username", user)
-                print login
                 services.appendChild(login)
-            node.appendChild(services)
-
-        host = root.createElement("host")
-        host_name = geni_sliver.getName()
-        host.setAttribute('name', host_name)
-        node.appendChild(host)
-
-    return node
-
-
-def generateManifest(geni_slice, req_rspec, aggregate_urn, \
-                         stitching_handler = None) :
-
-    """
-        Returns a manifets rspec that corresponds to the given request rspec
-        i.e. annotat the request rspec with information about the resources.
-    """
-    manifest = Document()                 # Manifest returned by this function
-
-    # Use the request rspec as a model for the manifest i.e. start with the
-    # request and add additional information to it to form the manifest
-    request = parseString(req_rspec).childNodes[0]
-    manifest.appendChild(request)
-    request.setAttribute('type', 'manifest')
-
-    # If the request doesn't have xmlns tag, add it
-    if not request.hasAttribute("xmlns"):
-        request.setAttribute('xmlns', 'http://www.geni.net/resources/rspec/3')
-
-    # If the request doesn't ahve the xmlns:xsi tag, add it
-    if not request.hasAttribute('xmlns:xsi'):
-        request.setAttribute('xmlns:xsi', \
-                                 'http://www.w3.org/2001/XMLSchema-instance')
-
-    # If the request rspec has a xsi:schemaLocation element in the header
-    # set the appropriate value to say "manifest" instead of "request"
-    if request.hasAttribute('xsi:schemaLocaton') :
-        schema_location = request.attributes['xsi:schemaLocation'].value
-        schema_location = schema_location.replace('request.xsd', 'manifest.xsd')
-        request.setAttribute('xsi:schemaLocation', schema_location)
-    else :
-        # No attribute for xsi:schemaLocation in request.  Add it to 
-        # the manifest
-        schema_location = 'http://www.geni.net/resources/rspec/3 http://www.geni.net/resources/rspec/3/manifest.xsd'
-        request.setAttribute('xsi:schemaLocation', schema_location)
-
-
-    # For every child element in the rspec, add manifest related information
-    # to the child element.  
-    for child in request.childNodes :
-        if child.nodeName == 'node' :
-            # Set node attributes
-            child.setAttribute('exclusive', 'false')
-
-            # Find the VM Object for this node by node name ('client_id') 
-            node_name = child.attributes['client_id'].value
-            vm_list = geni_slice.getVMs()
-            vm_object = None
-            for i in range(len(vm_list)) :
-                if node_name == vm_list[i].getName() :
-                    vm_object = vm_list[i]
-                    break
-            if vm_object == None :
-                config.logger.error('Cannot find information about VM %s' % \
-                                        node_name)
-                continue   # Go on to next node
-
-            # Set the sliver URN for the node element
-            child.setAttribute('sliver_id', vm_object.getSliverURN())
-            child.setAttribute('component_id', vm_object.getSliverURN())
-
-            # Set the component_manager_id (this AM's URN) for the node element
-            component_manager_id = aggregate_urn
-            child.setAttribute('component_manager_id', component_manager_id)
-            
-            # For each child element of node, set appropriate attrbutes.
-            # Child elements of node include sliver_type, services, 
-            # interface, etc.
-            sliver_type_set = False
-            login_info_set = False
-            login_elements_list = list()
-            login_elements_list_unset = True 
-            for child_of_node in child.childNodes :
-                # First create a new element that has login information
-                # for users (if user accounts have been set up)
-                user_names = vm_object.getAuthorizedUsers()
-
-                # Create a list that holds login info for each user
-                if user_names != None and login_elements_list_unset :
-                    login_port = str(vm_object.getSSHProxyLoginPort())
-                    my_host_name = \
-                        socket.gethostbyaddr(socket.gethostname())[0]
-                    for i in range(0, len(user_names)) :
-                        login_element = Element('login')
-                        login_element.setAttribute('authentication','ssh-keys')
-                        login_element.setAttribute('hostname', my_host_name)
-                        login_element.setAttribute('port', login_port)
-                        login_element.setAttribute('username', user_names[i])
-                        login_elements_list.append(login_element)
-
-                login_elements_list_unset = False
-                if child_of_node.nodeName == 'sliver_type' :
-                    child_of_node.setAttribute('name', vm_object.getVMFlavor())
-                    # Look for the <disk_image> child of <sliver_type> and
-                    # set it to the correct value
-                    for sliver_type_child in child_of_node.childNodes :
-                        # Find the child <disk_image>
-                        if sliver_type_child.nodeName == 'disk_image' :
-                            image_urn = config.image_urn_prefix +  \
-                                vm_object.getOSImageName()
-                            sliver_type_child.setAttribute('name', image_urn)
-                    sliver_type_set = True
-                elif child_of_node.nodeName == 'interface' :
-                    # Find the NetworkInterface object for this interface
-                    nic_name = child_of_node.attributes['client_id'].value
-                    nic_list = vm_object.getNetworkInterfaces()
-                    for i in range(len(nic_list)) :
-                        if nic_name == nic_list[i].getName() :
-                            nic_object = nic_list[i]
-                            break
-                    if nic_object == None :
-                        config.logger.error('Cannot find information about network interface %s' % nic_name)
-                        continue
-                    ip_address = nic_object.getIPAddress()
-                    if ip_address != None :
-                        ip_addr_elem = manifest.createElement('ip')
-                        ip_addr_elem.setAttribute('address', ip_address)
-                        ip_addr_elem.setAttribute('type', 'ip')
-                        child_of_node.appendChild(ip_addr_elem)
-                    mac_address = nic_object.getMACAddress()
-                    if mac_address != None :
-                        child_of_node.setAttribute('mac_address', mac_address)
-                    child_of_node.setAttribute('sliver_id', 
-                                               nic_object.getSliverURN())
-                elif child_of_node.nodeName == 'services' :
-                    # Add a sub-element for the login port for the VM
-                    login_info_set = True
-                    if len(login_elements_list) > 0 :
-                        for i in range(0, len(login_elements_list)) :
-                            child_of_node.appendChild(login_elements_list[i])
-                        
-            if not sliver_type_set :
-                # There was no sliver_type set on the manifest because there
-                # was no sliver_type element in the request rspec.  We add
-                # a new element for sliver_type
-                sliver_type = vm_object.getVMFlavor()
-                sliver_type_elem = Element('sliver_type')
-                sliver_type_elem.setAttribute('name', sliver_type)
-                # Create a <disk_image> child for <silver_type>
-                disk_image = Element('disk_image')
-                image_urn = config.image_urn_prefix + \
-                    config.default_OS_image # no image was specified in request
-                disk_image.setAttribute('name', image_urn)
-                disk_image.setAttribute('os', config.default_OS_type)
-                disk_image.setAttribute('version', config.default_OS_version)
-                sliver_type_elem.appendChild(disk_image)
-                child.appendChild(sliver_type_elem)
-
-            if not login_info_set and len(login_elements_list) != 0 :
-                # There was no login information set on the manifest because 
-                # there was no services element in the request rspec.  We add
-                # a new element for services and a sub-element for login info
-                services_element = Element('services')
-                for i in range(0, len(login_elements_list)) :
-                    services_element.appendChild(login_elements_list[i])
-                child.appendChild(services_element)
-                
-            # Set the hostname element of the manifest (how the VM calls itself)
-            host_attribute = Element('host')
-            host_attribute.setAttribute('name', node_name)
-            child.appendChild(host_attribute)
-
-        elif child.nodeName == 'link' :
-            # Find the NetworkLink object for this link
-            link_name = child.attributes['client_id'].value
-            link_list = geni_slice.getNetworkLinks()
-            for i in range(len(link_list)) :
-                if link_name == link_list[i].getName() :
-                    link_object = link_list[i]
-                    break
-            child.setAttribute('sliver_id', link_object.getSliverURN())
-            child.setAttribute('vlantag', str(link_object.getVLANTag()))
-
-    return cleanXML(manifest, "OldManifest")
+            sliver_elt.appendChild(services)
+        
 
 def cleanXML(doc, label):
     xml = doc.toprettyxml(indent = '    ')
