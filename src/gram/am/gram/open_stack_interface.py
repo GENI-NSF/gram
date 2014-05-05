@@ -343,10 +343,6 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
     num_compute_nodes = _getComputeNodeCount()
     config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
     
-#    # Now create the VMs in a background thread (so we return immediately while they are being created/booted)
-#    create_vms_thread = threading.Thread(target=_createAllVMs, args=(vms_to_be_provisioned, num_compute_nodes, users, gram_manager, geni_slice))
-#    create_vms_thread.start()
-
     _createAllVMs(vms_to_be_provisioned, num_compute_nodes, 
                        users, gram_manager, geni_slice)
 

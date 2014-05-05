@@ -481,24 +481,6 @@ class GramManager :
         config.logger.info('Delete called for slice %r' % \
                                slice_object.getSliceURN())
 
-#         with slice_object.getLock() :
-#             open_stack_interface.updateOperationalStatus(slice_object)
-
-#         # Can't delete while the slivers are stillconfigured or not ready
-#         # If one is, return BUSY
-#         one_is_configuring = False
-#         for sliver in sliver_objects:
-#             op_state = sliver.getOperationalState()
-#             if op_state in [constants.notready, constants.configuring]:
-#                 config.logger.info("Can't delete while sliver not ready or configuring %s %s"% \
-#                                        (sliver.getSliverURN(), op_state))
-#                 one_is_configuring = True
-#                 break
-#         if one_is_configuring:
-#             return {'code' : constants.RESOURCE_BUSY, 
-#                     'value' : '', 
-#                     'output' : 'Cannot delete slice while slivers are still configuring or not ready. Try again shortly'}
-
         # Lock this slice so nobody else can mess with it while we do the deletes
         with slice_object.getLock() :
             # Delete any slivers that have been provisioned
