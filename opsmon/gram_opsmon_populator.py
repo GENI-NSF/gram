@@ -83,14 +83,16 @@ class OpsMonPopulator:
 
         self._gram_config = json.loads(open('/etc/gram/config.json').read())
 
+# http://www.gpolab.bbn.com/monitoring/schema/20140501/  
+
 
         # json-schema
-        self._agg_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140131/aggregate#"
-        self._node_schema = "http://unis.incntre.iu.edu/schema/20120709/node#"
-        self._sliver_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140131/sliver#"
-        self._interface_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140131/interface#"
-        self._interfacevlan_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140131/interfacevlan#"
-        self._link_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140131/link#"
+        self._agg_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/aggregate#"
+        self._node_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/node#"
+        self._sliver_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/sliver#"
+        self._interface_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/interface#"
+        self._interfacevlan_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/interfacevlan#"
+        self._link_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/link#"
 
         # Change ' to " in any expressions (can't parse " in json)
         for cmd in self._node_commands:
@@ -171,7 +173,7 @@ class OpsMonPopulator:
         return self._aggregate_urn + "_VLANL_" + str(tag)
 
     def get_node_href(self, node_id):
-        return "%s/node_info/node/%s" % (self._base_url, node_id)
+        return "%s/info/node/%s" % (self._base_url, node_id)
     
     def get_link_href(self, link_id):
         return "%s/link/%s" % (self._base_url, link_id)
