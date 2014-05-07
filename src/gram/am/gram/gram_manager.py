@@ -110,7 +110,7 @@ class GramManager :
 
         # Reconcile restored state with state of OpenStack
         # Are any resources no longer there? If so delete slices
-#        self.reconcile_state()
+        self.reconcile_state()
 
         # If any slices restored from snapshot, report to VMOC
         with SliceURNtoSliceObject._lock:
@@ -790,7 +790,7 @@ class GramManager :
                      token_retention_window_days)
             except Exception, e:
                 print e
-            print cmd
+#            print cmd
             os.system(cmd)
 
             quantum_user = 'quantum'
@@ -810,7 +810,7 @@ class GramManager :
                         (quantum_user, config.mysql_password,
                          config.control_host_addr, quantum_database,
                          '"', table_name, uuids_expr, '"')
-                    print cmd
+#                    print cmd
                     os.system(cmd)
             except Exception, e:
                 print e
@@ -862,6 +862,10 @@ class GramManager :
             tenant_router_uuid = slice_object.getTenantRouterUUID()
             result[tenant_uuid]['router_uuids'] = [tenant_router_uuid]
 
+            tenant_admin_name, tenant_admin_pwd, tenant_admin_uuid = \
+                slice_object.getTenantAdminInfo()
+            result[tenant_uuid]['user_uuids'] = [tenant_admin_uuid]
+
             result[tenant_uuid]['net_uuids'] = []
             result[tenant_uuid]['subnet_uuids'] = []
             result[tenant_uuid]['vm_uuids'] = []
@@ -886,11 +890,48 @@ class GramManager :
     # If any resources in GRAM of a given slice no longer exist in OpenStack
     # Delete the slice
     def reconcile_state(self):
-        print "RECONCILING...."
+#        print "RECONCILING...."
         os_info = open_stack_interface.get_all_tenant_info()
-        print "OS_INFO   = %s" % os_info
+#        print "OS_INFO   = %s" % os_info
         gram_info = self.get_all_slice_info()
-        print "GRAM_INFO = %s" % gram_info
+#        print "GRAM_INFO = %s" % gram_info
+
+        # Compare the two sets of tagged UUIDS
+        # If gram has some slice that OS doesn't or the 
+        # gram slice has some UUIDs that OS doesn't have or
+        # OS slice has some UUIDS that GRAM doesn't have, delete slice
+        # from GRAM and OS
+        tenants_to_delete = []
+        for tenant_id, tenant_data in gram_info.items():
+            # Is this a slice in GRAM but not in OpenStack
+            if not tenant_id in os_info:
+                tenants_to_delete.append(tenant_id)
+            else:
+                for key, gram_data in tenant_data.items():
+                    # Is this a slice with the same uuid type but not same
+                    # entries
+                    if key in os_info[tenant_id]:
+                        os_data = os_info[tenant_id][key]
+                        gram_data.sort()
+                        os_data.sort()
+                        if cmp(gram_data, os_data) != 0:
+                            tenants_to_delete.append(tenant_id)
+                            break
+                    else:
+                        # This is a slice with some key in GRAM not in OS
+                        tenants_to_delete.append(tenant_id)
+                        break
+
+        if len(tenants_to_delete) > 0:
+            config.logger.info("OpenStack and GRAM-internal representations of these tenants are inconsistent: deleting from OpenStack and GRAM %s " % tenants_to_delete)
+            for slice_urn, slice_object in SliceURNtoSliceObject._slices.items():
+                tenant_uuid = slice_object.getTenantUUID()
+                if tenant_uuid in tenants_to_delete:
+                    slice_slivers = slice_object.getSlivers().values()
+                    config.logger.info("Deleting Slice URN = %s" % slice_urn)
+                    self.delete(slice_object, slice_slivers, {})
+
+
 
     def __del__(self) :
         config.logger.info('In destructor')
