@@ -372,7 +372,6 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
     manifest.setAttribute('type', 'manifest')
 
     # Change schema location from request.xsd to manifest.xsd
-    print "Attributes = %s" % manifest.attributes
     schema_location_tag = 'xsi:schemaLocation'
     if manifest.attributes.has_key(schema_location_tag):
         schema_location = manifest.attributes[schema_location_tag].value

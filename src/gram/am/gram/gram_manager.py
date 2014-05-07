@@ -249,7 +249,7 @@ class GramManager :
             manifest, error_string, error_code =  \
                 rspec_handler.generateManifestForSlivers(slice_object, \
                                                              slivers, True, \
-                                                             True,
+                                                             False,
                                                              agg_urn, \
                                                              self._stitching)
             if error_code != constants.SUCCESS:
