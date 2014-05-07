@@ -235,6 +235,7 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
                 for i in range(1,len(subnet_addr)):
                     if not subnet_addr[i] in used_ips:
                         nic.setIPAddress(str(subnet_addr[i]))
+                        nic.setNetmask('255.255.255.0')
                         used_ips.append(subnet_addr[i])
                         break
                 
@@ -1603,6 +1604,86 @@ def _set_status_by_boot_complete_msg(vm_object):
 
     return True
 
+# Parse return from an OpenStack call and return table 
+#   {key: values, key : values}
+def _parseTableOutput(output):
+    lines = output.split('\n')
+    header_line = lines[1]
+    data_lines = lines[3:len(lines)-2]
+    header_parts = header_line.split('|')
+    headers = [header_part.strip() for header_part in header_parts \
+                   if header_part.strip() != '']
+    data = [[data_part.strip() for data_part in data_line.split('|') \
+                 if data_part.strip() != ''] for data_line in data_lines]
+    output = {}
+    for i in range(len(headers)):
+        header = headers[i]
+        data_for_header = [data_for_line[i] for data_for_line in data]
+        output[header] = data_for_header
+        
+    return output
+
+
+def get_all_tenant_info():
+
+    # Dictionary of 'vm_uuids', 'net_uuids', 'subnet_uuids', 'router_uuids'
+    #  indexed by tenant_uuid
+    result = {} 
+
+    # Get all tenants
+    cmd_string = "keystone tenant-list"
+    output = _execCommand(cmd_string)
+    tenant_info = _parseTableOutput(output)
+
+
+
+    # Tenant ID's correspond to slices
+    tenant_ids = []
+    for i in range(len(tenant_info['name'])):
+        tenant_name = tenant_info['name'][i]
+        if tenant_name not in ['admin', 'service']:
+            tenant_ids.append(tenant_info['id'][i])
+    print "TENANT_IDS = %s" % tenant_ids
+
+    # Nova instance ID's correspond to VM UUIDs
+    for tenant_id in tenant_ids:
+
+        result[tenant_id] = {}
+
+        cmd_string = 'nova list --tenant %s --all-tenants' % tenant_id
+        output = _execCommand(cmd_string)
+        vms_info = _parseTableOutput(output)
+        print "VMS_INFO = %s" % vms_info
+        vm_uuids = []
+        if 'ID' in vms_info:
+            vm_uuids = vms_info['ID']
+        result[tenant_id]['vm_uuids'] = vm_uuids
+
+        cmd_string = 'quantum router-list -F id --tenant_id=%s' % tenant_id
+        output = _execCommand(cmd_string)
+        router_info = _parseTableOutput(output)
+        router_uuids = []
+        if 'id' in router_info:
+            router_uuids = router_info['id']
+        result[tenant_id]['router_uuids'] = router_uuids
+
+        cmd_string = 'quantum net-list -F id --tenant_id=%s' % tenant_id
+        output = _execCommand(cmd_string)
+        net_info = _parseTableOutput(output)
+        net_uuids = []
+        if 'id' in net_info:
+            net_uuids = net_info['id']
+        result[tenant_id]['net_uuids'] = net_uuids
+
+        cmd_string = 'quantum subnet-list -F id --tenant_id=%s' % tenant_id
+        output = _execCommand(cmd_string)
+        subnet_info = _parseTableOutput(output)
+        subnet_uuids = []
+        if 'id' in subnet_info:
+            subnet_uuids = subnet_info['id']
+        result[tenant_id]['subnet_uuids'] = subnet_uuids
+
+    return result
 
 if __name__ == "__main__":
     import sys

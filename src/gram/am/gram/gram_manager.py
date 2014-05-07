@@ -108,6 +108,10 @@ class GramManager :
         # Recover state from snapshot, if configured to do so
         self.restore_state()
 
+        # Reconcile restored state with state of OpenStack
+        # Are any resources no longer there? If so delete slices
+#        self.reconcile_state()
+
         # If any slices restored from snapshot, report to VMOC
         with SliceURNtoSliceObject._lock:
             for slice_name in SliceURNtoSliceObject._slices:
@@ -788,6 +792,29 @@ class GramManager :
                 print e
             print cmd
             os.system(cmd)
+
+            quantum_user = 'quantum'
+            quantum_database = 'quantum'
+            cmd = "keystone tenant-list"
+            output = open_stack_interface._execCommand(cmd)
+            output_fields = open_stack_interface._parseTableOutput(output)
+            tenant_uuids =  output_fields['id']
+#            print "TENANT_UUIDS = %s" % tenant_uuids
+            try:
+                config.logger.info("Cleaning up danglihg secgrps")
+                uuids_expr =  ",".join("'" + tenant_uuid + "'" \
+                                           for tenant_uuid in tenant_uuids)
+
+                for table_name in ['securitygrouprules', 'securitygroups']:
+                    cmd = "mysql -u%s -p%s -h%s %s -e %sDELETE from %s where tenant_id not in (%s)%s" % \
+                        (quantum_user, config.mysql_password,
+                         config.control_host_addr, quantum_database,
+                         '"', table_name, uuids_expr, '"')
+                    print cmd
+                    os.system(cmd)
+            except Exception, e:
+                print e
+                
             self.expire_slivers()
             time.sleep(3000)
 
@@ -821,6 +848,49 @@ class GramManager :
                      if os.path.isfile(os.path.join(dir, s))]
             files.sort(key = lambda s: os.path.getmtime(s))
         return files
+
+    # Compute the UUIDs of OpenStack objects for all slices
+    # Return dictionary of 'vm_uuids', 'net_uuids', 'router_uuids', 
+    #    'subnet_uuids' indexed by tenant_uuid
+    def get_all_slice_info(self):
+        result = {}
+
+        for slice_urn, slice_object in SliceURNtoSliceObject._slices.items():
+            tenant_uuid = slice_object.getTenantUUID()
+            result[tenant_uuid] = {}
+
+            tenant_router_uuid = slice_object.getTenantRouterUUID()
+            result[tenant_uuid]['router_uuids'] = [tenant_router_uuid]
+
+            result[tenant_uuid]['net_uuids'] = []
+            result[tenant_uuid]['subnet_uuids'] = []
+            result[tenant_uuid]['vm_uuids'] = []
+            
+            for network_link in slice_object.getNetworkLinks():
+                net_uuid = network_link.getNetworkUUID()
+                if net_uuid not in result[tenant_uuid]['net_uuids']:
+                    result[tenant_uuid]['net_uuids'].append(net_uuid)
+                subnet_uuid = network_link.getSubnetUUID()
+                if subnet_uuid not in result[tenant_uuid]['subnet_uuids']:
+                    result[tenant_uuid]['subnet_uuids'].append(subnet_uuid)
+
+            for vm in slice_object.getVMs():
+                vm_uuid = vm.getUUID()
+                result[tenant_uuid]['vm_uuids'].append(vm_uuid)
+
+        return result
+
+
+    # Reconcile state of gram manager slices/slivers with the resources
+    # Currently defined in OpenStack
+    # If any resources in GRAM of a given slice no longer exist in OpenStack
+    # Delete the slice
+    def reconcile_state(self):
+        print "RECONCILING...."
+        os_info = open_stack_interface.get_all_tenant_info()
+        print "OS_INFO   = %s" % os_info
+        gram_info = self.get_all_slice_info()
+        print "GRAM_INFO = %s" % gram_info
 
     def __del__(self) :
         config.logger.info('In destructor')

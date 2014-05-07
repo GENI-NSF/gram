@@ -370,7 +370,18 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
     config.logger.error("DOC = %s" % manifest_doc.toxml())
     manifest = manifest_doc.getElementsByTagName('rspec')[0]
     manifest.setAttribute('type', 'manifest')
+
+    # Change schema location from request.xsd to manifest.xsd
+    print "Attributes = %s" % manifest.attributes
+    schema_location_tag = 'xsi:schemaLocation'
+    if manifest.attributes.has_key(schema_location_tag):
+        schema_location = manifest.attributes[schema_location_tag].value
+        revised_schema_location = \
+            schema_location.replace('request.xsd', 'manifest.xsd')
+        manifest.setAttribute(schema_location_tag, revised_schema_location)
+
     root = Document()
+    
 
     # For each sliver, find the corresponding manifest element
     # and copy relevant information
@@ -388,7 +399,8 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
 
         if sliver_element:
             
-            updateManifestForSliver(sliver, sliver_element, root)
+            updateManifestForSliver(sliver, sliver_element, root, \
+                                    aggregate_urn)
 
         if stitching_handler:
             err_output, err_code = \
@@ -413,9 +425,13 @@ def getRequestElementForSliver(sliver):
 
 
 # Update XML element in manifest with information from given sliver
-def updateManifestForSliver(sliver_object, sliver_elt, root):
+def updateManifestForSliver(sliver_object, sliver_elt, root, \
+                                component_manager_id):
     client_id = sliver_object.getName()
     sliver_id = sliver_object.getSliverURN()
+
+    sliver_elt.setAttribute('component_manager_id', component_manager_id)
+    sliver_elt.setAttribute('sliver_id', sliver_id)
 
     if isinstance(sliver_object, NetworkLink):
 
@@ -454,7 +470,8 @@ def updateManifestForSliver(sliver_object, sliver_elt, root):
                         ip_node = ip_nodes[0]
                     
                     ip_node.setAttribute('address', ip_address)
-                    ip_node.setAttribute('netmask', ip_netmask) 
+                    if ip_netmask is not None:
+                        ip_node.setAttribute('netmask', ip_netmask) 
                     ip_node.setAttribute('type', 'ip')
 
         # Add sliver type (if not already there)

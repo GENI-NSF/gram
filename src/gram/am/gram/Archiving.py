@@ -156,6 +156,7 @@ class GramJSONEncoder(json.JSONEncoder):
                     "device_number":o.getDeviceNumber(),
                     "mac_address":o.getMACAddress(),
                     "ip_address":o.getIPAddress(),
+                    "netmask":o.getNetmask(),
                     "virtual_machine":vm_urn,
                     "link":link_urn,
                     "vlan_tag":o.getVLANTag()
@@ -365,6 +366,8 @@ class GramJSONDecoder:
                 nic._device_number = json_object["device_number"]
                 nic.setMACAddress(json_object["mac_address"])
                 nic.setIPAddress(json_object["ip_address"])
+                if 'netmask' in json_object: 
+                    nic.setNetmask(json_object['netmask'])
                 nic.setVLANTag(json_object["vlan_tag"])
                 nic.setRequestRspec(json_object["request_rspec"])
                 nic.setManifestRspec(json_object["manifest_rspec"])
