@@ -54,7 +54,7 @@ class VMOCSwitchConnection(object):
         return self._connection
 
     def __str__(self):
-        return "[VMOCSwitchrConnection DPID %x]" % (self._dpid)
+        return "[VMOCSwitchConnection DPID %x]" % (self._dpid)
 
 
     # Handle OF event message received from switch
