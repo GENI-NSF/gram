@@ -90,8 +90,8 @@ class OpsMonPopulator:
         self._agg_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/aggregate#"
         self._node_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/node#"
         self._sliver_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/sliver#"
-        self._interface_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/interface#"
-        self._interfacevlan_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/interfacevlan#"
+        self._interface_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/port#"
+        self._interfacevlan_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/port-vlan#"
         self._link_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/link#"
 
         # Change ' to " in any expressions (can't parse " in json)
@@ -176,7 +176,7 @@ class OpsMonPopulator:
         return "%s/info/node/%s" % (self._base_url, node_id)
     
     def get_link_href(self, link_id):
-        return "%s/link/%s" % (self._base_url, link_id)
+        return "%s/info/link/%s" % (self._base_url, link_id)
 
     def get_interface_href(self, interface_id):
         return self._base_url + "/info/interface/" + interface_id
