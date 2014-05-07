@@ -1,5 +1,5 @@
 {
-	"base_address" : "http://128.89.91.170",
+	"base_address" : "https://128.89.91.170",
 	"aggregate_id" : "gram-bos",
 	"aggregate_urn" : "urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+authority+am",
 	"frequency_sec" : "60",
@@ -14,7 +14,7 @@
 			         "type" : "IPv4", "role" : "CONTROL", "max_bps" : "1000000000"},
 			        "eth1" : {"address" : "78:2b:cb:4f:62:6d", 
 				 "type" : "MAC", "role" : "DATA", "max_bps" : "1000000000"}}},
-		{"id" : "boscompute2", "address" : "128.89.91.174",
+		{"id" : "boscompute2", "address" : "128.89.91.172",
 		"urn" : "urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+node+boscompute2",
 		"interfaces" : {"eth0" : {"address" : "10.10.8.102", 
 			         "type" : "IPv4", "role" : "CONTROL", "max_bps" : "1000000000"},
@@ -28,42 +28,41 @@
 				 "type" : "MAC", "role" : "DATA", "max_bps" : "1000000000"}}}
 	],
 	"modules" : ["psutil"],
-	"commands" : [
-	{"table" : "ops_cpu_util", "expression" : "psutil.cpu_percent()"},
-	{"table" : "ops_mem_used", 
-		 "expression" : "psutil.virtual_memory().used"},
-	{"table" : "ops_swap_free", 
+	"node_commands" : [
+	{"table" : "ops_node_cpu_util", "expression" : "psutil.cpu_percent()"},
+	{"table" : "ops_node_mem_used_kb", 
+		 "expression" : "int(psutil.virtual_memory().used/1000)"},
+	{"table" : "ops_node_swap_free", 
 		 "expression" : "(1-psutil.swap_memory().percent)*100"},
-	{"table" : "ops_disk_part_max_used", 
+	{"table" : "ops_node_disk_part_max_used", 
 		 "expression" : "psutil.disk_usage('/').percent*100"}
 
 	],
 	"interface_commands" : [
-	{"table" : "ops_tx_bps", 
+	{"table" : "ops_interface_tx_bps", 
 		 "expression" : "bytes_sent",
 		 "change_rate" : "True"},
-	{"table" : "ops_rx_bps", 
+	{"table" : "ops_interface_rx_bps", 
 		 "expression" : "bytes_recv",
 		 "change_rate" : "True"},
-	{"table" : "ops_tx_pps", 
+	{"table" : "ops_interface_tx_pps", 
 		 "expression" : "packets_sent",
 		 "change_rate" : "True"},
-	{"table" : "ops_rx_pps", 
+	{"table" : "ops_interface_rx_pps", 
 		 "expression" : "packets_recv",
 		 "change_rate" : "True"},
-	{"table" : "ops_tx_dps", 
+	{"table" : "ops_interface_tx_dps", 
 		 "expression" : "dropout",
 		 "change_rate" : "True"},
-	{"table" : "ops_rx_dps", 
+	{"table" : "ops_interface_rx_dps", 
 		 "expression" : "dropin",
 		 "change_rate" : "True"},
-	{"table" : "ops_tx_eps", 
+	{"table" : "ops_interface_tx_eps", 
 		 "expression" : "errout",
 		 "change_rate" : "True"},
-	{"table" : "ops_rx_eps", 
+	{"table" : "ops_interface_rx_eps", 
 		 "expression" : "errin",
 		 "change_rate" : "True"}
 	]
-
 
 }
