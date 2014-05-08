@@ -39,6 +39,9 @@ class PackageCreator:
         parser.add_option("--gcf_root", \
                               help="Location of local GCF root", \
                               default="/opt/gcf-2.2", dest="gcf_root")
+        parser.add_option("--mon_root", \
+                              help="Location of Monitoring code", \
+                              default="/opt/ops-monitoring", dest="mon_root")
         parser.add_option("--is_update", \
                               help="Use this option to create an update package rather than the full package", \
                               default=False, dest="is_update")
@@ -65,12 +68,12 @@ class PackageCreator:
             return
 
         # Generate the two deb files
-        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --deb_filename=%s/gram_%s.deb --version=%s --gram_root=%s"
+        template = "python createdpkg.py --compute_node=%s --gcf_root=%s --mon_root=%s --deb_filename=%s/gram_%s.deb --version=%s --gram_root=%s"
         control_command = template % \
-            ("False", self.opts.gcf_root, self.opts.output_directory, \
+            ("False", self.opts.gcf_root, self.opts.mon_root, self.opts.output_directory, \
                  "control", self.opts.version, self.opts.gram_root)
         compute_command = template % \
-            ("True", self.opts.gcf_root, self.opts.output_directory, \
+            ("True", self.opts.gcf_root, self.opts.mon_root, self.opts.output_directory, \
                  "compute",  self.opts.version, self.opts.gram_root)
         self._execCommand(control_command)
         self._execCommand(compute_command)
