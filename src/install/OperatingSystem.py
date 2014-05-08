@@ -185,9 +185,9 @@ class OperatingSystem(GenericInstaller):
 
         #deal with monitoring
         self.sed("s/\/usr\/local\/ops-monitoring/\/home\/gram\/ops-monitoring/",'/home/gram/ops-monitoring/local/wsgi/localstore.wsgi')
-        self.sed("s/^dbtype:.*$/dbtype: mysql/",'home/gram/ops-monitoring/config/local_datastore_operator.conf')
-        self.sed("s/^username:.*$/username: quantum/",'home/gram/ops-monitoring/config/local_datastore_operator.conf')
-        self.sed("s/^password:.*$/password: " + config.quantum_password + "/",'home/gram/ops-monitoring/config/local_datastore_operator.conf')
+        self.sed("s/^dbtype:.*$/dbtype: mysql/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+        self.sed("s/^username:.*$/username: quantum/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+        self.sed("s/^password:.*$/password: " + config.quantum_password + "/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
 
         self.writeToFile("Defaults:quantum !requiretty", "/etc/sudoers.d/quantum_sudoers")
         self.appendToFile("quantum ALL=NOPASSWD: ALL","/etc/sudoers.d/quantum_sudoers")
