@@ -14,4 +14,4 @@ service gram-am $SENSE
 service gram-ch $SENSE
 service gram-ctrl $SENSE
 service gram-vmoc $SENSE
-
+service gram-opsmon $SENSE

@@ -55,6 +55,8 @@ class CreateDpkg:
                               default="/tmp/gram.deb", dest="deb_filename")
         parser.add_option("--gcf_root", help="GCF installation", \
                               default="/opt/gcf-2.2", dest="gcf_root")
+        parser.add_option("--mon_root", help="Monitoring installation", \
+                              default="/opt/ops-monitoring", dest="mon_root")
         parser.add_option("--should_cleanup", \
                               help="should cleanup before generating", 
                               default="True", dest="should_cleanup")
@@ -103,6 +105,8 @@ class CreateDpkg:
                               + self.opts.deb_location + "/home/gram/.gcf")
         self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
                               self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf " + self.opts.mon_root + " " + \
+                              self.opts.deb_location + "/home/gram")
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
                               + self.opts.deb_location + "/etc")
         self._execCommand("cp " + self.opts.gram_root + \
