@@ -1613,8 +1613,10 @@ def _parseTableOutput(output):
     header_parts = header_line.split('|')
     headers = [header_part.strip() for header_part in header_parts \
                    if header_part.strip() != '']
-    data = [[data_part.strip() for data_part in data_line.split('|') \
-                 if data_part.strip() != ''] for data_line in data_lines]
+    data = [[data_part.strip() for data_part in data_line.split('|')] \
+                 for data_line in data_lines]
+    for i in range(len(data)):
+        data[i] = data[i][1:len(headers)+1]
     output = {}
     for i in range(len(headers)):
         header = headers[i]
@@ -1627,6 +1629,7 @@ def _parseTableOutput(output):
 def get_all_tenant_info():
 
     # Dictionary of 'vm_uuids', 'net_uuids', 'subnet_uuids', 'router_uuids'
+    #   'user_uuids', 'secgrp_uuids'
     #  indexed by tenant_uuid
     result = {} 
 
@@ -1635,15 +1638,29 @@ def get_all_tenant_info():
     output = _execCommand(cmd_string)
     tenant_info = _parseTableOutput(output)
 
-
-
     # Tenant ID's correspond to slices
     tenant_ids = []
     for i in range(len(tenant_info['name'])):
         tenant_name = tenant_info['name'][i]
         if tenant_name not in ['admin', 'service']:
             tenant_ids.append(tenant_info['id'][i])
-    print "TENANT_IDS = %s" % tenant_ids
+
+    # Users are admins on slices
+    cmd_string = "keystone user-list"
+    output = _execCommand(cmd_string)
+    users_info = _parseTableOutput(output)
+    user_uuids_by_tenant_id = {}
+    for i in range(len(users_info)):
+        if users_info['name'][i] not in \
+                ['admin', 'cinder', 'glance', 'nova', 'quantum']:
+            user_uuid = users_info['id'][i]
+            user_cmd_string = 'keystone user-get %s' % user_uuid
+            user_output = _execCommand(user_cmd_string)
+            user_info = _parseTableOutput(user_output)
+            for j in range(len(user_info['Property'])):
+                if user_info['Property'][j] == 'tenantId':
+                    user_tenant_uuid = user_info['Value'][j]
+                    user_uuids_by_tenant_id[user_tenant_uuid] = [user_uuid]
 
     # Nova instance ID's correspond to VM UUIDs
     for tenant_id in tenant_ids:
@@ -1653,7 +1670,6 @@ def get_all_tenant_info():
         cmd_string = 'nova list --tenant %s --all-tenants' % tenant_id
         output = _execCommand(cmd_string)
         vms_info = _parseTableOutput(output)
-        print "VMS_INFO = %s" % vms_info
         vm_uuids = []
         if 'ID' in vms_info:
             vm_uuids = vms_info['ID']
@@ -1682,6 +1698,10 @@ def get_all_tenant_info():
         if 'id' in subnet_info:
             subnet_uuids = subnet_info['id']
         result[tenant_id]['subnet_uuids'] = subnet_uuids
+
+        if tenant_id in user_uuids_by_tenant_id:
+            result[tenant_id]['user_uuids'] = \
+                user_uuids_by_tenant_id[tenant_id]
 
     return result
 

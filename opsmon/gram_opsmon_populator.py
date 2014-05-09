@@ -83,16 +83,19 @@ class OpsMonPopulator:
 
         self._gram_config = json.loads(open('/etc/gram/config.json').read())
 
-# http://www.gpolab.bbn.com/monitoring/schema/20140501/  
-
+        self._recent_snapshot = None
+        self._objects_by_urn = {} # Current objects read by snapshot
 
         # json-schema
         self._agg_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/aggregate#"
+        self._authority_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/authority#"
         self._node_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/node#"
         self._sliver_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/sliver#"
+        self._slice_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/slice#"
         self._interface_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/port#"
         self._interfacevlan_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/port-vlan#"
         self._link_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/link#"
+        self._user_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/user#"
 
         # Change ' to " in any expressions (can't parse " in json)
         for cmd in self._node_commands:
@@ -116,12 +119,12 @@ class OpsMonPopulator:
         self._nodes = {}
         self._links = {}
         self._initialize_nodes()
-        self._initialize_links()
 
     # setting the nodes dictionary using dense code format 
     def _initialize_nodes(self):
         for node in self._config['hosts']:
-            node_id = self.get_node_id(node['id'])
+            hostname = node['id']
+            node_id = self.get_node_id(hostname)
             node_urn = node['urn']
 
             node_address = node['address']
@@ -136,38 +139,33 @@ class OpsMonPopulator:
                        
             node_href = self.get_node_href(node_id)
             self._nodes[node_id] = {'id':node_id, 'urn': node_urn, 
-                              'href': node_href, 'mem_total_kb': mem_total_kb, 
-                              'schema': self._node_schema}
-
-    # Setting the links directory for all defined 
-    # external (and single internal) links
-    def _initialize_links(self):
-        # Internal link
-        link_urn = self.get_internal_link_urn()
-        link_id = flatten_urn(link_urn)
-        link_href = self.get_link_href(link_id)
-        link_info = {'id' : link_id, 'href' : link_href, 'urn' : link_urn}
-        self._links[link_id] = link_info
-        
-        # An entry for each external stitching edge point
-        if 'stitching_info' in self._gram_config:
-            stitching_info = self._gram_config['stitching_info']
-            for ep in stitching_info['edge_points']:
-                link_id = flatten_urn(ep['local_link'])
-                link_urn = ep['local_link']
-                link_href = self.get_link_href(link_id)
-                link_info = {'id' : link_id, 'href' : link_href, 
-                             'urn' : link_urn}
-                self._links[link_id] = link_info
-
+                                    'host' : hostname,
+                                    'href': node_href, 'mem_total_kb': mem_total_kb, 
+                                    'schema': self._node_schema}
+            
     def get_node_id(self, node_name):
         return self._aggregate_id + "." + node_name
+
+    def get_slice_id(self, slice_urn):
+        return flatten_urn(self._aggregate_id + "." + slice_urn)
+
+    def get_authority_id(self, authority_urn):
+        return flatten_urn(authority_urn)
+
+    def get_user_id(self, user_urn):
+        return flatten_urn(self._aggregate_id + "." + user_urn)
+
+    def get_link_id(self, link_urn):
+        return flatten_urn(link_urn)
+
+    def get_interface_urn(self, node_urn, iface_name):
+        return node_urn + ":" + iface_name
 
     def get_interface_id(self, node_urn, interface_name):
         return flatten_urn(node_urn + "_" + interface_name)
 
-    def get_interfacevlan_id(self, tag):
-        return flatten_urn(self._aggregate_urn + "_VLANL_" + str(tag))
+    def get_interfacevlan_id(self, urn):
+        return flatten_urn(urn)
 
     def get_interfacevlan_urn(self, tag):
         return self._aggregate_urn + "_VLANL_" + str(tag)
@@ -184,6 +182,15 @@ class OpsMonPopulator:
     def get_interfacevlan_href(self, interfacevlan_id):
         return self._base_url + "/info/interfacevlan/" + interfacevlan_id
 
+    def get_slice_href(self, slice_id):
+        return self._base_url + "/info/slice/" + slice_id
+
+    def get_authority_href(self, authority_id):
+        return self._base_url + "/info/authority/" + authority_id
+
+    def get_usr_href(self, user_id):
+        return self._base_url + "/info/user/" + user_id
+
     def get_sliver_href(self, sliver_id):
         return self._base_url + "/info/sliver/" + sliver_id
 
@@ -196,11 +203,14 @@ class OpsMonPopulator:
 
     # Top-level loop: Generate data file, execute into database and sleep
     def run(self):
-        self.delete_static_entries()
-        self.update_info_tables()
-        print "Updated OpsMon static info for %s at %d" % (self._aggregate_id, int(time.time()))
+        print "GRAM OPSMON process for %s" % self._aggregate_id
         while True:
+            self._latest_snapshot = gram_slice_info.find_latest_snapshot()
+            self._objects_by_urn = gram_slice_info.parse_snapshot(self._latest_snapshot)
+            self.delete_static_entries()
+            self.update_info_tables()
             self.update_data_tables()
+            self.update_slice_tables()
             self.update_sliver_tables()
             self.update_aggregate_tables()
             self.update_interfacevlan_info()
@@ -231,14 +241,19 @@ class OpsMonPopulator:
     def update_link_info(self):
         ts = str(int(time.time()*1000000))
         self._table_manager.purge_old_tsdata('ops_link', ts)
-        for link_id, link in self._links.items():
-            link_info = [self._link_schema, link_id, link['href'], 
-                         link['urn'], ts]
-            resource = [link['id'], self._aggregate_id, link['urn'], 
-                        link['href']]
+
+        links = [link for link in self._objects_by_urn.values() \
+                     if link['__type__'] == 'NetworkLink']
+
+        for link in links:
+            link_urn = link['sliver_urn']
+            link_id = self.get_link_id(link_urn)
+            link_href = self.get_link_href(link_id)
+            link_info = [self._link_schema, link_id, link_href, link_urn, ts]
             info_insert(self._table_manager, 'ops_link', link_info)
-            info_insert(self._table_manager, 'ops_aggregate_resource', 
-                        resource)
+
+            agg_resource_info = [link_id, self._aggregate_id, link_href, link_urn]
+            info_insert(self._table_manager, 'ops_aggregate_resource', agg_resource_info)
 
     # Update node info tables
     def update_node_info(self):
@@ -267,7 +282,7 @@ class OpsMonPopulator:
             node_id = self.get_node_id(node_info['id'])
             for iface_name, iface_data in node_info['interfaces'].items():
                 iface_id = self.get_interface_id(node_urn, iface_name)
-                iface_urn = node_urn + ":" + iface_name
+                iface_urn = self.get_interface_urn(node_urn, iface_name) 
                 iface_href = self.get_interface_href(iface_id)
                 node_interface_info = [iface_id, node_id, iface_urn, iface_href]
                 info_insert(self._table_manager, 'ops_node_interface', node_interface_info)
@@ -289,63 +304,145 @@ class OpsMonPopulator:
         ts = str(int(time.time()*1000000))
         self._table_manager.purge_old_tsdata('ops_interfacevlan', ts)
 
-        latest_snapshot = gram_slice_info.find_latest_snapshot()
-        objects_by_urn = gram_slice_info.parse_snapshot(latest_snapshot)
-
-        links = [link for link in objects_by_urn.values() \
+        links = [link for link in self._objects_by_urn.values() \
                      if link['__type__'] == 'NetworkLink']
-        ifaces = [iface for iface in objects_by_urn.values() \
+        ifaces = [iface for iface in self._objects_by_urn.values() \
                       if iface['__type__'] == 'NetworkInterface']
+        vms = [vm for vm in self._objects_by_urn.values() \
+                      if vm['__type__'] == 'VirtualMachine']
         data_interface = self._gram_config['data_interface']
 
         for iface in ifaces:
-            host = iface['host']
-            link_urn = iface['link']
-            link_object = objects_by_urn[link_urn]
-
-            # Get the VLAN tag of traffic on this interface/link
-            tag = link_object['vlan_tag']
-
-            ifacevlan_id = self.get_interfacevlan_id(tag)
+            ifacevlan_urn = iface['sliver_urn']
+            ifacevlan_id = self.get_interfacevlan_id(ifacevlan_urn)
             ifacevlan_href = self.get_interfacevlan_href(ifacevlan_id)
-            ifacevlan_urn = self.get_interfacevlan_urn(tag)
 
-            # Get the NIC interface on the compute host of the VM
-            iface_id = self.get_interface_id(host, data_interface)
+            # The VM of this interface
+            iface_vm = None
+            for vm in vms:
+                if vm['sliver_urn'] == iface['virtual_machine']:
+                    iface_vm = vm
+                    break
+            host = iface_vm['host']
+
+            # The node_urn for compute node on which VM resides
+            node_urn = None
+            for node_id, node_info in self._nodes.items():
+                if node_info['host'] == host:
+                    node_urn = node_info['urn']
+                    break
+
+            # *** The physical interface on compute host for this sliver interface
+            iface_urn = self.get_interface_urn(node_urn, data_interface)
+            iface_id = self.get_interface_id(node_urn, data_interface)
             iface_href = self.get_interface_href(iface_id)
-            iface_urn = host + ":" + data_interface
 
-            # Get the link_id to which this vlan interface belongs
-            # INTERNAL or one of the stitch points
-            link_id = None
-            for external_link_id, external_vlans in self._external_vlans.items():
-                if tag in external_vlans:
-                    link_id = external_link_id
-                    break;
-            if link_id is None and tag in self._internal_vlans:
-                link_id = flatten_urn(self.get_internal_link_urn())
+            # Find the link for this interface and grab VLAN tag
+            link_urn = iface['link']
+            link = None
+            for lnk in links: 
+                if lnk['sliver_urn'] == link_urn:
+                    link = lnk;
+                    break
+            tag = link['vlan_tag']
+            link_id = self.get_link_id(link_urn)
 
-            interfacevlan_info = [self._interfacevlan_schema, 
-                              ifacevlan_id,
-                              ifacevlan_href,
-                              ifacevlan_urn,
-                              ts,
-                              tag,
-                              iface_urn,
-                              iface_href]
-                              
-
-            info_insert(self._table_manager, 'ops_interfacevlan', 
-                        interfacevlan_info)
-
-            link_interfacevlan_info = [ifacevlan_id, 
-                                       link_id,
-                                       ifacevlan_urn,
-                                       ifacevlan_href]
+            ifacevlan_info = [self._interfacevlan_schema, ifacevlan_id, 
+                              ifacevlan_href, ifacevlan_urn, ts, tag,
+                              iface_urn, iface_href]
             
-            info_insert(self._table_manager, 'ops_link_interfacevlan', 
-                        link_interfacevlan_info)
+            info_insert(self._table_manager, 'ops_interfacevlan', 
+                        ifacevlan_info)
 
+            link_ifacevlan_info = [ifacevlan_id, link_id, ifacevlan_urn, ifacevlan_href]
+            info_insert(self._table_manager, 'ops_link_interfacevlan',
+                        link_ifacevlan_info)
+
+
+    # update slice tables based on most recent snapshot
+    def update_slice_tables(self):
+        ts = int(time.time()*1000000)
+
+        # Clear out old slice/user info
+        self._table_manager.purge_old_tsdata('ops_slice', ts)
+        self._table_manager.purge_old_tsdata('ops_user', ts)
+        self._table_manager.purge_old_tsdata('ops_authority', ts)
+        self.delete_all_entries_in_table('ops_slice_user')
+        self.delete_all_entries_in_table('ops_authority_slice')
+
+        user_urns = []
+        authority_urns = []
+
+        # Insert into ops_slice, ops_user and ops_slice_user tables 
+        # for each active slice
+        for object_urn, object_attributes in self._objects_by_urn.items():
+            if object_attributes['__type__'] not in ['Slice']: continue
+
+            user_urn = object_attributes['user_urn']
+            slice_urn = object_attributes['slice_urn']
+            slice_uuid = object_attributes['tenant_uuid']
+            expires = object_attributes['expiration']
+
+            authority_urn = getAuthorityURN(slice_urn, 'sa')
+            authority_id = self.get_authority_id(authority_urn)
+            authority_href = self.get_authority_href(authority_id)
+
+            if authority_urn not in authority_urns:
+                authority_urns.append(authority_urn)
+
+            created = -1 # *** Can't get this
+
+            # Insert into ops_slice table
+            slice_id = self.get_slice_id(slice_urn)
+            slice_href = self.get_slice_href(slice_id)
+            slice_info = [self._slice_schema, slice_id, slice_href,
+                          slice_urn, slice_uuid, ts, authority_urn, 
+                          authority_href, created, expires]
+            info_insert(self._table_manager, 'ops_slice', slice_info)
+
+            # If user URN is present, link from slice to user
+            if user_urn is not None:
+                if user_urn not in user_urns: user_urns.append(user_urn)
+                user_id = self.get_user_id(user_urn)
+                user_href = self.get_user_href(user_id)
+                role = None # *** Don't know what this is or how to get it
+                slice_user_info = [user_id, slice_id, user_urn, role, user_href]
+                info_insert(self._table_manager, 'ops_slice_user', slice_user_info)
+
+            # Link from slice to authority
+            auth_slice_info = [slice_id, authority_id, slice_urn, slice_href]
+            info_insert(self._table_manager, 'ops_authority_slice', 
+                        auth_slice_info)
+
+        # Fill in users table
+        for user_urn in user_urns:
+
+            user_id = self.get_user_id(user_urn)
+            user_href = self.get_user_href(user_id)
+
+            authority_urn = getAuthorityURN(user_urn, 'ma')
+            authority_id = self.get_authority_href(authority_urn)
+            authority_href = self.get_authority_href(authority_id)
+
+            if authority_urn not in authority_urns:
+                authority_urns.append(authority_urn)
+
+            full_name = None # *** Don't have this
+            email = None # *** Don't have this
+
+            user_info = [self._user_schema, user_id, user_href, user_urn, ts,
+                         authority_urn, authority_href, full_name, email]
+            info_insert(self._table_manager, 'ops_user', user_info)
+
+        # Fill in authority table
+        for authority_urn in authority_urns:
+            authority_id = self.get_authority_id(authority_urn)
+            authority_href = self.get_authority_href(authority_id)
+            
+            authority_info = [self._authority_schema, authority_id,
+                              authority_href, authority_urn, ts]
+            info_insert(self._table_manager, 'ops_authority', authority_info)
+            
 
     # update sliver tables based on most recent snapshot
     def update_sliver_tables(self):
@@ -358,17 +455,14 @@ class OpsMonPopulator:
             node_id = node_info['id']
             self._table_manager.delete_stmt('ops_sliver_resource', node_id)
 
-        latest_snapshot = gram_slice_info.find_latest_snapshot()
-        objects_by_urn = gram_slice_info.parse_snapshot(latest_snapshot)
-
         # Insert into ops_sliver_resource table and ops_aggregate_sliver table
-        for object_urn, object_attributes in objects_by_urn.items():
+        for object_urn, object_attributes in self._objects_by_urn.items():
             if object_attributes['__type__'] not in ['NetworkInterface', 'VirtualMachine']: continue
             slice_urn = object_attributes['slice_urn']
             sliver_id = flatten_urn(slice_urn) + "_" + object_attributes['name']
         
             # Insert into sliver tables
-        for object_urn, object_attributes in objects_by_urn.items():
+        for object_urn, object_attributes in self._objects_by_urn.items():
             if object_attributes['__type__'] not in ['NetworkInterface', 'VirtualMachine']: continue
             schema = self._sliver_schema
             slice_urn = object_attributes['slice_urn']
@@ -414,12 +508,9 @@ class OpsMonPopulator:
         # Clear out old node info
         self._table_manager.purge_old_tsdata(num_vms_table, ts)
 
-        latest_snapshot = gram_slice_info.find_latest_snapshot()
-        objects_by_urn = gram_slice_info.parse_snapshot(latest_snapshot)
-
         # Count number of VM's in current snapshot
         num_vms = 0
-        for object_urn, object_attributes in objects_by_urn.items():
+        for object_urn, object_attributes in self._objects_by_urn.items():
             if object_attributes['__type__'] == 'VirtualMachine': 
                 num_vms = num_vms + 1
         
@@ -564,7 +655,11 @@ def parseVLANs(vlan_spec):
     ranges = (x.split("-") for x in vlan_spec.split(","))
     return [i for r in ranges for i in range(int(r[0]), int(r[-1]) + 1)]
 
-        
+# Turn a urn into the urn of the authority that created it
+def getAuthorityURN(urn, authority_type):
+    pieces = urn.split(':')
+    authority_id = pieces[2]
+    return 'urn:publicid:%s+authority+%s' % (authority_id, authority_type)
 
 if __name__ == "__main__":
     sys.exit(main())
