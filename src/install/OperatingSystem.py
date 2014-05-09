@@ -123,6 +123,7 @@ class OperatingSystem(GenericInstaller):
             # write the interface file
 
             #deal with monitoring
+            self.comment("Set up Monitoring")
             self.sed("s/\/usr\/local\/ops-monitoring/\/home\/gram\/ops-monitoring/",'/home/gram/ops-monitoring/local/wsgi/localstore.wsgi')
             self.sed("s/^dbtype:.*$/dbtype: mysql/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.sed("s/^username:.*$/username: quantum/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
