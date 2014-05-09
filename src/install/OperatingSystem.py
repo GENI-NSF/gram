@@ -122,12 +122,23 @@ class OperatingSystem(GenericInstaller):
             self.appendToFile('fudge 127.127.1.0 stratum 10', '/etc/ntp.conf')
             # write the interface file
 
+            #deal with monitoring
+            self.sed("s/\/usr\/local\/ops-monitoring/\/home\/gram\/ops-monitoring/",'/home/gram/ops-monitoring/local/wsgi/localstore.wsgi')
+            self.sed("s/^dbtype:.*$/dbtype: mysql/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+            self.sed("s/^username:.*$/username: quantum/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+            self.sed("s/^password:.*$/password: " + config.quantum_password + "/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+            self.add('sudo a2enmod ssl')
+            self.add('sudo a2ensite default-ssl');
+
         else:
             self.comment("Set NTP to follow the control node")
             self.sed("s/server 0.ubuntu.pool.ntp.org/#server 0.ubuntu.pool.ntp.org/","/etc/ntp.conf")
             self.sed("s/server 1.ubuntu.pool.ntp.org/#server 1.ubuntu.pool.ntp.org/","/etc/ntp.conf")
             self.sed("s/server 2.ubuntu.pool.ntp.org/#server 2.ubuntu.pool.ntp.org/","/etc/ntp.conf")
             self.sed("s/server 3.ubuntu.pool.ntp.org/#server 3.ubuntu.pool.ntp.org/","/etc/ntp.conf")
+            self.comment("Getting Python pip to install psutil for monitoring")
+            self.add("sudo apt-get install python-dev python-pip")
+            self.add("sudo pip install psutil")
 
  
         self.add('service ntp restart')
@@ -183,11 +194,7 @@ class OperatingSystem(GenericInstaller):
         for node in nodes:
             self.appendToFile(nodes[node] + "\t" + node,"~/hosts")
 
-        #deal with monitoring
-        self.sed("s/\/usr\/local\/ops-monitoring/\/home\/gram\/ops-monitoring/",'/home/gram/ops-monitoring/local/wsgi/localstore.wsgi')
-        self.sed("s/^dbtype:.*$/dbtype: mysql/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
-        self.sed("s/^username:.*$/username: quantum/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
-        self.sed("s/^password:.*$/password: " + config.quantum_password + "/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+
 
         self.writeToFile("Defaults:quantum !requiretty", "/etc/sudoers.d/quantum_sudoers")
         self.appendToFile("quantum ALL=NOPASSWD: ALL","/etc/sudoers.d/quantum_sudoers")
