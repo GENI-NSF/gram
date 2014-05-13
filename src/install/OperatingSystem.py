@@ -126,6 +126,7 @@ class OperatingSystem(GenericInstaller):
             self.comment("Set up Monitoring")
             self.sed("s/\/usr\/local\/ops-monitoring/\/home\/gram\/ops-monitoring/",'/home/gram/ops-monitoring/local/wsgi/localstore.wsgi')
             self.sed("s/^dbtype:.*$/dbtype: mysql/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+            self.sed("s/^database:.*$/database: monitoring/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.sed("s/^username:.*$/username: quantum/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.sed("s/^password:.*$/password: " + config.quantum_password + "/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.add('sudo a2enmod ssl')
@@ -138,8 +139,11 @@ class OperatingSystem(GenericInstaller):
             self.sed("s/server 2.ubuntu.pool.ntp.org/#server 2.ubuntu.pool.ntp.org/","/etc/ntp.conf")
             self.sed("s/server 3.ubuntu.pool.ntp.org/#server 3.ubuntu.pool.ntp.org/","/etc/ntp.conf")
             self.comment("Getting Python pip to install psutil for monitoring")
-            self.add("sudo apt-get install python-dev python-pip")
-            self.add("sudo pip install psutil")
+
+
+        self.add("sudo apt-get install python-dev python-pip")
+        self.add("sudo pip install psutil")
+        self.add("sudo pip install flask")
 
  
         self.add('service ntp restart')
