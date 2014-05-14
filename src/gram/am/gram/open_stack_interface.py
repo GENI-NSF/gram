@@ -1648,9 +1648,11 @@ def get_all_tenant_info():
     # Users are admins on slices
     cmd_string = "keystone user-list"
     output = _execCommand(cmd_string)
+#    print "USER-LIST %s" % output
     users_info = _parseTableOutput(output)
+#    print "USERS_INFO = %s" % users_info
     user_uuids_by_tenant_id = {}
-    for i in range(len(users_info)):
+    for i in range(len(users_info['id'])):
         if users_info['name'][i] not in \
                 ['admin', 'cinder', 'glance', 'nova', 'quantum']:
             user_uuid = users_info['id'][i]
