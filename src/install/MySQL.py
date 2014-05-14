@@ -36,6 +36,7 @@ class MySQL(GenericInstaller):
         self.appendToFile('CREATE DATABASE glance;', sql_filename)
         self.appendToFile('CREATE DATABASE keystone;', sql_filename)
         self.appendToFile('CREATE DATABASE quantum;', sql_filename)
+        self.appendToFile('CREATE DATABASE monitoring;', sql_filename)
         self.generatePrivileges('nova', config.nova_user, \
                                     config.nova_password, 
                                     True, sql_filename)
@@ -48,7 +49,15 @@ class MySQL(GenericInstaller):
         self.generatePrivileges('quantum',  config.quantum_user, \
                                     config.quantum_password, \
                                     True, sql_filename)
+        self.generatePrivileges('monitoring',  config.quantum_user, \
+                                    config.quantum_password, \
+                                    True, sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
+        #Not really sure this should happen here - need to go to the directory - paths are not absolute
+        #Leaving for reference, but should be done by hand for now - RRH 5/13/2014
+        #self.comment("Create monitoring schema - needs to be done after DB creation")
+        #self.add('cd /home/gram/ops-monitoring/local/unit-tests')
+        #self.add('python local_table_reset.py')
         
 
     # return a list of command strings for uninstalling this component
@@ -59,6 +68,7 @@ class MySQL(GenericInstaller):
         self.appendToFile('DROP DATABASE glance;', sql_filename)
         self.appendToFile('DROP DATABASE keystone;', sql_filename)
         self.appendToFile('DROP DATABASE quantum;', sql_filename)
+        self.appendToFile('DROP DATABASE monitoring;', sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
 
     def generatePrivileges(self, db, user_name, user_pwd, \
