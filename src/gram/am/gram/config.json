@@ -10,12 +10,38 @@
    "__009": "and set as null here must be set in this file:",
    "__010": "no default is provided",
 
+   "aggregate_id": null,
+
    "default_VM_flavor": "m1.small",
    "default_OS_image": "ubuntu-12.04",
    "default_OS_type": "Linux",
    "default_OS_version": "12",
 
-   "disk_image_metadata": null,
+   "disk_image_metadata": 
+   {
+   "ubuntu-12.04":
+       {
+        "os": "Linux",
+        "version": "12.0",
+        "description":" Standard Ubuntu",
+        "boot_complete_msg" : "cloud-init boot finished at"
+        },
+   "centos-6.5":
+       {
+        "os": "Linux",
+        "version": "6.5",
+        "description":" Standard Centos",
+        "boot_complete_msg" : "login:"
+        },
+   "fedora-19":
+       {
+        "os": "Linux",
+        "version": "19.0",
+        "description":"Standard Fedora",
+        "boot_complete_msg" : "EXT4-fs (vda1): resized filesystem to"
+        }
+   },
+
 
    "external_interface": null,
    "external_address": null,
@@ -44,7 +70,6 @@
    "os_region_name" : "RegionOne", 
    "os_no_cache" : "1",
    "service_token" : null,
-   "service_endpoint" : "http://localhost:35357/v2.0",
 
    "public_gateway_ip" : null,
    "public_dns_nameservers" : null,
@@ -54,20 +79,15 @@
 
    "metadata_port" : "8775",
 
-   "gmoc_url" : null,
-   "gmoc_site_name" : null,
-   "gmoc_org_name" : null,
-   "gmoc_pop_name" : null,
-   "gmoc_password" : null,
-   "gmoc_user" : null,
-
    "backup_directory" : "/home/gram/.backup",
    "control_host" : null,
    "control_host_addr" : null,
    "compute_hosts": null,
    "host_file_entries": null,
    "glance_images" : [],
+   "internal_vlans": null,
    "stitching_info" : null,
+   "public_ip" : null,
    "mgmt_ns" : null 
 
 }
