@@ -141,7 +141,7 @@ class OperatingSystem(GenericInstaller):
             self.comment("Getting Python pip to install psutil for monitoring")
 
 
-        self.add("sudo apt-get install python-dev python-pip")
+        self.add("sudo apt-get install python-dev python-pip expect")
         self.add("sudo pip install psutil")
         self.add("sudo pip install flask")
 
