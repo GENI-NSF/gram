@@ -1,0 +1,22 @@
+# Script to pull the status of an interface  out of a DELL Force10 switch
+# Usage expect stats.expect iface_name port
+#  e.g. expect stats.expect te 0/1
+
+set iface [lindex $argv 0]
+set port [lindex $argv 1]
+
+spawn ssh admin@10.10.8.200
+expect "password:"
+send "admin\r"
+expect "FTOS>"
+send "terminal length 512\r"
+expect "FTOS>"
+send "show int $iface $port\r"
+expect "FTOS>"
+send "exit\r"
+interact
+
+
+
+
+

@@ -214,6 +214,7 @@ class OpsMonPopulator:
             self.update_sliver_tables()
             self.update_aggregate_tables()
             self.update_interfacevlan_info()
+            self.update_switch_info()
 #            data_filename = self.generate_data_file()
 #            self.execute_data_file(data_filename)
 #            print "FILE = %s" % data_filename
@@ -357,6 +358,86 @@ class OpsMonPopulator:
             link_ifacevlan_info = [ifacevlan_id, link_id, ifacevlan_urn, ifacevlan_href]
             info_insert(self._table_manager, 'ops_link_interfacevlan',
                         link_ifacevlan_info)
+
+    # Update information about the switch, its egress ports
+    # And associated measurements (pps, bps, etc)
+    def update_switch_info(self):
+
+        ts = str(int(time.time()*1000000))
+
+        # Add entry into ops_node for each switch
+        switches = []
+        if 'stitching_info' in self._gram_config and \
+                'edge_points' in self._gram_config['stitching_info']:
+
+            # Gather all the switches and write unique entry in ops_node
+            for ep in self._gram_config['stitching_info']['edge_points']:
+                switch_name = ep['local_switch']
+                if switch_name not in switches: switches.append(switch_name)
+            for switch_name in switches:
+                switch_id = self.get_node_id(switch_name)
+                switch_href = self.get_node_href(switch_id)
+                switch_node_info = [self._node_schema, switch_id, switch_href,\
+                                        switch_name, ts, 0] # 0 = mem_total_kb
+                info_insert(self._table_manager, 'ops_node', switch_node_info)
+
+            # Enter an interface in the ops_interface for the egress_ports
+            # As well as ops_node_interface
+            # For each end point, grab info from the switch
+            # Use that to determine MAC and line speed as well
+            # as whatever measurements are available
+            for ep in self._gram_config['stitching_info']['edge_points']:
+                switch_name = ep['local_switch']
+                switch_id = self.get_node_id(switch_name)
+                iface_urn = ep['port']
+                
+                iface_id = self.get_interface_id(iface_urn, 'EGRESS')
+                iface_href = self.get_interface_href(iface_id)
+                iface_address_type = 'MAC'
+                iface_address = '' # 
+                iface_role = 'DATA'
+                iface_max_bps = 0 
+                iface_max_pps = 0 
+
+                if iface_urn in self._config['ports']:
+                    stats_command = self._config['ports'][iface_urn]['command']
+                    parser_module = \
+                        self._config['ports'][iface_urn]['parser_module']
+                    parser = self._config['ports'][iface_urn]['parser']
+                    measurements = self._config['ports'][iface_urn]['measurements']
+                    iface_raw_stats = subprocess.check_output(stats_command)
+#                    print "IFACE_RAW_STATS = %s" % iface_raw_stats
+                    exec('import %s' % parser_module)
+                    parse_cmd = "%s(iface_raw_stats)" % parser
+                    iface_stats = eval(parse_cmd)
+ #                   print "IFACE_STATS = %s" % iface_stats
+                    iface_max_bps = iface_stats['line_speed']
+                    iface_address = iface_stats['mac_address']
+
+                    for meas in measurements:
+                        meas_table = meas['table']
+                        meas_key = meas['key']
+                        meas_change_rate = meas['change_rate']
+                        value = iface_stats[meas_key]
+                        if meas_change_rate:
+                            value = self._compute_change_rate(value, 
+                                                              meas_table,
+                                                              iface_id)
+                            ts_data = [iface_id, ts, value]
+                            info_insert(self._table_manager, meas_table, 
+                                        ts_data)
+                         
+                # Insert interface and node_interface entries for egress port
+                iface_info = [self._interface_schema, iface_id, iface_href,
+                              iface_urn, ts, iface_address_type,
+                              iface_address, iface_role, 
+                              iface_max_bps, iface_max_pps]
+                info_insert(self._table_manager, 'ops_interface', iface_info)
+                node_iface_info = [iface_id, switch_id, iface_urn, iface_href]
+                info_insert(self._table_manager, 'ops_node_interface', 
+                            node_iface_info)
+
+
 
 
     # update slice tables based on most recent snapshot
