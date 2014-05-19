@@ -363,7 +363,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         creds = self.validate_credentials(credentials, privileges, \
                                               the_slice.getSliceURN())
 
-        gram_ret = self._gram_manager.renew_slivers(the_slice,slivers, creds, expiration_time)
+        gram_ret = self._gram_manager.renew_slivers(the_slice,slivers, creds, expiration_time, options)
         
         return gram_ret
 

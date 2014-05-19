@@ -548,7 +548,7 @@ class GramManager :
                         'output': 'Failed to delete one or more slivers'}
 
 
-    def renew_slivers(self,slice_object, sliver_objects, creds, expiration_time):
+    def renew_slivers(self,slice_object, sliver_objects, creds, expiration_time, options):
         """
             AM API V3 method.
 
@@ -570,6 +570,15 @@ class GramManager :
                 utils.SliverList().getStatusOfSlivers(sliver_objects)
 
             requested = utils._naiveUTC(dateutil.parser.parse(expiration_time))
+
+            # If geni_extend_alap option provided, use the earlier           
+            # of the requested time and max expiration as the expiration time
+            if 'geni_extend_alap' in options and options['geni_extend_alap']:
+                if expiration < requested:
+                    slice_urn = slice_object.getSliceURN()
+                    config.logger.info("Got geni_extend_alap: revising slice %s renew request from %s to %s" % (slice_urn, requested, expiration))
+                requested = expiration
+
             if requested > expiration:
                 print 'expiration time too long'
                 code = {'geni_code':constants.REQUEST_PARSE_FAILED}
