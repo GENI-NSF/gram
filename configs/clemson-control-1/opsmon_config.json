@@ -1,0 +1,74 @@
+{
+	"base_address" : "https://130.127.88.98",
+	"aggregate_id" : "gram-clemson",
+	"aggregate_urn" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+am",
+	"frequency_sec" : "60",
+	"window_duration_sec" : "3600",
+	"database_user" : "quantum",
+	"database_pwd" : "os_pwd", 
+	"database_name" : "monitoring",
+	"hosts" : [
+		{"id" : "clemson-clemson-compute-1", "address" : "130.127.88.99",
+		"urn" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+clemson-clemson-compute-1",
+		"interfaces" : {"ctl" : {"address" : "10.10.8.101", 
+			         "type" : "IPv4", "role" : "CONTROL", "max_bps" : "1000000000"},
+			        "dat" : {"address" : "a0:36:9f:11:0d:30", 
+				 "type" : "MAC", "role" : "DATA", "max_bps" : "1000000000"}}},
+		{"id" : "clemson-clemson-compute-2", "address" : "130.127.88.100",
+		"urn" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+clemson-clemson-compute-2",
+		"interfaces" : {"ctl" : {"address" : "10.10.8.102", 
+			         "type" : "IPv4", "role" : "CONTROL", "max_bps" : "1000000000"},
+			        "dat" : {"address" : "a0:36:9f:11:0c:4c",
+				 "type" : "MAC", "role" : "DATA", "max_bps" : "1000000000"}}}
+	],
+	"modules" : ["psutil"],
+	"node_commands" : [
+	{"table" : "ops_node_cpu_util", "expression" : "psutil.cpu_percent()"},
+	{"table" : "ops_node_mem_used_kb", 
+		 "expression" : "int(psutil.virtual_memory().used/1000)"},
+	{"table" : "ops_node_swap_free", 
+		 "expression" : "(1-psutil.swap_memory().percent)*100"},
+	{"table" : "ops_node_disk_part_max_used", 
+		 "expression" : "psutil.disk_usage('/').percent*100"}
+
+	],
+	"interface_commands" : [
+	{"table" : "ops_interface_tx_bps", 
+		 "expression" : "bytes_sent",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_rx_bps", 
+		 "expression" : "bytes_recv",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_tx_pps", 
+		 "expression" : "packets_sent",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_rx_pps", 
+		 "expression" : "packets_recv",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_tx_dps", 
+		 "expression" : "dropout",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_rx_dps", 
+		 "expression" : "dropin",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_tx_eps", 
+		 "expression" : "errout",
+		 "change_rate" : "True"},
+	{"table" : "ops_interface_rx_eps", 
+		 "expression" : "errin",
+		 "change_rate" : "True"}
+	],
+	"ports" : {
+	"urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2:16": {
+	"command"  : ["expect", "/home/gram/gram/opsmon/stats.expect", "te", "0/2"],
+	"parser_module" : "parse_interface_stats",
+	"parser" : "parse_interface_stats.parse_interface_stats",
+	"measurements" : [
+	{"table" : "ops_interface_rx_bps", "key" : "input_bytes", "change_rate" : "True"},
+	{"table" : "ops_interface_rx_pps", "key" : "input_packets", "change_rate" : "True"},
+	{"table" : "ops_interface_tx_bps", "key" : "output_bytes", "change_rate" : "True"},
+	{"table" : "ops_interface_tx_pps", "key" : "output_packets", "change_rate" : "True"}
+	]
+	}
+	}
+}

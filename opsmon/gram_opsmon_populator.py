@@ -531,10 +531,10 @@ class OpsMonPopulator:
 
         # Clear out old sliver info:
         self._table_manager.purge_old_tsdata('ops_sliver', ts)
-        # Clear out old sliver resource info
-        for node_urn, node_info in self._nodes.items():
-            node_id = node_info['id']
-            self._table_manager.delete_stmt('ops_sliver_resource', node_id)
+        # Clear out old sliver resource and aggregate sliver
+        self.delete_all_entries_in_table('ops_sliver_resource')
+        self.delete_all_entries_in_table('ops_aggregate_sliver')
+            
 
         # Insert into ops_sliver_resource table and ops_aggregate_sliver table
         for object_urn, object_attributes in self._objects_by_urn.items():
