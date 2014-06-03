@@ -153,7 +153,7 @@ class VMOCClientInterface(threading.Thread):
                       else:
                           self._vmoc_is_up = False
                   except Exception as e:
-                      print "Exception (2) "  + str(e)
+#                      print "Exception (2) "  + str(e)
                       self._vmoc_is_up = False
 
           # Wake up every N seconds
@@ -185,8 +185,8 @@ class VMOCClientInterface(threading.Thread):
     @staticmethod
     def create_queue_entry(slice_id, slice_config, register):
         if not slice_config:
-            print "SLICE_ID = " + str(slice_id)
-            print "CONFIGS_BY_SLICE = " + str(VMOCClientInterface._instance._configs_by_slice)
+#            print "SLICE_ID = " + str(slice_id)
+#            print "CONFIGS_BY_SLICE = " + str(VMOCClientInterface._instance._configs_by_slice)
             slice_config = VMOCClientInterface._instance._configs_by_slice[slice_id];
         if slice_config: slice_id = slice_config.getSliceID()
         if register:

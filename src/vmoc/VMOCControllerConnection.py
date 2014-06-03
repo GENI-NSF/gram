@@ -131,11 +131,11 @@ class VMOCControllerConnection(threading.Thread):
 
     def close(self):
         self._delete_old_vlan_flows()
-        print "CLOSING " + str(self)
+#        print "CLOSING " + str(self)
         self._sock.close()
-        print "SOCKET CLOSED " + str(self)
+#        print "SOCKET CLOSED " + str(self)
         self._running = False
-        print "RUNNING = FALSE (from close)" + str(self)
+#        print "RUNNING = FALSE (from close)" + str(self)
 
     def __str__(self):
         return "[VMOCControllerConnection DPID %s URL %s VLAN %d]" % (self._dpid, self._url, self._vlan)
@@ -241,7 +241,7 @@ class VMOCControllerConnection(threading.Thread):
         match = of.ofp_match()
         match.dl_vlan = self._vlan
         flow_mod = of.ofp_flow_mod(match=match, command=of.OFPFC_DELETE)
-        print "FM = %s" % str(flow_mod)
+#        print "FM = %s" % str(flow_mod)
         self.forwardToAllAppropriateSwitches(flow_mod)
 
     def _receive_echo_reply(self, ofp):
