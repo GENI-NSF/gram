@@ -125,7 +125,7 @@ def main(argv=None):
     level = logging.INFO
     if opts.debug:
         level = logging.DEBUG
-    logging.basicConfig(level=level)
+    logging.basicConfig(level=level, format = '%(asctime)s %(message)s')
 
     # Read in config file options, command line gets priority
     optspath = None
