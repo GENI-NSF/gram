@@ -254,7 +254,7 @@ def initialize(config_file):
         data = f.read()
         f.close()
     except Exception, e:
-        print "Failed to read GRAM config file: " + config_file + str(e)
+#        print "Failed to read GRAM config file: " + config_file + str(e)
         logger.info("Failed to read GRAM config file: " + config_file)
         return
 

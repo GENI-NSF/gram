@@ -22,6 +22,7 @@
 #----------------------------------------------------------------------
 
 import threading
+import config
 
 # Class to manage a set of VLAN's
 # Letting someone allocate and free one, 
@@ -121,7 +122,8 @@ class VLANPool:
             
             self._available_vlans.remove(tag)
 
-            print "Allocated %d from VLAN pool %s" % (tag, self._name)
+            config.logger.info( "Allocated %d from VLAN pool %s" % \
+                                    (tag, self._name))
 
             return True, tag
 
@@ -133,7 +135,7 @@ class VLANPool:
             if tag in self._available_vlans: return False
             self._available_vlans.append(tag)
             self._available_vlans.sort()
-            print "Freed %d to VLAN pool %s" % (tag, self._name)
+            config.logger.info("Freed %d to VLAN pool %s" % (tag, self._name))
             return True
 
 if __name__ == "__main__":

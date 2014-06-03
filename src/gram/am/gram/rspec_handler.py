@@ -270,7 +270,7 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
 
 
     for link in link_list :
-        print 'link: ' + link.toxml()
+#        print 'link: ' + link.toxml()
         # Get information about this link from the rspec
         link_attributes = link.attributes
 
@@ -564,7 +564,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     #images = open_stack_interface._listImages()
     #print "IMAGES = " + str(images)
     images = config.disk_image_metadata
-    print "IMAGES = " + str(images)
+#    print "IMAGES = " + str(images)
     image_types = ""
     for image in images:
         description = ""

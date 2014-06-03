@@ -120,8 +120,9 @@ class StitchingEdgePoint:
         if selected:
             self._vlans.allocate(selected)
 
-        print "*** ALLOCATE TAG : %s %s => %s" % \
-            (request_suggested, request_available, selected)
+        config.logger.info( "*** ALLOCATE TAG : %s %s => %s" % \
+                                (request_suggested, request_available, 
+                                 selected))
         return selected, selected != None
 
     def __str__(self):
@@ -224,7 +225,8 @@ class Stitching:
             edge_point = self._edge_points[link_id]
             edge_point._vlans.free(tag)
             del self._reservations[sliver_id]
-            print "*** Deleting VLAN tag allocation %s : %s" % (sliver_id, tag)
+            config.logger.info("*** Deleting VLAN tag allocation %s : %s" %\
+                                   (sliver_id, tag))
 
     def generateAdvertisement(self):
         doc = Document()
@@ -411,8 +413,8 @@ class Stitching:
     # As well as the tag_id (or None) allocated
     def allocateVLAN(self, link_id, hop_link, sliver_id, allocate, is_v2_allocation):
 
-        print "AllocateVLAN %s %s %s %s %s" % \
-            (link_id, sliver_id, allocate, is_v2_allocation, hop_link.toxml())
+        config.logger.info("AllocateVLAN %s %s %s %s %s" % \
+            (link_id, sliver_id, allocate, is_v2_allocation, hop_link.toxml()))
 
         request_suggested, request_available = self.parseVLANTagInfo(hop_link)
         edge_point = self._edge_points[link_id]

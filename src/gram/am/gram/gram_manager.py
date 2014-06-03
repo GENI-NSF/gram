@@ -130,6 +130,12 @@ class GramManager :
     def setPersistentState(self, ps) : self._persistent_state = ps
     def getPersistentState(self) : return self._persistent_state;
 
+    # Cleanup all allocated slivers and return error code
+    # To be called from all error returns from allocate
+    def cleanup_slivers(self, slivers, slice_object):
+        for sliver_object in slivers:
+            slice_object.removeSliver(sliver_object)
+
     def allocate(self, slice_urn, creds, rspec, options) :
 
         """
@@ -170,8 +176,7 @@ class GramManager :
             if err_output != None :
                 # Something went wrong.  First remove from the slice any sliver
                 # objects created while parsing the bad rspec
-                for sliver_object in slivers :
-                    slice_object.removeSliver(sliver_object)
+                self.cleanup_slivers(slivers, slice_object)
                 
                 # Return an error struct.
                 code = {'geni_code': err_code}
@@ -192,8 +197,7 @@ class GramManager :
                     # on rack.  Remove from this slice the sliver 
                     # objects created during this call to allocate 
                     # before returning an error struct
-                    for sliver_object in slivers :
-                        slice_object.removeSliver(sliver_object)
+                    self.cleanup_slivers(slivers, slice_object)
                     code =  {'geni_code': constants.REQUEST_PARSE_FAILED}
                     error_output = \
                         "For OpenFlow controlled slice, limit of " + \
@@ -228,6 +232,7 @@ class GramManager :
                     self._stitching.allocate_external_vlan_tags(link_sliver_object, \
                                                                     rspec, is_v2_allocation)
                 if not success:
+                    self.cleanup_slivers(slivers, slice_object)
                     return {'code' : {'geni_code' : error_code}, 'value' : "",
                             'output' : error_string}
 
@@ -235,6 +240,7 @@ class GramManager :
             # that isn't already set by stitching
 #            print 'allocating internal vlan'
             if not self.allocate_internal_vlan_tags(slice_object):
+                self.cleanup_slivers(slivers, slice_object)
                 error_string = "No more internal VLAN tags available"
                 error_code = constants.VLAN_UNAVAILABLE
                 return {'code' : {'geni_code' : error_code}, 'value' : "",
@@ -253,6 +259,7 @@ class GramManager :
                                                              agg_urn, \
                                                              self._stitching)
             if error_code != constants.SUCCESS:
+                self.cleanup_slivers(slivers, slice_object)
                 return {'code' : {'geni_code' : error_code}, 'value' : "", 
                         'output' : error_string}
 
@@ -580,7 +587,7 @@ class GramManager :
                 requested = expiration
 
             if requested > expiration:
-                print 'expiration time too long'
+                config.logger.info('expiration time too long')
                 code = {'geni_code':constants.REQUEST_PARSE_FAILED}
                 return {'code':code, 'value':sliver_status_list, 'output':'ERROR: Requested sliver expiration is greater than either the slice expiration or the maximum lease time: ' + str(config.lease_expiration_minutes) + ' minutes'}
 
@@ -754,7 +761,7 @@ class GramManager :
             # Use the specified one (if any)
             # Otherwise, use the most recent (if indicated)
             # Otherwise, no state to restore
-            print config.recover_from_most_recent_snapshot
+#            print config.recover_from_most_recent_snapshot
             snapshot_file = None
             if config.recover_from_snapshot and \
                     config.recover_from_snapshot != "": 
@@ -763,8 +770,9 @@ class GramManager :
                 files = self.get_snapshots()
                 if files and len(files) > 0:
                     snapshot_file = files[len(files)-1]
-                print 'snapshot file: '
-                print snapshot_file
+                config.logger.info("SNAPSHOT FILE : %s" % snapshot_file)
+#                print 'snapshot file: '
+#                print snapshot_file
             if snapshot_file is not None:
                 config.logger.info("Restoring state from snapshot : %s" \
                                        % snapshot_file)

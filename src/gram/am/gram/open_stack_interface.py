@@ -1259,7 +1259,7 @@ def  _getImageUUID(image_name) :
     if not _getUUIDByName(output, image_name):
         resources.GramImageInfo.refresh()
 
-    print output
+#    print output
     #cmd_string = 'nova image-list'
     #try :
     #    output = _execCommand(cmd_string)

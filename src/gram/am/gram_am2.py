@@ -88,7 +88,7 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         else:
             ret_v3 = self._v3_am.ListResources(credentials, options)
             if ret_v3['code']['geni_code'] != 0: return ret_v3
-            print "LR.ListResources = " + str(ret_v3)
+#            print "LR.ListResources = " + str(ret_v3)
             result = ret_v3['value']
 
 #             result = self.advert_header()
