@@ -24,13 +24,14 @@
 # AM API V2 version of Gram aggregate manager
 # For testing against tools (Flack, portal) that speak AM API V2
 # Since Gram is written to support V3
-from gram import config
+from gram import config, utils
 from geni.am.am2 import ReferenceAggregateManager
 from geni.am.am2 import AggregateManager, AggregateManagerServer
 from am3 import GramReferenceAggregateManager as GramReferenceAggregateManager_V3
 from GramSecureXMLRPCServer import GramSecureXMLRPCServer
 from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
 import base64
+import dateutil
 import os
 import socket
 import uuid
@@ -177,14 +178,17 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         value = ret_v2['value']
         value['geni_resources'] = value['geni_slivers']
         slice_state = 'ready'
+        expirations = []
         for res_status in value['geni_resources']:
             res_status['geni_urn'] = res_status['geni_sliver_urn']
             state = 'ready'
+            expirations.append(dateutil.parser.parse(res_status['geni_expires']))
             if res_status['geni_operational_status'] != 'geni_ready':
                 state = 'pending'
                 slice_state = state
             res_status['geni_status'] = state
         value['geni_status'] = slice_state
+        value['geni_expires'] = utils._rfc3339format(min(expirations))
         ret_v2['value'] = value
 #        print "SS RET = " + str(ret_v2)
         return ret_v2
