@@ -15,20 +15,31 @@
    "default_OS_type": "Linux",
    "default_OS_version": "12",
 
+   "aggregate_id" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+am",
+
    "disk_image_metadata": 
    {
    "ubuntu-12.04":
        {
         "os": "Linux",
         "version": "12.0",
-        "description":" Standard Ubuntu"
+        "description":" Standard Ubuntu",
+	"boot_complete_msg" : "cloud-init boot finished at"
+        },
+    "centos-6.5":
+       {
+        "os": "Linux",
+        "version": "6.5",
+        "description":" Standard Centos",
+        "boot_complete_msg" : "login:"
         },
    "fedora-19":
        {
         "os": "Linux",
         "version": "19.0",
-        "description":"Standard Fedora"
-        }
+        "description":"Standard Fedora",
+	"boot_complete_msg" : "EXT4-fs (vda1): resized filesystem to"
+         }
    },
 
    "external_interface": "ext",
@@ -65,6 +76,8 @@
    "public_subnet_cidr" : "130.127.88.96/27",
    "public_subnet_start_ip" : "130.127.88.101",
    "public_subnet_end_ip" : "130.127.88.110",
+   "ssh_proxy_start_port" : "3000",
+   "ssh_proxy_end_port" : "3100",
 
    "metadata_port" : "8775",
 
@@ -81,20 +94,34 @@
 		"clemson-clemson-compute-1":"130.127.88.99",
 		"clemson-clemson-compute-2":"130.127.88.100"},
    "stitching_info" : {
-       "aggregate_id" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+cm",
+       "aggregate_id" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+am",
         "aggregate_url" : "https://clemson-clemson-control-1.clemson.edu:5001",
         "edge_points" : [
+		{
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2_760",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2:12",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:12",
+                "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
+                "vlans" : "760",
+                "traffic_engineering_metric" : "22",
+                "capacity": "1000000",
+                "stitching_granularity":"1",
+                "maximum_reservable_capacity": "1000000",
+                "minimum_reservable_capacity": "1000",
+                "interface_mtu": "1500"
+                },
                 {
                 "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2",
                 "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2:16",
                 "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:16",
                 "remote_switch": "urn:publicid:IDN+ion.internet2.edu+interface+rtr.atla:xe-0/3/0:clemson-gr",
-                "vlans" : "3000-3020",
+                "vlans" : "3000-3009",
                 "traffic_engineering_metric" : "22",
-                "capacity": "2500000",
-                "maximum_reservable_capacity": "2400000",
-                "minimum_reservable_capacity": "1400000",
-                "interface_mtu": "1501"
+                "capacity": "1000000",
+                "stitching_granularity":"1",
+                "maximum_reservable_capacity": "1000000",
+                "minimum_reservable_capacity": "1000",
+                "interface_mtu": "1500"
                 }
         ]
    },

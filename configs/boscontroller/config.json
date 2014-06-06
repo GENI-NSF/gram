@@ -16,7 +16,30 @@
    "default_OS_type": "Linux",
    "default_OS_version": "12",
 
-   "disk_image_metadata": null,
+   "disk_image_metadata":
+   {
+   "ubuntu-12.04":
+       {
+        "os": "Linux",
+        "version": "12.0",
+        "description":" Standard Ubuntu",
+	"boot_complete_msg" : "cloud-init boot finished at"
+        },
+   "centos-6.5":
+       {
+        "os": "Linux",
+        "version": "6.5",
+        "description":" Standard Centos",
+	"boot_complete_msg" : "login:"
+        },
+   "fedora-19":
+       {
+        "os": "Linux",
+        "version": "19.0",
+        "description":"Standard Fedora",
+	"boot_complete_msg" : "EXT4-fs (vda1): resized filesystem to"
+        }
+   },
 
    "external_interface": "eth2",
    "external_address": "128.89.91.170",

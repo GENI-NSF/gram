@@ -24,18 +24,20 @@
        {
         "os": "Linux",
         "version": "12.0",
-        "description":" Standard Ubuntu"
+        "description":" Standard Ubuntu",
+	"boot_complete_msg" : "cloud-init boot finished at"
         },
    "fedora-19":
        {
         "os": "Linux",
         "version": "19.0",
-        "description":"Standard Fedora"
+        "description":"Standard Fedora",
+	"boot_complete_msg" : "EXT4-fs (vda1): resized filesystem to"
         }
    },
 
    "external_interface": "eth4",
-   "external_address": "128.89.72.107",
+   "external_address": "128.89.118.100",
    "external_netmask": "255.255.254.0",
 
    "control_address": "10.10.8.100",
@@ -63,11 +65,11 @@
    "service_token" : "dell",
    "service_endpoint" : "http://localhost:35357/v2.0",
 
-   "public_gateway_ip" : "128.89.72.1",
-   "public_dns_nameservers" : "128.89.91.10 128.33.0.20 128.33.1.20",
-   "public_subnet_cidr" : "128.89.72.1/24",
-   "public_subnet_start_ip" : "128.89.72.121",
-   "public_subnet_end_ip" : "128.89.72.134",
+   "public_gateway_ip" : "128.89.118.1",
+   "public_dns_nameservers" : "128.33.0.20 128.33.1.20 128.33.20.20",
+   "public_subnet_cidr" : "128.89.118.1/24",
+   "public_subnet_start_ip" : "128.89.118.105",
+   "public_subnet_end_ip" : "128.89.118.140",
 
    "metadata_port" : "8775",
 
@@ -78,9 +80,9 @@
             "bbn-cam-cmpe-1":"10.10.8.101",
             "bbn-cam-cmpe-2":"10.10.8.102"},
    "host_file_entries": {
-            "bbn-cam-ctrl-1":"128.89.72.107",
-            "bbn-cam-cmpe-1":"128.89.72.113",
-            "bbn-cam-cmpe-2":"128.89.72.114"},
+            "bbn-cam-ctrl-1":"128.89.118.100",
+            "bbn-cam-cmpe-1":"128.89.118.101",
+            "bbn-cam-cmpe-2":"128.89.118.102"},
    "glance_images" : [], 
    "internal_vlans": "1001-2000", 
    "stitching_info" : {
@@ -102,6 +104,6 @@
                 }
         ]
    },
-   "public_ip": "128.89.72.121",
-   "mgmt_ns": "qrouter-06229938-18f2-4c2e-a26a-202716ce3eae"
+   "public_ip": "128.89.118.105",
+   "mgmt_ns": "qrouter-63d999b0-6540-479a-a9f2-acaf6e3130d9"
 }
