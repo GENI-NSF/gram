@@ -167,7 +167,7 @@
                 "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2:16",
                 "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:16",
                 "remote_switch": "urn:publicid:IDN+ion.internet2.edu+interface+rtr.atla:xe-0/3/0:clemson-gr",
-                "vlans" : "3000-3009,4083,4084,4085,4087",
+                "vlans" : "3000-3009",
                 "traffic_engineering_metric" : "22",
                 "capacity": "1000000",
                 "stitching_granularity":"1",
