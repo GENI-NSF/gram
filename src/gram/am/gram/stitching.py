@@ -383,12 +383,17 @@ class Stitching:
             return None, constants.SUCCESS
 
         sliver_id = sliver_object.getSliverURN()
+        sliver_name = sliver_object.getName()
 
         stitching_elts = manifest.getElementsByTagName('stitching')
         if len(stitching_elts) == 0: return None, constants.SUCCESS
         stitching = stitching_elts[0]
 
         for path in stitching.getElementsByTagName('path'):
+            path_id = path.attributes['id'].value
+            # This path must match the link client_id
+            if sliver_name != path_id: continue
+            config.logger.info("Correct Path %s %s" % (sliver_id, sliver_name))
             for hop in path.getElementsByTagName('hop'):
                 for link in hop.getElementsByTagName('link'):
                     link_id = link.attributes['id'].value
