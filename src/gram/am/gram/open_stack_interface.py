@@ -668,7 +668,20 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
     # For VMs with external control plane IP's, add a rule to route all ports > 32000
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-add-rule %s tcp 32001 65535 0.0.0.0/0 ' % secgroup_name
+    cmd_string += ' secgroup-add-rule %s tcp 30000 65535 0.0.0.0/0 ' % secgroup_name
+    try :
+        _execCommand(cmd_string)
+    except :
+        # Failed to add rule.  Cleanup actions before we return
+        #    - Delete the security group
+        _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
+                                   secgroup_name)
+        return None
+
+    # For VMs with external control plane IP's, add a rule to route all ports > 32000
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, tenant_name)
+    cmd_string += ' secgroup-add-rule %s udp 30000 65535 0.0.0.0/0 ' % secgroup_name
     try :
         _execCommand(cmd_string)
     except :
