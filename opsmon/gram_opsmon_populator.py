@@ -205,21 +205,25 @@ class OpsMonPopulator:
     def run(self):
         print "GRAM OPSMON process for %s" % self._aggregate_id
         while True:
-            self._latest_snapshot = gram_slice_info.find_latest_snapshot()
-            self._objects_by_urn = gram_slice_info.parse_snapshot(self._latest_snapshot)
-            self.delete_static_entries()
-            self.update_info_tables()
-            self.update_data_tables()
-            self.update_slice_tables()
-            self.update_sliver_tables()
-            self.update_aggregate_tables()
-            self.update_interfacevlan_info()
-            self.update_switch_info()
+            try:
+                self._latest_snapshot = gram_slice_info.find_latest_snapshot()
+                self._objects_by_urn = gram_slice_info.parse_snapshot(self._latest_snapshot)
+                self.delete_static_entries()
+                self.update_info_tables()
+                self.update_data_tables()
+                self.update_slice_tables()
+                self.update_sliver_tables()
+                self.update_aggregate_tables()
+                self.update_interfacevlan_info()
+                self.update_switch_info()
 #            data_filename = self.generate_data_file()
 #            self.execute_data_file(data_filename)
 #            print "FILE = %s" % data_filename
 #            os.unlink(data_filename)
-            print "Updated OpsMon dynamic data for %s at %d" % (self._aggregate_id, int(time.time()))
+                print "Updated OpsMon dynamic data for %s at %d" % (self._aggregate_id, int(time.time()))
+            except Exception as e:
+                print "Error processing opsmon: %s" % e
+
             time.sleep(self._frequency_sec)
 
     # Update static H/W config information based on config plus information

@@ -1,5 +1,5 @@
 {
-	"base_address" : "https://130.127.88.98",
+	"base_address" : "https://clemson-clemson-control-1.clemson.edu",
 	"aggregate_id" : "gram-clemson",
 	"aggregate_urn" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+am",
 	"frequency_sec" : "60",
