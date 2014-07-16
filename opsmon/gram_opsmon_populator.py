@@ -467,6 +467,7 @@ class OpsMonPopulator:
             slice_urn = object_attributes['slice_urn']
             slice_uuid = object_attributes['tenant_uuid']
             expires = object_attributes['expiration']
+            if expires: expires = expires * 1000000
 
             authority_urn = getAuthorityURN(slice_urn, 'sa')
             authority_id = self.get_authority_id(authority_urn)
@@ -559,7 +560,9 @@ class OpsMonPopulator:
             slice_uuid = object_attributes['slice']
             creator = object_attributes['user_urn']
             created = object_attributes['creation']
+            if created: created = created * 1000000
             expires = object_attributes['expiration']
+            if expires: expires = expires * 1000000
             if expires is None: expires = -1
             node_name = object_attributes['host']
             node_id = self._aggregate_id + "." + node_name
