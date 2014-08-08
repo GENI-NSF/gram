@@ -289,7 +289,7 @@ def check_mgmt_ns(recreate=False):
             print "WARNING: Unable to recover management namespace" 
             input_var = raw_input("Do you wish to recreate the management network? [y/N]: ")
             if input_var == 'y':
-              input_var = raw_input("Do must delete 'externalRouter' (router),'public' (network) and " + mgmt_net_name + " (network). Using the Horizon interface is recommended. Have you dont this and are ready to proceed? [y/N] ")
+              input_var = raw_input("You must delete 'externalRouter' (router),'public' (network) and " + mgmt_net_name + " (network). Using the Horizon interface is recommended. Have you done this and are ready to proceed? [y/N] ")
               if input_var == 'y':
                 #osi._execCommand('quantum net-delete public')
                 #osi._execCommand('quantum net-delete GRAM-mgmt-net')
@@ -366,7 +366,7 @@ def check_openstack_services():
 
 def check_gram_services():
     print 'Checking GRAM services...'
-    services = ['gram-am','gram-ctrl','gram-vmoc','gram-mon','gram-ch']
+    services = ['gram-am','gram-ctrl','gram-vmoc','gram-ch']
     for service in services:
         cmd = 'service ' + service + ' status'
         result = osi._execCommand(cmd)
