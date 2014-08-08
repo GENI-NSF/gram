@@ -1,6 +1,6 @@
 {
-	"base_address" : "https://128.89.118.100",
-	"aggregate_id" : "gram-bbncam",
+	"base_address" : "https://192.1.243.2",
+	"aggregate_id" : "gpo-og",
 	"aggregate_urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+authority+am",
 	"frequency_sec" : "60",
 	"window_duration_sec" : "3600",

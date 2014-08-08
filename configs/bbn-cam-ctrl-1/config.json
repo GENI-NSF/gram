@@ -10,7 +10,7 @@
    "__009": "and set as null here must be set in this file:",
    "__010": "no default is provided",
 
-   "aggregate_id" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+authority+am",
+   "aggregate_id" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+authority+am",
 
    "default_VM_flavor": "m1.small",
    "default_OS_image": "ubuntu-12.04",
@@ -37,8 +37,8 @@
    },
 
    "external_interface": "eth4",
-   "external_address": "128.89.118.100",
-   "external_netmask": "255.255.254.0",
+   "external_address": "192.1.243.2",
+   "external_netmask": "255.255.192.0",
 
    "control_address": "10.10.8.100",
    "control_interface": "eth3",
@@ -65,36 +65,36 @@
    "service_token" : "dell",
    "service_endpoint" : "http://localhost:35357/v2.0",
 
-   "public_gateway_ip" : "128.89.118.1",
-   "public_dns_nameservers" : "128.33.0.20 128.33.1.20 128.33.20.20",
-   "public_subnet_cidr" : "128.89.118.1/24",
-   "public_subnet_start_ip" : "128.89.118.105",
-   "public_subnet_end_ip" : "128.89.118.140",
+   "public_gateway_ip" : "192.1.243.1",
+   "public_dns_nameservers" : "192.1.249.10",
+   "public_subnet_cidr" : "192.1.243.2/26",
+   "public_subnet_start_ip" : "192.1.243.5",
+   "public_subnet_end_ip" : "192.1.243.62",
 
    "metadata_port" : "8775",
 
    "backup_directory" : "/home/gram/.backup",
-   "control_host" : "bbn-cam-ctrl-1.bbn.com",
+   "control_host" : "bbn-cam-ctrl-1.gpolab.bbn.com",
    "control_host_addr" : "10.10.8.100",
    "compute_hosts": {
             "bbn-cam-cmpe-1":"10.10.8.101",
             "bbn-cam-cmpe-2":"10.10.8.102"},
    "host_file_entries": {
-            "bbn-cam-ctrl-1":"128.89.118.100",
-            "bbn-cam-cmpe-1":"128.89.118.101",
-            "bbn-cam-cmpe-2":"128.89.118.102"},
+            "bbn-cam-ctrl-1":"192.1.243.2",
+            "bbn-cam-cmpe-1":"192.1.243.3",
+            "bbn-cam-cmpe-2":"192.1.243.4"},
    "glance_images" : [], 
    "internal_vlans": "1001-2000", 
    "stitching_info" : {
-       "aggregate_id" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+authority+cm",
-        "aggregate_url" : "https://bbn-cam-ctrl-1.bbn.com:5001",
+       "aggregate_id" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+authority+cm",
+        "aggregate_url" : "https://bbn-cam-ctrl-1.gpolab.bbn.com:5001",
         "edge_points" : [
                 {
-                "local_switch" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+node+procurve2",
-                "port" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+stitchport+procurve2:16",
-		"local_link" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+interface+procurve2:16",
+                "local_switch" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+node+procurve2",
+                "port" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+stitchport+procurve2:3",
+		"local_link" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+interface+procurve2:3",
                 "remote_switch": "urn:publicid:IDN+calcontroller.gram.gpolab.bbn.com+node+procurve2",
-                "vlans" : "2001-2100",
+                "vlans" : "2611-2630",
                 "traffic_engineering_metric" : "22",
                 "capacity": "2500000",
 		"stitching_granularity":"1",
@@ -104,6 +104,6 @@
                 }
         ]
    },
-   "public_ip": "128.89.118.105",
-   "mgmt_ns": "qrouter-63d999b0-6540-479a-a9f2-acaf6e3130d9"
+   "public_ip": "192.1.243.5",
+   "mgmt_ns": "qrouter-b7304f58-b78c-4677-acee-633d14c503ec"
 }
