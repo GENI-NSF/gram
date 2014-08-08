@@ -59,7 +59,7 @@
 		 "change_rate" : "True"}
 	],
 	"ports" : {
-	"urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+stitchport+procurve2:16": {
+	"urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+stitchport+procurve2:3": {
 	"command"  : ["expect", "/home/gram/gram/opsmon/stats.expect", "te", "0/2"],
 	"parser_module" : "parse_interface_stats",
 	"parser" : "parse_interface_stats.parse_interface_stats",
