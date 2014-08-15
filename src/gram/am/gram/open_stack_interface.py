@@ -1179,7 +1179,7 @@ def _deleteImage(options):
 # Perform operational action (reboot, suspend, resume) on given VM
 # By the time this is called, we've already checked that the VM is in 
 # the appropriate state
-def _performOperationalAction(vm_object, action):
+def _performOperationalAction(vm_object, action, options):
 
     ret_val = True
     uuid = vm_object.getUUID()
