@@ -67,7 +67,7 @@
 
    "public_gateway_ip" : "192.1.243.1",
    "public_dns_nameservers" : "192.1.249.10",
-   "public_subnet_cidr" : "192.1.243.2/26",
+   "public_subnet_cidr" : "192.1.243.0/26",
    "public_subnet_start_ip" : "192.1.243.5",
    "public_subnet_end_ip" : "192.1.243.62",
 
@@ -90,9 +90,9 @@
         "aggregate_url" : "https://bbn-cam-ctrl-1.gpolab.bbn.com:5001",
         "edge_points" : [
                 {
-                "local_switch" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+node+procurve2",
-                "port" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+stitchport+procurve2:3",
-		"local_link" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+interface+procurve2:3",
+                "local_switch" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+node+force10",
+                "port" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+stitchport+force10:3",
+		"local_link" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+interface+force10:3",
                 "remote_switch": "urn:publicid:IDN+ion.internet2.edu+interface+rtr.newy:ae0:gpo-og",
                 "vlans" : "2611-2630",
                 "traffic_engineering_metric" : "22",
@@ -105,7 +105,7 @@
         ]
    },
    "public_ip": "192.1.243.5",
-   "mgmt_ns": "qrouter-b7304f58-b78c-4677-acee-633d14c503ec"
+   "mgmt_ns": "qrouter-74998180-1220-4719-ba93-0c0e101239ec"
 }
 
    
