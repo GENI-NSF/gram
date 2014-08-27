@@ -586,9 +586,13 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
     node_block = ''
     for compute_node in compute_nodes.keys():
-        entry = '<node component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % (compute_node, component_manager_id, urn_prefix + socket.gethostname() + '+node+' + compute_node, exclusive)
+        component_id = urn_prefix + socket.gethostname() + '+node+' + compute_node
+        interface_block ='    <interface client_id="%s:%s"/>\n' % (component_id, 'eth2')
+        entry = '<node id="%s" component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % \
+            (component_id, compute_node, component_manager_id, component_id, exclusive)
         node_block = node_block + entry + '\n'
         node_block = node_block + sliver_block
+        node_block = node_block + interface_block
         node_block = node_block + '</node> \n \n'
 
     POA_header = '<rspec_opstate xmlns="http://www.geni.net/resources/rspec/ext/opstate/1" ' + \
@@ -666,8 +670,36 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         stitching_advertisement_doc = \
             stitching_handler.generateAdvertisement()
         stitching_advertisement = \
-            stitching_advertisement_doc.childNodes[0].toxml()
-    result = advert_header  + '\n' + node_block + stitching_advertisement + POA_block + ci_block + '</rspec>'
+            stitching_advertisement_doc.childNodes[0].toprettyxml()
+
+        stitching_node_elts = stitching_advertisement_doc.getElementsByTagName('node');
+        for stitching_node_elt in stitching_node_elts:
+            link_elt = stitching_node_elt.getElementsByTagName('link')[0];
+            stitching_node_interface_id = link_elt.attributes['id'].value
+            stitching_node_interface_elt = stitching_advertisement_doc.createElement('interface');
+            stitching_node_interface_elt.setAttribute('id', stitching_node_interface_id);
+            stitching_node_elt.appendChild(stitching_node_interface_elt)
+
+        stitching_nodes = "\n".join([stitching_node_elt.toprettyxml() for stitching_node_elt in stitching_node_elts])
+
+        stitching_links = ""
+        client_id = 0
+        for compute_node in compute_nodes.keys():
+            component_id = urn_prefix + socket.gethostname() + '+node+' + compute_node
+            compute_interface_ref = "%s:%s" % (component_id, 'eth2')
+            for stitching_node in stitching_node_elts:
+                link_elt = stitching_node.getElementsByTagName('link')[0]
+                switch_interface_ref = link_elt.attributes['id'].value
+                link_id = "stitch-compute-link-%d" % client_id
+                client_id = client_id+1
+                stitching_link = '<link client_id="%s">\n<interface_ref client-id="%s"/>\n<interface_ref client-id="%s"/>\n</link>\n\n' % \
+                    (link_id, compute_interface_ref, switch_interface_ref)
+                stitching_links += stitching_link
+
+        
+        node_block = node_block + '\n' + stitching_nodes + '\n' + stitching_links;
+
+    result = advert_header  + '\n' + node_block + '\n' + stitching_advertisement + POA_block + ci_block + '</rspec>'
 
 #        (tmpl % (component_manager_id, component_name, \
 #                     component_id, exclusive, node_types, \
