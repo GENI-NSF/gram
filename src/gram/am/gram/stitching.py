@@ -181,7 +181,7 @@ class Stitching:
        
         self._aggregate_id = data['aggregate_id']
         self._aggregate_url = data['aggregate_url']
-        self._namespace = "http://hpn.east.isi.edu/rspec/ext/stitch/0.1"
+        self._namespace = "http://hpn.east.isi.edu/rspec/ext/stitch/0.1/"
 
         # Dictionary of sliver_urn => 
         #      {'vlan_tag' : vlan_tag, 'link' : link }
@@ -242,14 +242,17 @@ class Stitching:
 
 
         stitching_mode = self.createChild("stitchingmode", agg, doc, "chainANDTree")
-        scheduled_services = self.createChild("scheduledServices", agg, doc, "false")
-        negotiated_services = self.createChild("negotiatedServices", agg, doc, "true")
+        scheduled_services = self.createChild("scheduledservices", agg, doc, "false")
+        negotiated_services = self.createChild("negotiatedservices", agg, doc, "true")
         
-        lifetime = self.createChild("Lifetime", agg, doc)
+        lifetime = self.createChild("lifetime", agg, doc)
         start_time = "2013-01-01T00:00:00Z"
-        lifetime.setAttribute("start", start_time)
         end_time = "2029-12-31T23:59:59Z"
-        lifetime.setAttribute("end", end_time)
+        start_elt = self.createChild("start", lifetime, doc, start_time);
+        start_elt.setAttribute("type", "time")
+        end_elt = self.createChild("end", lifetime, doc, end_time);
+        end_elt.setAttribute("type", "time")
+        lifetime.setAttribute("id", "life")
 
         capabilities = self.createChild("capabilities", agg, doc)
         for capability_type in ["consumer", "producer"]:

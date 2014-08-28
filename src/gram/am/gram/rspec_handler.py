@@ -587,9 +587,9 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     node_block = ''
     for compute_node in compute_nodes.keys():
         component_id = urn_prefix + socket.gethostname() + '+node+' + compute_node
-        interface_block ='    <interface client_id="%s:%s"/>\n' % (component_id, 'eth2')
-        entry = '<node id="%s" component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % \
-            (component_id, compute_node, component_manager_id, component_id, exclusive)
+        interface_block ='    <interface component_id="%s:%s" role="%s"/>\n' % (component_id, 'eth2', 'experimental')
+        entry = '<node component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % \
+            (compute_node, component_manager_id, component_id, exclusive)
         node_block = node_block + entry + '\n'
         node_block = node_block + sliver_block
         node_block = node_block + interface_block
@@ -659,6 +659,8 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
     schema_locs = ["http://www.geni.net/resources/rspec/3",
                    "http://www.geni.net/resources/rspec/3/ad.xsd",
+                   "http://hpn.east.isi.edu/rspec/ext/stitch/0.1/",
+                   "http://hpn.east.isi.edu/rspec/ext/stitch/0.1/stitch-schema.xsd",
                    "http://www.geni.net/resources/rspec/ext/opstate/1",
                    "http://www.geni.net/resources/rspec/ext/opstate/1/ad.xsd"]
     advert_header = '''<?xml version="1.0" encoding="UTF-8"?> 
@@ -672,15 +674,23 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         stitching_advertisement = \
             stitching_advertisement_doc.childNodes[0].toprettyxml()
 
+        stitching_nodes = ""
         stitching_node_elts = stitching_advertisement_doc.getElementsByTagName('node');
         for stitching_node_elt in stitching_node_elts:
+            node_id = stitching_node_elt.attributes['id'].value
+            stitching_node = stitching_advertisement_doc.createElement("node")
+            stitching_node.setAttribute('component_name', node_id)
+            stitching_node.setAttribute('component_id', component_id)
+            stitching_node.setAttribute('component_manager_id', component_manager_id)
+            stitching_node.setAttribute("exclusive", exclusive)
             link_elt = stitching_node_elt.getElementsByTagName('link')[0];
             stitching_node_interface_id = link_elt.attributes['id'].value
-            stitching_node_interface_elt = stitching_advertisement_doc.createElement('interface');
-            stitching_node_interface_elt.setAttribute('id', stitching_node_interface_id);
-            stitching_node_elt.appendChild(stitching_node_interface_elt)
+            stitching_node_interface_elt = stitching_advertisement_doc.createElement('interface')
+            stitching_node_interface_elt.setAttribute('component_id', stitching_node_interface_id)
+            stitching_node_interface_elt.setAttribute('role', 'experimental')
+            stitching_node.appendChild(stitching_node_interface_elt)
 
-        stitching_nodes = "\n".join([stitching_node_elt.toprettyxml() for stitching_node_elt in stitching_node_elts])
+            stitching_nodes += stitching_node.toprettyxml()
 
         stitching_links = ""
         client_id = 0
@@ -692,7 +702,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
                 switch_interface_ref = link_elt.attributes['id'].value
                 link_id = "stitch-compute-link-%d" % client_id
                 client_id = client_id+1
-                stitching_link = '<link client_id="%s">\n<interface_ref client-id="%s"/>\n<interface_ref client-id="%s"/>\n</link>\n\n' % \
+                stitching_link = '<link component_id="%s">\n<interface_ref component_id="%s"/>\n<interface_ref component_id="%s"/>\n</link>\n\n' % \
                     (link_id, compute_interface_ref, switch_interface_ref)
                 stitching_links += stitching_link
 
