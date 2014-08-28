@@ -254,10 +254,6 @@ class Stitching:
         end_elt.setAttribute("type", "time")
         lifetime.setAttribute("id", "life")
 
-        capabilities = self.createChild("capabilities", agg, doc)
-        for capability_type in ["consumer", "producer"]:
-            self.createChild("capability", capabilities, doc, capability_type)
-
         for link_value, edge_point in self._edge_points.items():
             local_switch = edge_point._local_switch
             port_value = edge_point._port
@@ -284,7 +280,7 @@ class Stitching:
             
             remote_link_id = self.createChild("remoteLinkId", link, doc, remote_switch)
 
-            traffic_engineering_metric_elt = self.createChild("trafficEnginneringMetric", \
+            traffic_engineering_metric_elt = self.createChild("trafficEngineeringMetric", \
                                                               link, doc, traffic_engineering_metric)
 
             capacity_elt = self.createChild("capacity", link, doc, capacity)
@@ -306,6 +302,10 @@ class Stitching:
             scsi = self.createChild("switchingCapabilitySpecificInfo", scd, doc)
             
             scsi_l2sc = self.createChild("switchingCapabilitySpecificInfo_L2sc", scsi, doc)
+
+            for capability_type in ["consumer", "producer"]:
+                self.createChild("capability", scsi_l2sc, doc, 
+                                 capability_type)
 
             interface_mtu_elt = self.createChild("interfaceMTU", scsi_l2sc, doc, interface_mtu)
 
