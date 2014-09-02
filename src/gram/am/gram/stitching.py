@@ -575,7 +575,7 @@ class Stitching:
 
             request_details = {"my_nodes_by_interface" : my_nodes_by_interface,
                                "my_links" : my_links,
-                               "my_hops_by_patqh_id" : my_hops_by_path_id}
+                               "my_hops_by_path_id" : my_hops_by_path_id}
 
         return error_string, error_code, request_details
 
