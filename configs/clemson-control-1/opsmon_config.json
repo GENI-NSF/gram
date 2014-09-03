@@ -1,6 +1,6 @@
 {
 	"base_address" : "https://clemson-clemson-control-1.clemson.edu",
-	"aggregate_id" : "gram-clemson",
+	"aggregate_id" : "clemson-og",
 	"aggregate_urn" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+authority+am",
 	"frequency_sec" : "60",
 	"window_duration_sec" : "3600",
