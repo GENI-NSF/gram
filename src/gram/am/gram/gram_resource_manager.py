@@ -138,7 +138,8 @@ class GRAM_Resource_Manager(Base_Resource_Manager):
                         user_urn, start_time, end_time):
         stitching = Stitching()
         error_string, error_code, details = stitching.parseRequestRSpec(rspec)
-        if error_code == 0:
+#        print "S = %s C = %s D = %s" % (error_string, error_code, details)
+        if error_code == 0 and details is not None:
             for link_id, hop in details['my_hops_by_path_id'].items():
                 for capacity in hop.getElementsByTagName('capacity'):
                     capacity_value = int(capacity.childNodes[0].nodeValue)
