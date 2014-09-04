@@ -205,25 +205,21 @@ class OpsMonPopulator:
     def run(self):
         print "GRAM OPSMON process for %s" % self._aggregate_id
         while True:
-            try:
-                self._latest_snapshot = gram_slice_info.find_latest_snapshot()
-                self._objects_by_urn = gram_slice_info.parse_snapshot(self._latest_snapshot)
-                self.delete_static_entries()
-                self.update_info_tables()
-                self.update_data_tables()
-                self.update_slice_tables()
-                self.update_sliver_tables()
-                self.update_aggregate_tables()
-                self.update_interfacevlan_info()
-                self.update_switch_info()
+            self._latest_snapshot = gram_slice_info.find_latest_snapshot()
+            self._objects_by_urn = gram_slice_info.parse_snapshot(self._latest_snapshot)
+            self.delete_static_entries()
+            self.update_info_tables()
+            self.update_data_tables()
+            self.update_slice_tables()
+            self.update_sliver_tables()
+            self.update_aggregate_tables()
+            self.update_interfacevlan_info()
+            self.update_switch_info()
 #            data_filename = self.generate_data_file()
 #            self.execute_data_file(data_filename)
 #            print "FILE = %s" % data_filename
 #            os.unlink(data_filename)
-                print "Updated OpsMon dynamic data for %s at %d" % (self._aggregate_id, int(time.time()))
-            except Exception as e:
-                print "Error processing opsmon: %s" % e
-
+            print "Updated OpsMon dynamic data for %s at %d" % (self._aggregate_id, int(time.time()))
             time.sleep(self._frequency_sec)
 
     # Update static H/W config information based on config plus information
@@ -363,6 +359,40 @@ class OpsMonPopulator:
             info_insert(self._table_manager, 'ops_link_interfacevlan',
                         link_ifacevlan_info)
 
+        # Add in stitching interface vlan info
+        for link in links:
+            if 'stitching_info' in link and \
+                    'vlan_tag' in link['stitching_info']:
+                vlan_tag = link['stitching_info']['vlan_tag']
+                link_urn = link['sliver_urn']
+                link_id = self.get_link_id(link_urn)
+                ifacevlan_urn = link['stitching_info']['link']
+                ifacevlan_id = self.get_interfacevlan_id(ifacevlan_urn)
+                ifacevlan_href = self.get_interfacevlan_href(ifacevlan_id)
+
+                link_ifacevlan_info = [ifacevlan_id, link_id, ifacevlan_urn, ifacevlan_href]
+                info_insert(self._table_manager, 'ops_link_interfacevlan', 
+                            link_ifacevlan_info);
+                
+                iface_urn = self.find_iface_urn_for_link_urn(ifacevlan_urn)
+                iface_id = self.get_interface_id(iface_urn, 'EGRESS')
+                iface_href = self.get_interface_href(iface_id)
+                ifacevlan_info = [self._interfacevlan_schema, ifacevlan_id,
+                                  ifacevlan_href, ifacevlan_urn, ts, vlan_tag, 
+                                  iface_urn, iface_href]
+                info_insert(self._table_manager, 'ops_interfacevlan',
+                            ifacevlan_info);
+
+    # Return the interface port URN for the given stitching link URN
+    def find_iface_urn_for_link_urn(self, link_urn):
+#        print "LINK_URN = %s" % link_urn
+#        print "SI = %s" % self._gram_config['stitching_info']['edge_points']
+        for ep in self._gram_config['stitching_info']['edge_points']:
+            if ep['local_link'] == link_urn:
+                return ep['port']
+        return None
+                
+
     # Update information about the switch, its egress ports
     # And associated measurements (pps, bps, etc)
     def update_switch_info(self):
@@ -398,7 +428,7 @@ class OpsMonPopulator:
                 iface_id = self.get_interface_id(iface_urn, 'EGRESS')
                 iface_href = self.get_interface_href(iface_id)
                 iface_address_type = 'MAC'
-                iface_address = '' # 
+                iface_address = 'de:ad:be:ef' # Default if unknown
                 iface_role = 'DATA'
                 iface_max_bps = 0 
                 iface_max_pps = 0 
@@ -467,7 +497,6 @@ class OpsMonPopulator:
             slice_urn = object_attributes['slice_urn']
             slice_uuid = object_attributes['tenant_uuid']
             expires = object_attributes['expiration']
-            if expires: expires = expires * 1000000
 
             authority_urn = getAuthorityURN(slice_urn, 'sa')
             authority_id = self.get_authority_id(authority_urn)
@@ -560,9 +589,7 @@ class OpsMonPopulator:
             slice_uuid = object_attributes['slice']
             creator = object_attributes['user_urn']
             created = object_attributes['creation']
-            if created: created = created * 1000000
             expires = object_attributes['expiration']
-            if expires: expires = expires * 1000000
             if expires is None: expires = -1
             node_name = object_attributes['host']
             node_id = self._aggregate_id + "." + node_name
