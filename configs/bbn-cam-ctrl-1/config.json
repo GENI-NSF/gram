@@ -86,7 +86,7 @@
    "glance_images" : [], 
    "internal_vlans": "1001-2000", 
    "stitching_info" : {
-       "aggregate_id" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+authority+cm",
+       "aggregate_id" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+authority+am",
         "aggregate_url" : "https://bbn-cam-ctrl-1.gpolab.bbn.com:5001",
         "edge_points" : [
                 {

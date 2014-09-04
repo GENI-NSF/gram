@@ -1,7 +1,7 @@
 {
-	"base_address" : "https://192.1.243.2",
+	"base_address" : "https://bbn-cam-ctrl-1.gpolab.bbn.com",
 	"aggregate_id" : "gpo-og",
-	"aggregate_urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+authority+am",
+	"aggregate_urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+authority+am",
 	"frequency_sec" : "60",
 	"window_duration_sec" : "3600",
 	"database_user" : "quantum",
@@ -9,13 +9,13 @@
 	"database_name" : "monitoring",
 	"hosts" : [
 		{"id" : "bbn-cam-cmpe-1", "address" : "10.10.8.101",
-		"urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+node+bbn-cam-cmpe-1",
+		"urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+node+bbn-cam-cmpe-1",
 		"interfaces" : {"eth3" : {"address" : "10.10.8.101", 
 			         "type" : "IPv4", "role" : "CONTROL", "max_bps" : "1000000000"},
 			        "eth2" : {"address" : "a0:36:9f:11:0d:60", 
 				 "type" : "MAC", "role" : "DATA", "max_bps" : "1000000000"}}},
 		{"id" : "bbn-cam-cmpe-2", "address" : "10.10.8.102",
-		"urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+node+bbn-cam-cmpe-2",
+		"urn" : "urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+node+bbn-cam-cmpe-2",
 		"interfaces" : {"eth3" : {"address" : "10.10.8.102", 
 			         "type" : "IPv4", "role" : "CONTROL", "max_bps" : "1000000000"},
 			        "eth2" : {"address" : "a0:36:9f:20:74:cc",
@@ -59,7 +59,7 @@
 		 "change_rate" : "True"}
 	],
 	"ports" : {
-	"urn:publicid:IDN+bbn-cam-ctrl-1.bbn.com+stitchport+procurve2:3": {
+	"urn:publicid:IDN+bbn-cam-ctrl-1.gpolab.bbn.com+stitchport+procurve2:3": {
 	"command"  : ["expect", "/home/gram/gram/opsmon/stats.expect", "te", "0/2"],
 	"parser_module" : "parse_interface_stats",
 	"parser" : "parse_interface_stats.parse_interface_stats",
