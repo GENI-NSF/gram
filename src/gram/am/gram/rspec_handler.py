@@ -365,6 +365,9 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
 
     # Clone the request and set the 'type' to 'manifest
     request = geni_slice.getRequestRspec()
+    if request == None:
+        return None, constants.REQUEST_PARSE_FAILED, "Empty Request RSpec"
+
     if isinstance(request, basestring): request = parseString(request)
     manifest_doc = request.cloneNode(True)
     config.logger.error("DOC = %s" % manifest_doc.toxml())
