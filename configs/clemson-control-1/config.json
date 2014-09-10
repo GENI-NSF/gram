@@ -98,9 +98,9 @@
         "aggregate_url" : "https://clemson-clemson-control-1.clemson.edu:5001",
         "edge_points" : [
 		{
-                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2_760",
-                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2_760:12",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2_760:12",
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10_760",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10_760:12",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10_760:12",
                 "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
                 "vlans" : "760",
                 "traffic_engineering_metric" : "22",
@@ -111,9 +111,9 @@
                 "interface_mtu": "1500"
                 },
 		{
-                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2_4083",
-                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2_4083:3",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2_4083:3",
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10_4083",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10_4083:3",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10_4083:3",
                 "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
                 "vlans" : "4083",
                 "traffic_engineering_metric" : "22",
@@ -124,9 +124,9 @@
                 "interface_mtu": "1500"
                 },
 		{
-                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2_4084",
-                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2_4084:3",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2_4084:3",
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10_4084",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10_4084:3",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10_4084:3",
                 "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
                 "vlans" : "4084",
                 "traffic_engineering_metric" : "22",
@@ -137,9 +137,9 @@
                 "interface_mtu": "1500"
                 },
 		{
-                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2_4085",
-                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2_4085:3",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2_4085:3",
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10_4085",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10_4085:3",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10_4085:3",
                 "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
                 "vlans" : "4085",
                 "traffic_engineering_metric" : "22",
@@ -150,9 +150,9 @@
                 "interface_mtu": "1500"
                 },
 		{
-                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2_4087",
-                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2_4087:3",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2_4087:3",
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10_4087",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10_4087:3",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10_4087:3",
                 "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
                 "vlans" : "4087",
                 "traffic_engineering_metric" : "22",
@@ -163,9 +163,9 @@
                 "interface_mtu": "1500"
                 },
                 {
-                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+procurve2",
-                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+procurve2:16",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+procurve2:16",
+                "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10",
+                "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10:16",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10:16",
                 "remote_switch": "urn:publicid:IDN+ion.internet2.edu+interface+rtr.atla:xe-0/3/0:clemson-gr",
                 "vlans" : "3000-3009",
                 "traffic_engineering_metric" : "22",
