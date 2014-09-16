@@ -995,7 +995,7 @@ def _createVM(vm_object, users, placement_hint):
     for nic in vm_net_infs :
         if nic.isEnabled() :
             link_object = nic.getLink()
-            if link_object == null: continue
+            if link_object == None: continue
             net_uuid = link_object.getNetworkUUID()
             nic_ip_addr = nic.getIPAddress()
             subnet_uuid = link_object.getSubnetUUID()
