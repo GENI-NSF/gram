@@ -304,6 +304,9 @@ class Slice:
    def getSliceURN(self):  # String Slice URN
       return self._slice_urn
 
+   def getURN(self):  # String Slice URN
+      return self._slice_urn
+
    def getUserURN(self): # String User URN
       return self._user_urn
 
