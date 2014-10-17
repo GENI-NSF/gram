@@ -35,6 +35,7 @@ from pox.lib.packet.ethernet import ethernet
 from pox.lib.addresses import EthAddr
 from pox.lib.packet.vlan import vlan
 from pox.openflow import libopenflow_01 as of
+from gram.am.gram import config
 import VMOCManagementInterface
 import VMOCSwitchControllerMap as scmap
 
@@ -45,6 +46,7 @@ class VMOCSwitchConnection(object):
 
         self._connection = connection
         self._dpid = connection.dpid
+        self._port = connection.sock.getsockname()[1]
         self._packet_cache = {} # Packets by buffer_id
         if connection is not None:
             connection.addListeners(self)
@@ -182,6 +184,15 @@ class VMOCSwitchConnection(object):
                 vlan_packet = vlan(vlan_data)
                 log.debug("VLAN PACKET : " + str(vlan_packet))
                 vlan_id = vlan_packet.id
+
+            # If the switch is a 'VLAN HYBRID', 
+            # we will not  get tagged packets but we can use the
+            # VLAN asssociated with the port
+            port_info = config.vlan_port_map[str(self._port)]
+            if not vlan_id and port_info and \
+                    bool(port_info['handle_untagged']):
+                vlan_id = int(port_info['vlan'])
+
             matched_controller_conn = None
             for controller_conn in controller_conns:
                 if controller_conn.belongsToSlice(vlan_id, src, dst):

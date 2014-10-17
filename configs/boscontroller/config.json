@@ -41,6 +41,28 @@
         }
    },
 
+   "shared_vlan_info":
+    {
+    "router_uuid": "1277f7ea-7d73-497d-a5a9-0a4fd8840f3f", 
+    "tenant_name": "og_shared_tenant", 
+    "sharedVlans": {
+        "vlan2005": {
+            "subnet_uuid": "2b9807b9-4bae-4d7c-80ae-35f99a256c08", 
+            "network_uuid": "f24c6f6b-5800-4137-ad79-bacb213b025d"
+        }, 
+        "vlan2001": {
+            "subnet_uuid": "",
+            "network_uuid": ""
+	}
+    }, 
+    "tenant_uuid": "54c09d76dc0d4171afab9c850d6b9c2b", 
+    "tenant_admin_uuid": "d3e2865f6aa9494bbf0f3940fa0a6afc", 
+    "router_name": "R-og_shared_tenant", 
+    "secgroup": "og_shared_tenant_secgrp", 
+    "tenant_admin_pass": "sliceMaster:-)", 
+    "tenant_admin_name": "admin-og_shared_tenant"
+    },
+
    "external_interface": "eth2",
    "external_address": "128.89.91.170",
    "external_netmask": "255.255.255.224",
@@ -90,6 +112,14 @@
             "boscompute1":"128.89.91.171",
             "boscompute2":"128.89.91.172",
             "boscompute4":"128.89.91.174"},
+ 
+   "vmoc_set_vlan_on_untagged_flow_mod" : "false",
+   "vlan_port_map" : {
+   	"6633" : {"vlan" : "1001", "handle_untagged" : "True"},
+   	"6634" : {"vlan" : "1002", "handle_untagged" : "True"},
+   	"6635" : {"vlan" : "1003", "handle_untagged" : "True"}
+   },
+
    "glance_images" : [], 
    "internal_vlans": "1001-2000",
    "stitching_info" : {
@@ -97,6 +127,32 @@
         "aggregate_url" : "https://boscontroller.gram.gpolab.bbn.com:5001",
         "edge_points" : [
                 {
+                "local_switch" : "urn:publicid:IDN+boscontroller.gpolab.bbn.com+node+procurve2_4085",
+                "port" : "urn:publicid:IDN+boscontroller.gpolab.bbn.com+stitchport+procurve2_4085:3",
+                "local_link" : "urn:publicid:IDN+boscontroller.gpolab.bbn.com+interface+procurve2_4085:3",
+                "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
+                "vlans" : "4085",
+                "traffic_engineering_metric" : "22",
+                "capacity": "1000000",
+                "stitching_granularity":"1",
+                "maximum_reservable_capacity": "1000000",
+                "minimum_reservable_capacity": "1000",
+                "interface_mtu": "1500"
+                },
+		{
+                "local_switch" : "urn:publicid:IDN+boscontroller.gpolab.bbn.com+node+procurve2_4087",
+                "port" : "urn:publicid:IDN+boscontroller.gpolab.bbn.com+stitchport+procurve2_4087:3",
+                "local_link" : "urn:publicid:IDN+boscontroller.gpolab.bbn.com+interface+procurve2_4087:3",
+                "remote_switch": "urn:publicid:IDN+wimax.clemson.edu+interface+foobar",
+                "vlans" : "4087",
+                "traffic_engineering_metric" : "22",
+                "capacity": "1000000",
+                "stitching_granularity":"1",
+                "maximum_reservable_capacity": "1000000",
+                "minimum_reservable_capacity": "1000",
+                "interface_mtu": "1500"
+                },
+		{
                 "local_switch" : "urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com.edu+node+procurve2",
                 "port" : "urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+stitchport+procurve2:16",
                 "local_link" : "urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+procurve2:16",
@@ -112,5 +168,5 @@
 	]
    },
    "public_ip": "128.89.91.163",
-   "mgmt_ns": "qrouter-b7379ff3-77d5-4de0-909e-f86b521505b4"
+   "mgmt_ns": "qrouter-6c8e4f05-aa40-4dcc-b460-e78015b3a241"
 }

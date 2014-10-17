@@ -190,6 +190,10 @@ control_host_addr = None
 # List of compute node names and addresses
 compute_hosts = None
 
+#List of shared vlans
+shared_vlan_info = None
+
+
 # List of host names and addresses to put in /etc/hosts file
 host_file_entries = None
 
@@ -201,8 +205,15 @@ gmoc_pop_name = ' '
 gmoc_am_type = 'gram'
 gmoc_debug_level = monitor.gmoc.GMOC_DEBUG_OFF
 
-
-
+# Configuration of switch/VLAN/Port handling
+# We support two configurations
+# 1. There is one VMOC controller port and the switch sends
+#    tagged packets to VMOC
+# 2. There are multiple VMOC controller ports, one per VLAN
+#    and the switch sends non-tagged packets to VMOC
+# We provide a list of port/vlan/handle_untagged dictionaries
+# by default, we handle a single port, all vlans and expect tagged packets
+vlan_port_map = {6633: {'vlan' : 'all', 'handle_untagged' : False}}
 
 glance_images = None
 
@@ -288,7 +299,7 @@ def initialize(config_file):
                 elif current_type == 'float':
                     new_value = float(new_value)
                 elif current_type == 'bool':
-                    new_value = bool(new_value)
+                    new_value = new_value not in ['False', 'false', 'f', '0']
                 else:
                     logger.info("Can't coerce type " + current_type + " to " + 
                                 new_type)
