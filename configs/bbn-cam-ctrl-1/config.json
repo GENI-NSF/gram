@@ -36,6 +36,8 @@
         }
    },
 
+   "shared_vlan_info" : {},
+
    "external_interface": "eth4",
    "external_address": "192.1.243.2",
    "external_netmask": "255.255.192.0",

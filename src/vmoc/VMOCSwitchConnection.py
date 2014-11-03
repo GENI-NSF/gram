@@ -188,10 +188,11 @@ class VMOCSwitchConnection(object):
             # If the switch is a 'VLAN HYBRID', 
             # we will not  get tagged packets but we can use the
             # VLAN asssociated with the port
-            port_info = config.vlan_port_map[str(self._port)]
-            if not vlan_id and port_info and \
-                    bool(port_info['handle_untagged']):
-                vlan_id = int(port_info['vlan'])
+            if not config.vmoc_set_vlan_on_untagged_flow_mod:
+                port_info = config.vlan_port_map[str(self._port)]
+                if not vlan_id and port_info and \
+                        bool(port_info['handle_untagged']):
+                    vlan_id = int(port_info['vlan'])
 
             matched_controller_conn = None
             for controller_conn in controller_conns:
