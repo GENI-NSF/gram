@@ -94,7 +94,7 @@ def _generateScriptInstalls(installItem, scriptFile) :
 
     else :
         # Some other file type- simply copy file to destination
-        scriptFile.write('- [ sh, -c, "echo \'    cp %s %s \' >> %s" ]\n' % (downloadedFile, dest, targetVMlocalTempPath))
+        scriptFile.write(' - [ sh, -c, "echo \'    cp %s %s \' >> %s" ]\n' % (downloadedFile, dest, targetVMlocalTempPath))
 
     # Make file accessible to experimenter
     scriptFile.write(' - [ sh, -c, "echo \'    chmod -R 777 %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
