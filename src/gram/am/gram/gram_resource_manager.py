@@ -122,8 +122,13 @@ class GRAM_Resource_Manager(Base_Resource_Manager):
                 requested = min(expiration, requested)
             requested = str(requested)
 
-            urns = arguments['urns']
-            the_slice, slivers = amd.decode_urns(urns)
+            if method_name == AM_Methods.RENEW_SLIVER_V2:
+                the_slice_urn = arguments['slice_urn']
+                the_slice = SliceURNtoSliceObject._slices[the_slice_urn]
+                slivers = the_slice.getSlivers().values()
+            else:
+                urns = arguments['urns']
+                the_slice, slivers = amd.decode_urns(urns)
             sliver_urns = [the_sliver.getSliverURN() for the_sliver in slivers]
             for entry in resource_info:
                 if entry['sliver_urn'] in sliver_urns:
