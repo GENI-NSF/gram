@@ -344,8 +344,9 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
     num_compute_nodes = _getComputeNodeCount()
     config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
     
-    _createAllVMs(vms_to_be_provisioned, num_compute_nodes, 
-                       users, gram_manager, geni_slice)
+    create_return = _createAllVMs(vms_to_be_provisioned, num_compute_nodes, 
+                                  users, gram_manager, geni_slice)
+    return create_return
 
 def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager, slice_object):
     num_vms_created = 0    # number of VMs created in this provision call
@@ -416,6 +417,8 @@ def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager,
 
     gram_manager.persist_state() # Save updated state after the VM's are set up
     config.logger.info("Exiting createAllVMs thread...")
+
+    return None
 
 # Delete all ports associated with given slice/tenant
 # Allow some failures: there will be some that can't be deleted
@@ -665,7 +668,7 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
                                    secgroup_name)
         return None
 
-    # For VMs with external control plane IP's, add a rule to route all ports > 32000
+    # For VMs with external control plane IP's, add a rule to route all ports > 30000
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-add-rule %s tcp 30000 65535 0.0.0.0/0 ' % secgroup_name
@@ -678,7 +681,7 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
                                    secgroup_name)
         return None
 
-    # For VMs with external control plane IP's, add a rule to route all ports > 32000
+    # For VMs with external control plane IP's, add a rule to route all ports > 30000
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
     cmd_string += ' secgroup-add-rule %s udp 30000 65535 0.0.0.0/0 ' % secgroup_name
