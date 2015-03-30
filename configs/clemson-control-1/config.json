@@ -26,6 +26,13 @@
         "description":" Standard Ubuntu",
 	"boot_complete_msg" : "cloud-init boot finished at"
         },
+   "ubuntu-14.04":
+       {
+        "os": "Linux",
+        "version": "14.04",
+        "description":" Standard Ubuntu",
+        "boot_complete_msg" : "Cloud-init v. 0.7.5 finished at"
+        },
     "centos-6.5":
        {
         "os": "Linux",
@@ -165,8 +172,8 @@
                 {
                 "local_switch" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+node+force10",
                 "port" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+stitchport+force10:16",
-                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10:16",
-                "remote_switch": "urn:publicid:IDN+ion.internet2.edu+interface+rtr.atla:xe-0/3/0:clemson-gr",
+                "local_link" : "urn:publicid:IDN+clemson-clemson-control-1.clemson.edu+interface+force10:16:al2s",
+                "remote_switch": "urn:publicid:IDN+al2s.internet2.edu+interface+sdn-sw.atla.net.internet2.edu:eth1/1:clemson-og",
                 "vlans" : "3000-3009",
                 "traffic_engineering_metric" : "22",
                 "capacity": "1000000",
