@@ -228,7 +228,7 @@ class Stitching:
             config.logger.info("*** Deleting VLAN tag allocation %s : %s" %\
                                    (sliver_id, tag))
 
-    def generateAdvertisement(self):
+    def generateAdvertisement(self, switch_id):
         doc = Document()
 
         base = self.createChild("stitching", doc, doc)
@@ -254,6 +254,15 @@ class Stitching:
         end_elt.setAttribute("type", "time")
         lifetime.setAttribute("id", "life")
 
+        self.generateAdvertisementInternal(doc, agg, switch_id)
+
+        return doc
+
+    def generateAdvertisementInternal(self, doc, agg, switch_id):
+
+        node = self.createChild('node', agg, doc);
+        node.setAttribute('id', switch_id)
+
         for link_value, edge_point in self._edge_points.items():
             local_switch = edge_point._local_switch
             port_value = edge_point._port
@@ -268,9 +277,6 @@ class Stitching:
             granularity = edge_point._granularity
 
             interface_mtu = edge_point._interface_mtu
-
-            node = self.createChild("node", agg, doc)
-            node.setAttribute("id", local_switch)
 
             port = self.createChild("port", node, doc)
             port.setAttribute("id", port_value)
