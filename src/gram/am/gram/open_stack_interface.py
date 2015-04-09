@@ -1656,6 +1656,28 @@ def _parseTableOutput(output):
         
     return output
 
+def listImages():
+    cmd_string = "glance image-list"
+    output = _execCommand(cmd_string)
+    parsed_output = _parseTableOutput(output)
+#    print "OUTPUT = %s" % output
+#    print "PARSED_OUTPUT = %s" % parsed_output
+    names = parsed_output['Name']
+    num_images = len(names)
+    res = {}
+    for i in range(num_images):
+        image_name = names[i]
+        attribs = {}
+        for key, values in parsed_output.items():
+            if key == 'Name': continue
+            value = values[i]
+            attribs[key] = value
+        custom =  image_name not in config.disk_image_metadata
+        attribs['Custom'] = custom
+        res[image_name] = attribs
+#    print "RES = %s" % res
+    return res
+
 
 def get_all_tenant_info():
 

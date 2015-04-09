@@ -41,12 +41,12 @@ import xml.dom.minidom as minidom
 import zlib
 import re
 
-import geni
-from geni.util.urn_util import publicid_to_urn
-import geni.util.urn_util as urn
+import gcf.geni
+from gcf.geni.util.urn_util import publicid_to_urn
+import gcf.geni.util.urn_util as urn
 from GramSecureXMLRPCServer import GramSecureXMLRPCServer
 from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
-from geni.am.am3 import *
+from gcf.geni.am.am3 import *
 
 from gram import config
 from gram import constants
@@ -379,6 +379,17 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
         return gram_ret
 
+    # List all images defined and available in glance
+    def ListImages(self, user_urn, creds, options):
+#        self.logger.error("LI: Args1 = %s Args2 = %s Args3 = %s" % \
+#                              (user_urn, creds, options))
+        res = gram.open_stack_interface.listImages()
+        return self.successResult(res);
+
+    # AM-level decode_urns call
+    def decode_urns(self, urns): 
+        return self._gram_manager.decode_urns(urns)
+
     # Read URN from certificate file
     def readURNFromCertfile(self, certfile):
             import sfa.trust.certificate
@@ -424,13 +435,24 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         return header
         
 
+# Super class of GCF V3 aggregate manager to handle non-standard methods
+class GramAggregateManager(AggregateManager):
+    def __init__(self, trust_roots_dir, delegate, authorizer=None,
+                 resource_manager=None):
+        AggregateManager.__init__(self, trust_roots_dir, delegate, 
+                                  authorizer, resource_manager)
+
+    def ListImages(self, user_urn, creds, options):
+        return self._delegate.ListImages(user_urn, creds, options)
+
 class GramAggregateManagerServer(object):
     """An XMLRPC Aggregate Manager Server. Delegates calls to given delegate,
     or the default printing AM."""
 
     def __init__(self, addr, keyfile=None, certfile=None,
                  trust_roots_dir=None,
-                 ca_certs=None, base_name=None,GRAM=None):
+                 ca_certs=None, base_name=None,GRAM=None,
+                 authorizer=None, resource_manager=None):
         # ca_certs arg here must be a file of concatenated certs
         if ca_certs is None:
             raise Exception('Missing CA Certs')
@@ -445,7 +467,9 @@ class GramAggregateManagerServer(object):
         # FIXME: set logRequests=true if --debug
         self._server = GramSecureXMLRPCServer(addr, keyfile=keyfile,
                                           certfile=certfile, ca_certs=ca_certs)
-        self._server.register_instance(AggregateManager(delegate))
+        aggregate_manager = GramAggregateManager(trust_roots_dir, delegate, \
+                                                 authorizer, resource_manager)
+        self._server.register_instance(aggregate_manager)
         # Set the server on the delegate so it can access the
         # client certificate.
         delegate._server = self._server

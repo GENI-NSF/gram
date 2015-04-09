@@ -25,8 +25,8 @@
 # For testing against tools (Flack, portal) that speak AM API V2
 # Since Gram is written to support V3
 from gram import config, utils
-from geni.am.am2 import ReferenceAggregateManager
-from geni.am.am2 import AggregateManager, AggregateManagerServer
+from gcf.geni.am.am2 import ReferenceAggregateManager
+from gcf.geni.am.am2 import AggregateManager, AggregateManagerServer
 from am3 import GramReferenceAggregateManager as GramReferenceAggregateManager_V3
 from GramSecureXMLRPCServer import GramSecureXMLRPCServer
 from GramSecureXMLRPCServer import GSecureXMLRPCRequestHandler
@@ -201,9 +201,19 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
                                       expiration_time, options)
         return ret_v3
 
+    # List all images defined and available in glance
+    def ListImages(self, args):
+        self.logger.error("LI: Args = %s" % args)
+        return self.successResult({});
+
     def Shutdown(self, slice_urn, credentials, options):
         credentials = [self.transform_credential(c) for c in credentials]
         ret_v3 = self._v3_am.Shutdown(slice_urn, credentials, options)
+        return ret_v3
+
+    # List all images defined and available in glance
+    def ListImages(self, user_urn, creds, options):
+        ret_v3 = self._v3_am.ListImages(user_urn, creds, options)
         return ret_v3
 
     def transform_credential(self, c):
@@ -221,10 +231,21 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
         code_dict = dict(geni_code = 0, am_type = self._am_type, am_code=0)
         return dict(code=code_dict, value=value, output="")
 
+# Super class of GCF V2 aggregate manager to handle non-standard methods
+class GramAggregateManager(AggregateManager):
+    def __init__(self, trust_roots_dir, delegate, authorizer=None,
+                 resource_manager=None):
+        AggregateManager.__init__(self, trust_roots_dir, delegate, 
+                                  authorizer, resource_manager)
+
+    def ListImages(self, user_urn, creds, options):
+        return self._delegate.ListImages(user_urn, creds, options)
+
 class GramAggregateManagerServer(object):
     def __init__(self, addr, keyfile=None, certfile=None,
                  trust_roots_dir=None,
-                 ca_certs=None, base_name=None,GRAM=None):
+                 ca_certs=None, base_name=None,GRAM=None,
+                 authorizer=None, resource_manager=None):
         # ca_certs arg here must be a file of concatenated certs
         if ca_certs is None:
             raise Exception('Missing CA Certs')
@@ -240,7 +261,9 @@ class GramAggregateManagerServer(object):
                                              server_url, certfile, 
                                              self._server,
                                              GRAM)
-        self._server.register_instance(AggregateManager(delegate))
+        aggregate_manager = GramAggregateManager(trust_roots_dir, delegate, \
+                                                 authorizer, resource_manager)
+        self._server.register_instance(aggregate_manager)
         # Set the server on the delegate so it can access the
         # client certificate.
         delegate._server = self._server

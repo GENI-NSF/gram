@@ -1,0 +1,188 @@
+Notes on upgrading GRAM installation from Grizzly/Quantum
+to Juno/Neutron.
+
+Using Cloudlab/APT and the Tutorial-OpenStack profile:
+
+An OpenStack instance with a controller, network manager, and one compute node. This profile runs on either x86 or ARM64 nodes. It sets up OpenStack Juno on Ubuntu 14.10, and configures all OpenStack services (Sahara might be installed partially via pip, because at the time this profile was created, it is not in the Ubuntu package repositories).
+
+
+
+The Sahara project provides a simple means to provision a data-intensive application cluster (Hadoop or Spark) on top of OpenStack. It's the ex Savanna project, renamed due to potential trademark issues.
+
+Please visit the OpenStack controller WWW interface once your instance boots (approx. 5-10 minutes). Log in as admin, password is N!ceD3m0. This same password can be used to log in as root to VM instances you bring up. NOTE: If the web interface rejects your password or gives another error, it might simply need more time to set up the backend. Wait a few minutes and try again.
+
+Copy Profile Show Profile Change Profile
+
+
+ID   	     	  Node    SSH command (if you provided your own key)
+controller   	  apt014  ssh -p 22 mbrinn0@apt014.apt.emulab.net	
+128.110.96.14
+128.110.96.14/horizon
+
+
+networkmanager	  apt001  ssh -p 22 mbrinn0@apt001.apt.emulab.net	
+128.110.96.193
+
+compute1	  apt030  ssh -p 22 mbrinn0@apt030.apt.emulab.net	
+128.110.96.30
+
+export OS_TENANT_NAME=admin
+export OS_USERNAME=admin
+export OS_AUTH_URL=http://controller:35357/v2.0
+export OS_PASSWORD='N!ceD3m0'
+
+These all seem to work:
+keystone tenant-list
+neutron net-list
+nova list --all-tenants
+
+Without all the packaging, try to do something simple:
+1. Install GCF in /opt/gcf [DONE]
+2. Install gram in ~
+3. Install .gcf in ~
+4. Copy /etc/gram
+5. Edit /etc/gram/config.json
+     - Removing stitching
+     - Change addresses
+     - Not clear what to do with interface names (ext, dat, etc.)
+6. Replace all instances of 'quantum' with 'neutron'
+7. Copy gram services
+
+create gram user
+sudo adduser gram
+
+
+
+export PYTHONPATH=/opt/gcf/src:/users/mbrinn0/gram/src
+
+from ~/gram/src
+
+python gram-am.py
+
+Set this on NETWORK machine::
+/etc/neutron/l3_agent.ini:use_namespaces = True
+/etc/neutron/dhcp_agent.ini:use_namespaces = True
+
+The services are
+sudo service neutron-server restart # on COMPUTE
+sudo service neutron-l3-agent # oN NETWORK
+sudo service neutron-dhcp-agent # oN NETWORK
+
+
+Need to run healthcheck to create the gram_MGMT_network
+
+
+
+
+
+
+
+
+Networks:
+
+ext-net : public
+
+flat-data-net : 
+
+isolation: tunneling or vlan
+
+On controller, edited ml2_conf.ini
+[ml2]
+type_drivers = flat,gre,vlan
+tenant_network_types = flat,gre,vlan
+[ml2_type_vlan]
+network_vlan_ranges = physnet1:1000:2999,physnet2:3000:3999
+
+Then restart neutron-server on controller
+
+
+Create the GRAM management and public networks:
+
+neutron net-create GRAM-mgmt-net --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id 3000 --shared
+
+neutron subnet-create GRAM-mgmt-net 192.168.10.0/24
+
+neutron net-create public --router:external=True
+
+neutron subnet-create --allocation_pool start=128.110.96.100,end=128.110.96.109 --gateway=128.110.96.1 public 128.110.96.0/24 -- --enable_dhcp=False
+
+neutron router-create externalRouter
+
+neutron router-gateway-set externalRouter public
+
+neutron router-interface-add externalRouter 1f851c27-abbd-432a-b2f4-c02a9e583eff # manage subnet ID
+
+On network manager:
+
+Change these entries in /etc/neutron/l3_agent.ini
+
+gateway_external_network_id=$PUBLIC_NETWORK_ID
+router_id=$EXTERNAL_ROUTER_ID
+
+sudo service neutron-l3-agent restart
+
+
+----- THEN to create an instance
+
+2015-04-02 11:47:13,309 Issuing command keystone tenant-create --name ch.geni.net:COUNT+slice+DRACULA
+2015-04-02 11:47:13,524 Issuing command keystone user-create --name admin-ch.geni.net:COUNT+slice+DRACULA --pass sliceMaster:-) --enabled true --tenant-id 803e635c054642398d7fdbbc575fce2a
+2015-04-02 11:47:13,772 Issuing command keystone role-list
+2015-04-02 11:47:13,989 Issuing command keystone user-role-add --user-id=bdae0e0a331246d496a36548c01a21e6 --role-id=cbe98a9e541949b5bb4a361f40c8e41e --tenant-id=803e635c054642398d7fdbbc575fce2a
+2015-04-02 11:47:14,229 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA secgroup-create ch.geni.net:COUNT+slice+DRACULA_secgrp tenant-security-group
+2015-04-02 11:47:14,642 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA secgroup-add-rule ch.geni.net:COUNT+slice+DRACULA_secgrp tcp 22 22 0.0.0.0/0 
+2015-04-02 11:47:15,057 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA secgroup-add-rule ch.geni.net:COUNT+slice+DRACULA_secgrp icmp -1 -1 0.0.0.0/0 
+2015-04-02 11:47:15,475 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA secgroup-add-rule ch.geni.net:COUNT+slice+DRACULA_secgrp tcp 30000 65535 0.0.0.0/0 
+2015-04-02 11:47:15,888 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA secgroup-add-rule ch.geni.net:COUNT+slice+DRACULA_secgrp udp 30000 65535 0.0.0.0/0 
+2015-04-02 11:47:16,300 Issuing command quantum router-create --tenant-id 803e635c054642398d7fdbbc575fce2a R-ch.geni.net:COUNT+slice+DRACULA
+2015-04-02 11:47:16,588 Created tenant router R-ch.geni.net:COUNT+slice+DRACULA with uuid = 2694ad7d-c404-4e6f-805f-db146ed86c40
+2015-04-02 11:47:16,588 Provisioning 1 links and 2 vms
+2015-04-02 11:47:16,588 Issuing command quantum net-create link-0 --tenant-id 803e635c054642398d7fdbbc575fce2a --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id 1001
+2015-04-02 11:47:16,883 Issuing command quantum subnet-create --tenant-id 803e635c054642398d7fdbbc575fce2a --gateway 10.0.155.254  --allocation-pool start=10.0.155.252,end=10.0.155.253  2dfa4ee1-d3f3-4fbe-811c-8f82731d4fc9 10.0.155.0/24
+2015-04-02 11:47:17,192 Issuing command quantum router-interface-add R-ch.geni.net:COUNT+slice+DRACULA aad99458-5f14-4d06-83fa-7ced3a66068b
+2015-04-02 11:47:17,519 Issuing command quantum net-list -- --tenant_id=803e635c054642398d7fdbbc575fce2a
+2015-04-02 11:47:17,804 Issuing command quantum net-show 2dfa4ee1-d3f3-4fbe-811c-8f82731d4fc9
+2015-04-02 11:47:18,097 Issuing command nova hypervisor-list
+2015-04-02 11:47:18,485 Number of compute nodes = 4
+2015-04-02 11:47:18,486 Issuing command quantum port-create --tenant-id 803e635c054642398d7fdbbc575fce2a --fixed-ip subnet_id=aad99458-5f14-4d06-83fa-7ced3a66068b,ip_address=10.0.155.1 2dfa4ee1-d3f3-4fbe-811c-8f82731d4fc9
+2015-04-02 11:47:18,486 Issuing command quantum port-create --tenant-id 803e635c054642398d7fdbbc575fce2a --fixed-ip subnet_id=aad99458-5f14-4d06-83fa-7ced3a66068b,ip_address=10.0.155.2 2dfa4ee1-d3f3-4fbe-811c-8f82731d4fc9
+2015-04-02 11:47:18,939 Issuing command quantum port-list -- --tenant_id=803e635c054642398d7fdbbc575fce2a
+2015-04-02 11:47:18,998 Issuing command quantum port-list -- --tenant_id=803e635c054642398d7fdbbc575fce2a
+2015-04-02 11:47:19,317 Issuing command write-mime-multipart --output=/tmp/tmpDJyvTY /tmp/tmpoT0GZq:text/cloud-boothook /tmp/tmpQXfRgZ:text/x-shellscript 
+2015-04-02 11:47:19,350 Issuing command write-mime-multipart --output=/tmp/tmpmOFDwh /tmp/tmpZwsCo7:text/cloud-boothook /tmp/tmp8Yt8dw:text/x-shellscript 
+2015-04-02 11:47:19,354 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA boot exp1-host1 --config-drive=true --poll --image 8e86ea0b-abb4-46a8-b8c6-deea648f0bab --flavor 2 --user_data /tmp/tmpDJyvTY --security_groups ch.geni.net:COUNT+slice+DRACULA_secgrp --nic net-id=7443a9ed-44f2-4b5a-bd74-82372325a5a7 --nic port-id=2aa17094-0fff-432e-8355-69eb6b678569
+2015-04-02 11:47:19,384 Issuing command nova --os-username=admin-ch.geni.net:COUNT+slice+DRACULA --os-password=sliceMaster:-) --os-tenant-name=ch.geni.net:COUNT+slice+DRACULA boot exp1-host2 --config-drive=true --poll --image 8e86ea0b-abb4-46a8-b8c6-deea648f0bab --flavor 2 --user_data /tmp/tmpmOFDwh --security_groups ch.geni.net:COUNT+slice+DRACULA_secgrp --nic net-id=7443a9ed-44f2-4b5a-bd74-82372325a5a7 --nic port-id=e45144c2-ed27-44e2-83a6-71dedb6485f3
+2015-04-02 11:47:35,396 Issuing command nova show eec975f7-ec2d-4b81-bc0c-6bf98e1df537
+2015-04-02 11:47:35,509 Issuing command nova show c14fd287-dea2-41d9-8840-d36d29cb9622
+2015-04-02 11:47:36,035 Issuing command /usr/local/bin/gram_ssh_proxy -m C -a 192.168.10.3  -p 3000  -n qrouter-a03127ba-7184-42e6-bd5d-2e5957193b86 
+2015-04-02 11:47:36,123 Issuing command /usr/local/bin/gram_ssh_proxy -m C -a 192.168.10.4  -p 3001  -n qrouter-a03127ba-7184-42e6-bd5d-2e5957193b86 
+
+----
+
+Can now run GRAM
+
+** python gram-am.py --host 128.110.96.14
+
+Get database errors
+ERROR 1045 (28000): Access denied for user 'keystone'@'controller' (using password: YES)
+ERROR 1045 (28000): Access denied for user 'neutron'@'controller' (using password: YES)
+
+GetVersion works
+
+ListResources: Unable to find xmlsec1
+** sudo apt-get install xmlsec1
+
+Need to change URN to urn:publicid:IDN+controller.cloudtest.juno.gram+authority+am
+
+ListResources works
+
+Unsupported disk image : unbuntu 12-04
+** Use default image ('trusty_server')
+
+*** Needed to make change to keystone user-create
+call to eliminate tenant-id argument
+
+*** sudo apt-get install cloud-utils
+
+
+
+

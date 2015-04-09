@@ -555,7 +555,6 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     client_id="VM"
 
     urn_prefix = getURNprefix(am_urn)
-    authority_prefix = '+'.join(am_urn.split('+')[:2])
     compute_nodes = GramImageInfo._compute_hosts
 
     flavors = open_stack_interface._listFlavors()
@@ -597,7 +596,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     node_block = ''
     stitching_link_block = ""
     for compute_node in compute_nodes.keys():
-        component_id_template = urn_prefix + socket.getfqdn() + '+%s+' + compute_node
+        component_id_template = urn_prefix + socket.gethostname() + '+%s+' + compute_node
         component_id = component_id_template % 'node'
         component_id_interface = component_id_template % 'interface'
         interface_block ='    <interface component_id="%s:%s" role="%s"/>\n' % (component_id_interface, 'eth2', 'experimental')
@@ -614,7 +613,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             '<interface_ref component_id="%s"/>\n' + \
             '</link>'
         link_name = "link-" + compute_node
-        link_id = authority_prefix + "+link+" + switch_name + "_" + compute_node
+        link_id = urn_prefix + "link+" + switch_name + "_" + compute_node
         stitching_link = stitching_link_template % \
             (link_name, link_id, component_id_interface, switch_iface_cid)
         stitching_link_block = stitching_link_block + "\n" + stitching_link
@@ -629,8 +628,8 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             remote_parts = remote_link.split('+')
             remote_name = remote_parts[-1]
             local_name = local_link.split("+")[-1]
-            link_cn = local_name + "-" + remote_name
-            link_cid = authority_prefix + '+link+' + link_cn
+            link_cn = local_name + "/" + remote_name
+            link_cid = urn_prefix + 'link+' + link_cn
             link_cmid = '+'.join(remote_parts[:2]) + "+authority+am"
             link_template = '<link component_name="%s" component_id="%s">\n' +\
                 '   <interface_ref component_id="%s"/>\n' +\
@@ -638,13 +637,13 @@ def generateAdvertisement(am_urn, stitching_handler = None):
                 '</link>'
             external_link = link_template % (link_cn, link_cid, local_link, remote_link)
             stitching_link_block = stitching_link_block + "\n" + external_link
-            external_ref = '<external_ref component_id="%s" \n    component_manager_id="%s"/>' % (remote_link, link_cmid)
+            external_ref = '<external_ref component_id="%s" component_manager_id="%s"/>' % (link_cid, link_cmid)
             external_refs = external_refs + "\n" + external_ref
 
     # Add node for the switch with interface to all the compute nodes
     switch_node_template = \
         '<node component_manager_id="%s" component_name="%s" ' +\
-        'component_id="%s" exclusive="true">'
+        'component_id="%s" exclusive="True">'
     switch_hw_type = '   <hardware_type name ="switch" />'
     switch_interface_template = \
         '   <interface component_id="%s" role="experimental"/>'
@@ -706,15 +705,15 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
 # custome image list
     ci_block = ""
-    u_images = open_stack_interface._listImages().values()
-    if len(u_images) > len(images):
-      ci_block = '<node component_id="" component_manager_id="' + component_manager_id + '" exclusive="false">\n'
-      ci_block += '<sliver_type name="" >\n'
-      for u_image in u_images:
-        if u_image not in images:  
-            ci_block += '<disk_image name="' + u_image + '"  description="custom"/>\n'
-      ci_block += "</sliver_type>\n"
-      ci_block += "</node>\n"       
+#    u_images = open_stack_interface._listImages().values()
+#    if len(u_images) > len(images):
+#      ci_block = '<node component_id="" component_manager_id="' + component_manager_id + '" exclusive="false">\n'
+#      ci_block += '<sliver_type name="" >\n'
+#      for u_image in u_images:
+#        if u_image not in images:  
+#            ci_block += '<disk_image name="' + u_image + '"  description="custom"/>\n'
+#      ci_block += "</sliver_type>\n"
+#      ci_block += "</node>\n"       
 
 #    tmpl = '''  <node component_manager_id="%s"
 #        component_name="%s"
@@ -766,7 +765,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         stitching_links = ""
         client_id = 0
         for compute_node in compute_nodes.keys():
-            component_id = urn_prefix + socket.getfqdn() + '+interface+' + compute_node
+            component_id = urn_prefix + socket.gethostname() + '+interface+' + compute_node
             compute_interface_ref = "%s:%s" % (component_id, 'eth2')
             for stitching_node in stitching_node_elts:
                 link_elt = stitching_node.getElementsByTagName('link')[0]
