@@ -29,6 +29,7 @@ Reference Aggregate Manager that this runs.
 Run with "-h" flag to see usage and command line options.
 """
 
+import importlib
 import pdb
 import sys
 import subprocess
@@ -44,15 +45,27 @@ import threading
 import logging
 import optparse
 import os
-import geni
+import gcf.geni
 import gram
 import gram.am
 import gram.am.am3
 import gram.am.gram_am2
 import gram.am.gram.config
-from geni.config import read_config
+from gcf.geni.config import read_config
 
+# Return an instance of a class given by fully qualified name                   
+# (module_path.classname)                                                       
+# Return an instance of a class given by fully qualified name
+# (module_path.classname) with variable constructor args
+def getInstanceFromClassname(class_name, *argv):
+    class_module_name = ".".join(class_name.split('.')[:-1])
+    class_base_name = class_name.split('.')[-1]
+    class_module = importlib.import_module(class_module_name)
+    class_instance = eval("class_module.%s" % class_base_name)
+    object_instance = class_instance(*argv)
+    return object_instance
 
+# Set up parser and return parsed argumetns
 def parse_args(argv):
     parser = optparse.OptionParser()
     parser.add_option("-k", "--keyfile",
@@ -172,12 +185,33 @@ def main(argv=None):
         opts.recover_from_most_recent_snapshot
     gram.am.gram.config.snapshot_maintain_limit = opts.snapshot_maintain_limit
 
+   # Instantiate authorizer from 'authorizer' config argument                  
+    # By default, use the SFA authorizer                                        
+    if hasattr(opts, 'authorizer'):
+        authorizer_classname = opts.authorizer
+    else:
+        authorizer_classname = "gcf.geni.auth.sfa_authorizer.SFA_Authorizer"
+    authorizer = getInstanceFromClassname(authorizer_classname,
+                                          opts.rootcadir, opts)
+
+    # Use XMLRPC authorizer if opt.remote_authorizer is set                     
+    if hasattr(opts, 'remote_authorizer'):
+        import xmlrpclib
+        authorizer = xmlrpclib.Server(opts.remote_authorizer)
+
+    # Instantiate resource manager from 'authorizer_resource_manager'           
+    # config argument. Default = None                                           
+    resource_manager = None
+    if hasattr(opts, 'authorizer_resource_manager'):
+        resource_manager = \
+            getInstanceFromClassname(opts.authorizer_resource_manager)
+
     # rootcadir is  dir of multiple certificates
-    delegate = geni.ReferenceAggregateManager(getAbsPath(opts.rootcadir))
+    delegate = gcf.geni.ReferenceAggregateManager(getAbsPath(opts.rootcadir))
 
     # here rootcadir is supposed to be a single file with multiple
     # certs possibly concatenated together
-    comboCertsFile = geni.CredentialVerifier.getCAsFileFromDir(getAbsPath(opts.rootcadir))
+    comboCertsFile = gcf.geni.CredentialVerifier.getCAsFileFromDir(getAbsPath(opts.rootcadir))
 
     server_url = "https://%s:%d/" % (opts.host, int(opts.v3_port))
     GRAM=gram.am.am3.GramReferenceAggregateManager(getAbsPath(opts.rootcadir), config['global']['base_name'], certfile, server_url)
@@ -192,6 +226,8 @@ def main(argv=None):
                                           trust_roots_dir=getAbsPath(opts.rootcadir),
                                           ca_certs=comboCertsFile,
                                           base_name=config['global']['base_name'],
+                                          authorizer=authorizer,
+                                          resource_manager = resource_manager,
                                           GRAM=GRAM)
     #elif opts.api_version == 3:
     ams_v3 = gram.am.am3.GramAggregateManagerServer((opts.host, int(opts.v3_port)),
@@ -200,6 +236,8 @@ def main(argv=None):
                                           trust_roots_dir=getAbsPath(opts.rootcadir),
                                           ca_certs=comboCertsFile,
                                           base_name=config['global']['base_name'],
+                                          authorizer=authorizer,
+                                          resource_manager = resource_manager,
                                           GRAM=GRAM)
     #else:
     #    msg = "Unknown API version: %d. Valid choices are \"1\", \"2\", or \"3\""
