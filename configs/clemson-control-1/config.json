@@ -184,6 +184,7 @@
                 }
         ]
    },
+   "shared_vlan_info" : {},
    "public_ip": "130.127.88.101",
    "mgmt_ns": "qrouter-a03127ba-7184-42e6-bd5d-2e5957193b86"
 

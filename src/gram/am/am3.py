@@ -392,8 +392,8 @@ class GramReferenceAggregateManager(ReferenceAggregateManager):
 
     # Read URN from certificate file
     def readURNFromCertfile(self, certfile):
-            import sfa.trust.certificate
-            cert =  sfa.trust.certificate.Certificate()
+            import gcf.sfa.trust.certificate
+            cert =  gcf.sfa.trust.certificate.Certificate()
             cert.load_from_file(certfile)
             san = cert.get_data('subjectAltName')
             sans = san.split(', ');

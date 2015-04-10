@@ -185,14 +185,20 @@ def main(argv=None):
         opts.recover_from_most_recent_snapshot
     gram.am.gram.config.snapshot_maintain_limit = opts.snapshot_maintain_limit
 
+    # Instantiate an argument guard that will reject or modify                  
+    # arguments and options provided to calls                                   
+    argument_guard = None
+    if hasattr(opts, 'argument_guard'):
+        argument_guard = getInstanceFromClassname(opts.argument_guard)
+
    # Instantiate authorizer from 'authorizer' config argument                  
-    # By default, use the SFA authorizer                                        
+   # By default, use the SFA authorizer                                        
     if hasattr(opts, 'authorizer'):
         authorizer_classname = opts.authorizer
     else:
         authorizer_classname = "gcf.geni.auth.sfa_authorizer.SFA_Authorizer"
     authorizer = getInstanceFromClassname(authorizer_classname,
-                                          opts.rootcadir, opts)
+                                          opts.rootcadir, opts, argument_guard)
 
     # Use XMLRPC authorizer if opt.remote_authorizer is set                     
     if hasattr(opts, 'remote_authorizer'):

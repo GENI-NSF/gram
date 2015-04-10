@@ -8,7 +8,7 @@ import time
 
 import config
 import constants
-from sfa.trust.certificate import Certificate
+from gcf.sfa.trust.certificate import Certificate
 from resources import GramImageInfo, Slice, VirtualMachine, NetworkLink
 import rspec_handler
 import open_stack_interface
