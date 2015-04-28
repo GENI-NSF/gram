@@ -753,7 +753,9 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             stitching_node.setAttribute('component_id', component_id)
             stitching_node.setAttribute('component_manager_id', component_manager_id)
             stitching_node.setAttribute("exclusive", exclusive)
-            link_elt = stitching_node_elt.getElementsByTagName('link')[0];
+            link_elts = stitching_node_elt.getElementsByTagName('link')
+            if len(link_elts) == 0: continue
+            link_elt =link_elts[0];
             stitching_node_interface_id = link_elt.attributes['id'].value
             stitching_node_interface_elt = stitching_advertisement_doc.createElement('interface')
             stitching_node_interface_elt.setAttribute('component_id', stitching_node_interface_id)
@@ -768,7 +770,9 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             component_id = urn_prefix + socket.gethostname() + '+interface+' + compute_node
             compute_interface_ref = "%s:%s" % (component_id, 'eth2')
             for stitching_node in stitching_node_elts:
-                link_elt = stitching_node.getElementsByTagName('link')[0]
+                link_elts = stitching_node.getElementsByTagName('link')
+                if len(link_elts) == 0: continue
+                link_elt = link_elts[0]
                 switch_interface_ref = link_elt.attributes['id'].value
                 link_id = "stitch-compute-link-%d" % client_id
                 client_id = client_id+1
