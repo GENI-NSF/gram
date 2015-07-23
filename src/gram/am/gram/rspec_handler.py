@@ -134,7 +134,8 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
             if value.lower() == 'true':
                 vm_object.setExternalIp('true')
     
-        found = node.getElementsByTagName('emulab:routable_control_ip')
+        found = node.getElementsByTagName('emulab:routable_control_ip') +\
+            node.getElementsByTagName('routable_control_ip')
         if found:
             vm_object.setExternalIp('true')
 
