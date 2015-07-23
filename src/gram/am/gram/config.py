@@ -187,6 +187,9 @@ metadata_port = 8775
 control_host = None
 control_host_addr = None
 
+# Location of compute nodes
+location = None
+
 # List of compute node names and addresses
 compute_hosts = None
 

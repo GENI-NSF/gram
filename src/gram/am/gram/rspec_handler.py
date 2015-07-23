@@ -587,6 +587,13 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         disk_image = '      <disk_image name="%s" os="%s" version="%s" description="%s" />' % (image, os, version, description)
         image_types = image_types + disk_image + "\n"
 
+    location_block = ''
+    if config.location != None and \
+       'latitude' in config.location and 'longitude' in config.location:
+        location_block = '<location latitude="%s" longitude="%s"/>' % \
+                         (config.location['latitude'], 
+                          config.location['longitude'])
+
     sliver_block = ''
     for flavor_name in flavors.values():
         entry = '    <sliver_type name="%s">' % flavor_name
@@ -604,7 +611,8 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         entry = '<node component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % \
             (compute_node, component_manager_id, component_id, exclusive)
         node_block = node_block + entry + '\n'
-        node_block = node_block + sliver_block
+        node_block = node_block + location_block + '\n'
+        node_block = node_block + sliver_block 
         node_block = node_block + interface_block
         node_block = node_block + '</node> \n \n'
 
