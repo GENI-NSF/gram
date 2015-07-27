@@ -167,6 +167,7 @@ keystone_user = "keystone"
 keystone_password = None
 network_user = "quantum"
 network_password = None
+network_database = "quantum"
 gmoc_user = "gram"
 gmoc_password = ' '
 
