@@ -49,11 +49,11 @@ ES utf8\'\\ncharacter-set-server = utf8\\n/', '/etc/mysql/my.cnf')
         self.generatePrivileges('keystone', config.keystone_user,
                                     config.keystone_password, \
                                     False, sql_filename)
-        self.generatePrivileges('neutron',  config.neutron_user, \
-                                    config.neutron_password, \
+        self.generatePrivileges('neutron',  config.network_user, \
+                                    config.network_password, \
                                     True, sql_filename)
-        self.generatePrivileges('monitoring',  config.neutron_user, \
-                                    config.neutron_password, \
+        self.generatePrivileges('monitoring',  config.network_user, \
+                                    config.network_password, \
                                     True, sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
         self.add("mysql_secure_installation")

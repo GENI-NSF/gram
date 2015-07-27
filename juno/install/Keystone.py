@@ -37,7 +37,7 @@ class Keystone(GenericInstaller):
         keystone_user = config.keystone_user
         keystone_password = config.keystone_password
         keystone_conf_filename = '/etc/keystone/keystone.conf'
-        saved_keystone_conf_filename = '/home/gram/gram/src/install/control_files/keystone.conf'
+        saved_keystone_conf_filename = '/home/gram/gram/juno/install/control_files/keystone.conf'
         os_password = config.os_password
         os_region_name = config.os_region_name
         service_token = config.service_token
@@ -65,7 +65,7 @@ class Keystone(GenericInstaller):
 
         # Install data and enpoints
         self.comment("Step 4. Download data script")
-        saved_data_script_filename = '/home/gram/gram/src/install/control_files/keystone_basic.sh'
+        saved_data_script_filename = '/home/gram/gram/juno/install/control_files/keystone_basic.sh'
         data_script_filename = 'keystone_basic.sh'
         self.add("rm -f " + data_script_filename)
         self.add("cp " + saved_data_script_filename + " " + data_script_filename)

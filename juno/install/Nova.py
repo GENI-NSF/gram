@@ -30,10 +30,10 @@ class Nova(GenericInstaller):
     api_paste_filename = "api-paste.ini"
     service_tenant_name = "service"
     config_filename = "nova.conf"
-    saved_control_config_filename = "/home/gram/gram/src/install/control_files/nova.conf"
-    saved_compute_config_filename = "/home/gram/gram/src/install/compute_files/nova.conf"
+    saved_control_config_filename = "/home/gram/gram/juno/install/control_files/nova.conf"
+    saved_compute_config_filename = "/home/gram/gram/juno/install/compute_files/nova.conf"
     nova_compute_filename = "nova-compute.conf"
-    saved_nova_compute_filename = "/home/gram/gram/src/install/compute_files/nova-compute.conf"
+    saved_nova_compute_filename = "/home/gram/gram/juno/install/compute_files/nova-compute.conf"
 
     def __init__(self, control_node, node_type):
         self._control_node = control_node
@@ -52,8 +52,8 @@ class Nova(GenericInstaller):
     def installCommands(self):
         self.nova_user = config.nova_user
         self.nova_password = config.nova_password
-        self.neutron_user = config.neutron_user
-        self.neutron_password = config.neutron_password
+        self.neutron_user = config.network_user
+        self.neutron_password = config.network_password
         self.rabbit_password = config.rabbit_password
         self.os_password = config.os_password
         self.backup_directory = config.backup_directory

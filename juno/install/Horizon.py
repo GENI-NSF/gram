@@ -28,7 +28,7 @@ class Horizon(GenericInstaller):
 
     horizon_directory = "/etc/openstack-dashboard"
     horizon_conf_filename = "local_settings.py"
-    saved_horizon_conf_filename = "/home/gram/gram/src/install/control_files/local_settings.py"
+    saved_horizon_conf_filename = "/home/gram/gram/juno/install/control_files/local_settings.py"
     backup_directory = config.backup_directory
 
     # Return a list of command strings for installing this component

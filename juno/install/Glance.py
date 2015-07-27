@@ -30,8 +30,8 @@ class Glance(GenericInstaller):
     glance_registry_conf_filename = 'glance-registry.conf'
     glance_api_conf_filename = 'glance-api.conf'
     service_tenant_name = "service"
-    saved_glance_registry_conf_filename = "/home/gram/gram/src/install/control_files/glance-registry.conf"
-    saved_glance_api_conf_filename = "/home/gram/gram/src/install/control_files/glance-api.conf"
+    saved_glance_registry_conf_filename = "/home/gram/gram/juno/install/control_files/glance-registry.conf"
+    saved_glance_api_conf_filename = "/home/gram/gram/juno/install/control_files/glance-api.conf"
 
     # Return a list of command strings for installing this component
     def installCommands(self):
