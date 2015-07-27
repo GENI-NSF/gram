@@ -231,10 +231,12 @@ def _getMgmtNamespace() :
     net_node_addr = config.network_host_addr
     ssh_prefix = 'ssh gram@' + net_node_addr + ' sudo '
     # get a list of the namespaces
-    if config.os_type == 'grizzly':
+    if config.openstack_type == 'grizzly':
         command = 'ip netns list'
     else:
         command = ssh_prefix + 'ip netns list'
+        print "Checking for management namespace.\n"
+
     output = osi._execCommand(command)
     output_lines = output.split('\n')
     # check for both public and mgmt address in each namespace
@@ -244,10 +246,12 @@ def _getMgmtNamespace() :
         if not line:
             return None
         try:
-            if config.os_type == 'grizzly':
+            if config.openstack_type == 'grizzly':
                 command = 'ip netns exec ' + line + ' ifconfig'
             else:
                 command = ssh_prefix + 'ip netns exec ' + line + ' ifconfig'
+                print "Checking through ifconfig return.\n"
+
             ifconfig = osi._execCommand(command)
         except subprocess.CalledProcessError as e:
             continue
@@ -290,7 +294,7 @@ def check_mgmt_ns(recreate=False):
     if not mgmt_ns or recreate:
         print "WARNING: Management namespace NOT found"
         if config.network_type == 'quantum':
-            nscmd = 'sudo service quantum-l3-agent restart'
+            nscmd = 'sudo quantum-l3-agent restart' 
         else:
             nscmd = 'ssh gram@' + net_node_addr + \
                 ' sudo service neutron-l3-agent restart'
@@ -307,53 +311,48 @@ def check_mgmt_ns(recreate=False):
             if input_var == 'y':
               input_var = raw_input("You must delete 'externalRouter' (router),'public' (network) and " + mgmt_net_name + " (network). Using the Horizon interface is recommended. Have you done this and are ready to proceed? [y/N] ")
               if input_var == 'y':
-                #osi._execCommand('neutron net-delete public')
-                #osi._execCommand('neutron net-delete GRAM-mgmt-net')
-                #osi._execCommand('neutron router-delete externalRouter')
-                cmd = "ssh gram@" + net_node_addr + " neutron net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared"
-                osi._execCommand(cmd)
-                cmd = "ssh gram@" + net_node_addr + " neutron subnet-create " + mgmt_net_name + " " + mgmt_net_cidr
-                output = osi._execCommand(cmd)
-                MGMT_SUBNET_ID = osi._getValueByPropertyName(output, 'id')
-                cmd = "ssh gram@" + net_node_addr + " neutron net-create public --router:external=True"
-                output = osi._execCommand(cmd)
-                PUBLIC_NET_ID = osi._getValueByPropertyName(output, 'id') 
-                cmd = "ssh gram@" + net_node_addr + " neutron subnet-create --allocation_pool" + \
-                 " start=" + public_subnet_start_ip + \
-                 ",end=" + public_subnet_end_ip + \
-                 " --gateway=" + public_gateway_ip + \
-                 " " + str(PUBLIC_NET_ID) + " " + public_subnet_cidr + \
-                 " -- --enable_dhcp=False"
-                output = osi._execCommand(cmd)
-                cmd = "ssh gram@" + net_node_addr + " neutron router-create externalRouter"
-                output = osi._execCommand(cmd)
-                EXTERNAL_ROUTER_ID = osi._getValueByPropertyName(output, 'id')
-                cmd = "ssh gram@" + net_node_addr + " neutron router-gateway-set externalRouter " +  PUBLIC_NET_ID
-                output = osi._execCommand(cmd)
-                cmd = "ssh gram@" + net_node_addr + " neutron router-interface-add externalRouter " + MGMT_SUBNET_ID
-                output = osi._execCommand(cmd)
+                  cmd = ("%s net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared") % config.network_type
+                  osi._execCommand(cmd)
+                  cmd = ("%s subnet-create " + mgmt_net_name + " " + mgmt_net_cidr) % config.network_type
+                  output = osi._execCommand(cmd)
+                  MGMT_SUBNET_ID = osi._getValueByPropertyName(output, 'id')
+                  cmd = ("%s net-create public --router:external=True") % config.network_type
+                  output = osi._execCommand(cmd)
+                  PUBLIC_NET_ID = osi._getValueByPropertyName(output, 'id') 
+                  cmd = ("%s subnet-create --allocation_pool" + \
+                        " start=" + public_subnet_start_ip + \
+                        ",end=" + public_subnet_end_ip + \
+                        " --gateway=" + public_gateway_ip + \
+                        " " + str(PUBLIC_NET_ID) + " " + public_subnet_cidr + \
+                        " -- --enable_dhcp=False") % config.network_type
 
-                regex = "s/^gateway_external_network_id/#/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + neutron_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
-                regex = "s/^\# gateway_external_network_id.*/gateway_external_network_id=" + str(PUBLIC_NET_ID) + "/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + neutron_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
+                  output = osi._execCommand(cmd)
+                  cmd = ("%s router-create externalRouter") % config.network_type
+                  output = osi._execCommand(cmd)
+                  EXTERNAL_ROUTER_ID = osi._getValueByPropertyName(output, 'id')
+                  cmd = ("%s router-gateway-set externalRouter " +  PUBLIC_NET_ID) % config.network_type
+                  output = osi._execCommand(cmd)
+                  cmd = ("%s router-interface-add externalRouter " + MGMT_SUBNET_ID) % config.network_type
+                  output = osi._execCommand(cmd)
 
-                regex = "s/^router_id/#/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + neutron_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
+                  if config.openstack_type == "juno":
+                      print "Sending public net id to the network node.\n"
+                      cmd = "ssh gram@" + net_node_addr +  " echo " + PUBLIC_NET_ID + " > /home/gram/neutron_public_net"
+                      output = osi._execCommand(cmd)
 
-                regex = "s/\# router_id.*/router_id=" + str(EXTERNAL_ROUTER_ID) + "/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + neutron_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
+                      print "Sending external router id to the network node.\n"
+                      cmd = "ssh gram@" + net_node_addr +  " echo " + EXTERNAL_ROUTER_ID + " > /home/gram/neutron_ext_router"
+                      output = osi._execCommand(cmd)
+                      
+                      print "Rewriting network node neutron l3 agent config files.\n"
+                      cmd = "ssh gram@" + net_node_addr + " sudo /home/gram/gram/src/install/network_files/synch_control_network.sh"
+                      osi._execCommand(cmd)
 
-                osi._execCommand("service neutron-l3-agent restart")
-                mgmt_ns = _getMgmtNamespace()
+                  else:
+                      osi._execCommand("service neutron-l3-agent restart")
+
+
+                  mgmt_ns = _getMgmtNamespace()
 
     if mgmt_ns:
         if conf_mgmt_ns and conf_mgmt_ns == mgmt_ns:
@@ -362,11 +361,18 @@ def check_mgmt_ns(recreate=False):
             print "WARNING: Found management namespace but it does not match config"
             print "Rewriting config value"
             _setField('mgmt_ns',mgmt_ns)
+            osi._execCommand("service gram-am restart")
 
 def check_openstack_services():
     print 'checking OpenStack services...'
-    services = ['nova-api','nova-cert','nova-conductor','nova-consoleauth ','nova-novncproxy','nova-scheduler', 'glance-registry','glance-api','keystone']
-    remote_services = ['neutron-dhcp-agent','neutron-metadata-agent','neutron-server','neutron-l3-agent','neutron-plugin-openvswitch-agent']
+    if config.openstack_type == "juno":
+        services = ['nova-api','nova-cert','nova-conductor','nova-consoleauth ','nova-novncproxy','nova-scheduler', 'neutron-server', 'glance-registry','glance-api','keystone']
+        remote_services = ['neutron-dhcp-agent','neutron-metadata-agent', 'neutron-l3-agent','neutron-plugin-openvswitch-agent']
+    else:
+        services = ['nova-api','nova-cert','nova-conductor','nova-consoleauth ','nova-novncproxy','nova-scheduler', 'glance-registry','glance-api','keystone',
+                    'quantum-dhcp-agent','quantum-metadata-agent','quantum-server','quantum-l3-agent','quantum-plugin-openvswitch-agent']
+        remote_services = []
+
     for service in services:
         cmd = 'service ' + service + ' status'
         result = osi._execCommand(cmd)
@@ -375,6 +381,24 @@ def check_openstack_services():
             cmd = 'service ' + service + ' restart'
             osi._execCommand(cmd)
             cmd = 'service ' + service + ' status'
+            result = osi._execCommand(cmd)
+            if result.find('stop'):
+                print 'Error: the following service is still not running, check logs in /var/logs'
+        else:
+            print service + ' - running'
+
+    net_node_addr = osi._getConfigParam('/etc/gram/config.json','network_host_addr')
+    for service in remote_services:
+        print 'Network node status for ' + service + '\n'
+        cmd = 'ssh gram@' + net_node_addr + ' service ' + service + ' status'
+        result = osi._execCommand(cmd)
+        if not result.find('stop') < 0:
+            print 'Warning: the following service is not running, will attempt to restart it - ' + service
+            cmd = 'ssh gram@' + net_node_addr + ' service ' + service + ' restart'
+            cmd = 'service ' + service + ' restart'
+            osi._execCommand(cmd)
+            print 'Checking status\n'
+            cmd = 'ssh gram@' + net_node_addr + ' service ' + service + ' status'
             result = osi._execCommand(cmd)
             if result.find('stop'):
                 print 'Error: the following service is still not running, check logs in /var/logs'
@@ -410,7 +434,7 @@ def perform_gram_healthcheck():
 
     get_compute_status()
 
-    get_neutron_agent_status()
+    get_network_agent_status()
 
     keystone_status = get_keystone_status()
     if keystone_status:
@@ -430,11 +454,11 @@ def perform_gram_healthcheck():
     else:
         print "Glance - fail"
 
-    neutron_status = get_neutron_status()
-    if neutron_status:
-        print "Neutron - pass"
+    network_status = get_network_status()
+    if network_status:
+        print "Network - pass"
     else:
-        print "Neutron - fail"
+        print "Network - fail"
 
     #host_status = {}
     #if nova_status:
@@ -482,7 +506,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == 'recreate':
             check_mgmt_ns(True) 
-        perform_gram_healthcheck()
+    perform_gram_healthcheck()
         #check_mgmt_ns(True)
         #time.sleep(GRAM_HEALTHCHECK_INTERVAL)
 

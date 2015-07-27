@@ -1505,7 +1505,7 @@ def _getFloatingIpByVM(vm_uuid):
             columns = line.split('|')
             port_id = columns[1].strip()
             # for each port get a list of associated floating IPs
-            output2 = _execCommand("floatingip-list -- --port_id=%s" % (config.network_id, port_id))
+            output2 = _execCommand("%s floatingip-list -- --port_id=%s" % (config.network_type, port_id))
             port = re.escape(port_id)
             output_lines2 = output2.split('\n')
             # Find the row in the output table that has the desired port
