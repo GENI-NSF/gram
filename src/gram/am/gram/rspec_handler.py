@@ -300,6 +300,13 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
         link_object.setName(link_name)
         sliver_list.append(link_object)
 
+        # Check if a shared vlan is specified for the link
+        shared_vlan_tags = link.getElementsByTagName('sharedvlan:link_shared_vlan')
+        if len(shared_vlan_tags) == 1:
+            vlan_tag = int(shared_vlan_tags[0].attributes['name'].value)
+            link_object.setVLANTag(vlan_tag)
+            config.logger.info("Using shared vlan: " + str(vlan_tag))
+
         # Gather OF Controller for this link (if any)
         controllers = link.getElementsByTagName('openflow:controller')
         if len(controllers) > 0:
@@ -589,10 +596,10 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
     location_block = ''
     if config.location != None and \
-       'latitude' in config.location and 'longitude' in config.location:
+            'latitude' in config.location and 'longitude' in config.location:
         location_block = '<location latitude="%s" longitude="%s"/>' % \
-                         (config.location['latitude'], 
-                          config.location['longitude'])
+            (config.location['latitude'], 
+             config.location['longitude'])
 
     sliver_block = ''
     for flavor_name in flavors.values():
@@ -612,7 +619,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
             (compute_node, component_manager_id, component_id, exclusive)
         node_block = node_block + entry + '\n'
         node_block = node_block + location_block + '\n'
-        node_block = node_block + sliver_block 
+        node_block = node_block + sliver_block
         node_block = node_block + interface_block
         node_block = node_block + '</node> \n \n'
 

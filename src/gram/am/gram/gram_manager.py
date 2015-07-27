@@ -810,8 +810,6 @@ class GramManager :
 #            print cmd
             os.system(cmd)
 
-            quantum_user = 'quantum'
-            quantum_database = 'quantum'
             cmd = "keystone tenant-list"
             output = open_stack_interface._execCommand(cmd)
             output_fields = open_stack_interface._parseTableOutput(output)
@@ -824,8 +822,8 @@ class GramManager :
 
                 for table_name in ['securitygrouprules', 'securitygroups']:
                     cmd = "mysql -u%s -p%s -h%s %s -e %sDELETE from %s where tenant_id not in (%s)%s" % \
-                        (quantum_user, config.mysql_password,
-                         config.control_host_addr, quantum_database,
+                        (config.network_user, config.mysql_password,
+                         config.control_host_addr, config.network_database,
                          '"', table_name, uuids_expr, '"')
 #                    print cmd
                     os.system(cmd)

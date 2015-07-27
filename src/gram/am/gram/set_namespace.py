@@ -36,6 +36,9 @@ def _execCommand(cmd_string) :
        Execute the specified command.  Return the output of the command or
        raise and exception if the command execution fails.
     """
+    if config.openstack_type == 'juno':
+        netAddr = config.network_host_addr
+        cmd_string = 'ssh gram@' + netAddr  + ' sudo ' +  cmd_string
     command = cmd_string.split()
     try :
         return subprocess.check_output(command)
@@ -126,23 +129,23 @@ def _setField(field,value,final=False):
 
 if __name__ == "__main__":
 
-
-   # Get the namespace name
-   ns = _getMgmtNamespace()
-   pub_ip = _getPublicIp(ns)
     
- 
+    # Get the namespace name
+    config.initialize('/etc/gram/config.json')
+    ns = _getMgmtNamespace()
+    pub_ip = _getPublicIp(ns)
+    
    # edit config.json to update the namespace
-   if ns:
-     _setField('mgmt_ns',ns,True)
-   else:
-     print 'Failed to set namespace'
+    if ns:
+        _setField('mgmt_ns',ns,True)
+    else:
+        print 'Failed to set namespace'
 
    # set the public ip address
-   if pub_ip:
-     _setField('public_ip',pub_ip)
-   else:
-     print 'Failed to set public IP address'
+    if pub_ip:
+        _setField('public_ip',pub_ip)
+    else:
+        print 'Failed to set public IP address'
 
 
 

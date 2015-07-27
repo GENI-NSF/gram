@@ -1,0 +1,7 @@
+Package: gram
+Version: 0.1
+Priority: optional
+Architecture: all
+Depends: git, module-assistant, ntp, vlan, bridge-utils, cpu-checker, qemu-kvm, libvirt-bin, pm-utils, neutron-plugin-ml2, neutron-plugin-openvswitch-agent, nova-compute, sysfsutils, python-dateutil
+Maintainer: GRAM Developers <gram-dev@bbn.com>
+Description: GRAM installation package

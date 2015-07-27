@@ -1,0 +1,11 @@
+# Changes to GRAM software baseline by release
+# Note: Keep releases in numerical order
+
+== 6.0 ==
+  * Modify directory structure to have different install/pkg 
+    directories for juno/grizzly releases
+  * Modify install scripts to handle 
+  * Add network_type, openstack_version, switch_type flags 
+    to config and change common files to use these
+  * Modify checked in config.json files to use these flags
+

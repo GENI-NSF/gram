@@ -167,7 +167,7 @@ def main(argv=None):
         sys.exit("Aggregate keyfile %s doesn't exist" % keyfile)
 
     # Check if quantum is running, if not, then take a nap
-    command_str = 'quantum net-list'
+    command_str = '%s net-list' % gram.am.gram.config.network_type
     command = command_str.split()
     ready = 0
     while(not ready):

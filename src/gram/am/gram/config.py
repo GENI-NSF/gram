@@ -165,8 +165,8 @@ glance_user = "glance"
 glance_password = None
 keystone_user = "keystone"
 keystone_password = None
-quantum_user = "quantum"
-quantum_password = None
+network_user = "quantum"
+network_password = None
 gmoc_user = "gram"
 gmoc_password = ' '
 
@@ -179,6 +179,11 @@ os_region_name = "RegionOne"
 os_no_cache = 1
 service_token = None
 service_endpoint = "http://localhost:35357/v2.0"
+
+# Installation configuration
+network_type = "quantum"
+openstack_type = "grizzly"
+switch_type = "dell"
 
 # TCP port over which metadata is transmitted
 metadata_port = 8775

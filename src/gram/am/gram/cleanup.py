@@ -104,14 +104,16 @@ for slice in slices:
             manage_ssh_proxy._removeProxy(control_nic_ipaddr)
 
     # Find all ports of this tenant
-    ports_cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+    ports_cmd_string = '%sport-list -- --tenant_id=%s' % \
+        (config.network_type, tenant_uuid)
     ports_output = open_stack_interface._execCommand(ports_cmd_string)
     port_lines = ports_output.split('\n')
     for i in range(3, len(port_lines)-2):
         port_columns = port_lines[i].split('|')
         port_id = port_columns[1].strip()
         try:
-            delete_port_cmd = 'quantum port-delete %s' % port_id
+            delete_port_cmd = '%s port-delete %s' % \
+                (config.network_type, port_id)
             print delete_port_cmd
             open_stack_interface._execCommand(delete_port_cmd)
         except Exception:
@@ -122,14 +124,15 @@ for slice in slices:
             pass 
 
     # Find the networks owned by this tenant and delete them
-    cmd_string = 'quantum net-list -- --tenant_id %s' % tenant_uuid
+    cmd_string = '%s net-list -- --tenant_id %s' % \
+        (config.network_type, tenant_uuid)
     print cmd_string
     net_list_output = open_stack_interface._execCommand(cmd_string)
     net_list_output_lines = net_list_output.split('\n')
     for i in range(3, len(net_list_output_lines) - 2) :
         columns = net_list_output_lines[i].split('|')
         net_uuid = columns[1]
-        cmd_string = 'quantum net-delete %s' % net_uuid
+        cmd_string = '%s net-delete %s' % (config.network_type, net_uuid)
         print cmd_string
         open_stack_interface._execCommand(cmd_string)
 

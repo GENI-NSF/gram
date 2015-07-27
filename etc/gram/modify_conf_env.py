@@ -20,7 +20,11 @@ if __name__ == "__main__":
     variable = sys.argv[2]
     config_variable = sys.argv[3]
     prefix = sys.argv[4]
-    if prefix != "": prefix = prefix + " "
-    new_value = getattr(config, config_variable)
+    if prefix != "": 
+        prefix = prefix + " "
+    if config_variable == 'control_host':
+        new_value = "http:\/\/" + config.control_host + ":5000\/v2.0\/"  
+    else: 
+        new_value = getattr(config, config_variable)
     print "sed -i 's/^%s%s=.*/%s%s=%s/' %s" % \
         (prefix, variable, prefix, variable, new_value, filename)
