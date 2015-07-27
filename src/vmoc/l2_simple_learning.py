@@ -207,7 +207,6 @@ class l2_simple_learning (object):
   def __init__ (self, transparent):
     core.openflow.addListeners(self)
     self.transparent = transparent
-    config.initialize('/etc/gram/config.json')
 
   def _handle_ConnectionUp (self, event):
     log.debug("Connection %s" % (event.connection,))

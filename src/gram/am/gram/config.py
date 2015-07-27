@@ -167,9 +167,17 @@ keystone_user = "keystone"
 keystone_password = None
 network_user = "quantum"
 network_password = None
+service_password = "service"
 network_database = "quantum"
 gmoc_user = "gram"
 gmoc_password = ' '
+
+#Host and Control Information
+control_host_external_addr = None
+network_host_addr = "10.10.8.101"
+control_email_addr = None
+host_fqdn = None
+network_host = None
 
 # OpenStack user configuration 
 os_tenant_name = None
