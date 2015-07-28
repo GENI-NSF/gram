@@ -1,12 +1,12 @@
 <h1> GRAM Software Release Process</h1>
 
-1. <b>Introduction</b>
+<b>1. Introduction</b>
 
 GRAM is a body of software to present a GENI Aggregate Manager (AM) API front-end to a set of Openstack managed cloud resources. GRAM is the underlying software for the OpenGENI racks.
 
 The GRAM software is maintained in this GitHub repository(https://github.com/GENI-NSF/gram).
 
-2. <b>Standard Development</b>
+<b>2. Standard Development</b>
 
 It is expected that developers will work on branches off the git develop branch. The master branch contains the configuration managed baseline.
 
@@ -29,7 +29,7 @@ The standard process for making a change to the GRAM git repository:
     git branch -d tktXXX_new_feature
 * Close ticket XXX
 
-3. <b>Release Process</b>
+<b>3. Release Process</b>
 
 Major releases require changes to the underlying installation or architecture. These are numbered X.0 where X is the next major release.
 
@@ -66,7 +66,7 @@ The procedure for creating a new GRAM release:
 * Delete the release branch  
     git branch -d release-X.Y  
 
-4. <b>Distribution</b>
+<b>4. Distribution</b>
 
 The GRAM releases may be installed at the discretion and convenience of the rack owner. We need to notify the owners of the existence of the new release, the features and fixes contained in the release, the procedure for upgrading (so they can assess risk).
 * Send a note to all GRAM rack owners about the new release telling them to get in touch if they are interested in upgrading.
