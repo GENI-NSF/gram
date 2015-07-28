@@ -48,8 +48,8 @@ class Nova(GenericInstaller):
     def installCommands(self):
         self.nova_user = config.nova_user
         self.nova_password = config.nova_password
-        self.quantum_user = config.quantum_user
-        self.quantum_password = config.quantum_password
+        self.quantum_user = config.network_user
+        self.quantum_password = config.network_password
         self.rabbit_password = config.rabbit_password
         self.os_password = config.os_password
         self.backup_directory = config.backup_directory

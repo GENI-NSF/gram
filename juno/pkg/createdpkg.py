@@ -113,14 +113,14 @@ class CreateDpkg:
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")
 
-        debian_source = "/DEBIAN_control"
+        debian_source = "DEBIAN_control"
         if self._node == "compute": 
-            debian_source = "/DEBIAN_compute"
+            debian_source = "DEBIAN_compute"
         elif self._node == "network":
-            debian_source = "/DEBIAN_network"
+            debian_source = "DEBIAN_network"
                 
         self._execCommand("cp -Rf " + \
-                              self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
+                              self.opts.gram_root + "/gram/juno/pkg/gram_dpkg/" + \
                               debian_source + " " + self.opts.deb_location)
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
@@ -155,9 +155,9 @@ class CreateDpkg:
                               self.opts.deb_location + "/etc/gram/snapshots")
         self._execCommand("rm -rf " + \
                               self.opts.deb_location + \
-                              "/home/gram/gram/pkg/gram_dpkg/tmp")
+                              "/home/gram/gram/juno/pkg/gram_dpkg/tmp")
         self._execCommand("rm -rf " + \
-                              self.opts.deb_location + "/home/gram//gram/.git")
+                              self.opts.deb_location + "/home/gram/gram/.git")
         if self._node == "control":
             self._execCommand("rm -rf " + \
                                   self.opts.deb_location + "/opt/pox/.git")
