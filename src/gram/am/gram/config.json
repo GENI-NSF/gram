@@ -1,0 +1,126 @@
+{
+   "__001": "This file contains GRAM installation-specific",
+   "__002": "parameters and structures. The values contained here",
+   "__003": "override values in the gram.am.gram.config module.",
+   "__004": "That is, a key/value pair  K, V  in this file",
+   "__005": "sets gram.am.config.K = V",
+   "__006": "An error is given if the field (K) does not exist, ",
+   "__007": "Or the type of the value cannot be coerced",
+   "__008": "Further any parameter whose value is None in config.py",
+   "__009": "and set as null here must be set in this file:",
+   "__010": "no default is provided",
+
+   "aggregate_id" : "urn:publicid:IDN+gram1-control.bbn.com+authority+am",
+
+   "default_VM_flavor": "m1.small",
+   "default_OS_image": "ubuntu-12.04",
+   "default_OS_type": "Linux",
+   "default_OS_version": "12",
+
+
+   "disk_image_metadata":
+   {
+   "ubuntu-12.04":
+       {
+        "os": "Linux",
+        "version": "12.0",
+        "description":" Standard Ubuntu",
+        "boot_complete_msg" : "cloud-init boot finished at"
+        },
+   "fedora-19":
+       {
+        "os": "Linux",
+        "version": "19.0",
+        "description":"Standard Fedora",
+        "boot_complete_msg" : "EXT4-fs (vda1): resized filesystem to"
+        }
+   },
+
+   "shared_vlan_info" : {},
+
+   "openstack_type": "juno",
+   "network_type": "neutron",
+
+   "switch_type": "HP",
+   "location": {"longitude": "-70", "latitude":"42"},
+
+   "external_interface": "eth4",
+   "external_address": "128.89.118.102",
+   "external_netmask": "255.255.255.0",
+   "host_fqdn" : "gram1-control.bbn.com",
+
+   "control_address": "10.10.8.102",
+   "control_interface": "eth3",
+   "data_interface": "eth2",
+   "data_address": "10.10.5.102",
+   "management_interface": "eth1",
+   "management_address": "10.10.6.102",
+   "management_network_name": "GRAM-mgmt-net",
+   "management_network_cidr": "192.168.10.0/24",
+   "management_network_vlan": "2500",
+   "mysql_user": "admin",
+   "mysql_password": "os_pwd",
+   "rabbit_password": "os_pwd",
+   "nova_password": "os_pwd",
+   "glance_password": "os_pwd",
+   "keystone_password": "os_pwd",
+   "network_password": "os_pwd",
+   "network_database": "neutron",
+   "network_user": "neutron",
+   "os_tenant_name": "admin",
+   "os_username": "admin",
+   "os_password": "admin_pass",
+   "os_auth_url": "http://10.10.8.102:5000/v2.0/",
+   "os_region_name" : "regionOne",
+   "os_no_cache" : "1",
+   "service_token" : "gram1-control",
+   "service_endpoint" : "http://localhost:35357/v2.0",
+   "service_password": "service_pass",
+
+   "public_gateway_ip" : "128.89.118.1",
+   "public_dns_nameservers" : "128.33.0.20 128.33.1.20",
+   "public_subnet_cidr" : "128.89.118.0/24",
+   "public_subnet_start_ip" : "128.89.118.110",
+   "public_subnet_end_ip" : "128.89.118.130",
+
+   "metadata_port" : "8775",
+
+   "backup_directory" : "/home/gram/.backup",
+   "control_host" : "gram1-control",
+   "control_host_addr" : "10.10.8.102",
+   "control_host_external_addr" : "128.89.118.102",
+   "control_email_addr" : "rrhain@bbn.com",
+   "network_host" : "gram1-compute1",
+   "network_host_addr" : "10.10.8.103",
+   "compute_hosts": {
+            "gram1-compute3":"10.10.8.105"},
+   "host_file_entries": {
+            "gram1-control":"10.10.8.102",
+            "gram1-compute1":"10.10.8.103",
+            "gram1-compute3":"10.10.8.105"},
+   "glance_images" : [],
+   "internal_vlans": "1001-2000",
+   "stitching_info" : {
+       "aggregate_id" : "urn:publicid:IDN+gram1-control.bbn.com+authority+am",
+       "aggregate_url" : "https://128.89.118.102:5001",
+       "edge_points" : [
+                {
+                "local_switch" : "urn:publicid:IDN+gram1-control.bbn.com+node+force10",
+                "port" : "urn:publicid:IDN+gram1-control.bbn.com+stitchport+force10:16",
+                "local_link" : "urn:publicid:IDN+gram1-control.bbn.com+interface+force10:16",
+                "remote_switch": "urn:publicid:IDN+al2s.internet2.edu+interface+sdn-sw.atla.net.internet2.edu:eth1/1:cleveland-og",
+                "vlans" : "3000-3009",
+                "traffic_engineering_metric" : "22",
+                "capacity": "1000000",
+                "stitching_granularity":"1",
+                "maximum_reservable_capacity": "1000000",
+                "minimum_reservable_capacity": "1000",
+                "interface_mtu": "1500"
+                }
+       ]
+   },
+   "public_ip": "128.89.118.110",
+   "mgmt_ns": "qrouter-92df9a5e-97af-45c7-b71c-936aca6faaca"
+}
+
+
