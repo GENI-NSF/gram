@@ -17,9 +17,8 @@ The standard process for making a change to the GRAM git repository:
     git checkout develop  
     git checkout -b tktXXX_new_feature
 * Install the fix on a test machine and test
-* Edit the CHANGES file to include the new feature and reference the associated ticket for the next release  
-    Add 'New Feature' (#XXX).
-    <i>Make sure to document any configuration variables (config.json, config.py) added.</i>   
+* Edit the CHANGES file to include the new feature and reference the associated ticket for the next release. <i>Make sure to document any configuration variables (config.json, config.py) added.</i>     
+    Add 'New Feature' and new config parameter 'FooBar' (#XXX).
 * Commit the new feature and merge back into develop  
     git add -A  
     git commit -m"Add feature for ticket XXX"  
