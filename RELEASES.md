@@ -23,6 +23,7 @@ The standard process for making a change to the GRAM git repository:
     git commit -m"Add feature for ticket XXX"  
     git checkout develop  
     git merge tktXXX_new_feature  
+    git push origin develop
 * Delete feature branch  
     git branch -d tktXXX_new_feature
 * Close ticket XXX
