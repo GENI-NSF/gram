@@ -71,7 +71,7 @@ See this [git branching model](http://nvie.com/posts/a-successful-git-branching-
 
 The GRAM releases may be installed at the discretion and convenience of the rack owner. We need to notify the owners of the existence of the new release, the features and fixes contained in the release, the procedure for upgrading (so they can assess risk).
 * Send a note to all GRAM rack owners about the new release telling them to get in touch if they are interested in upgrading.
-* Send the upgrade package and install/upgrade instructions to rack owner that is interested
+* Send the upgrade package and install/upgrade instructions to rack owner that is interested. Include changes to config.json as necessary.
 * It is the responsibility of the rack owner (not the GRAM development team) to notify users of outages due to the upgrade.
 * Support the rack team with any issues in testing or installation as needed.
 * After upgrade, have rack owner send the most recent config.json and GRAMVERSION files for reference.
