@@ -48,7 +48,7 @@ The procedure for creating a new GRAM release:
     git tag -a -m "GRAM X.Y" vX.Y release-X.Y     
     git push --tags origin    
 * Create update packages  
-    **Need help here**  
+    *** Need help here ***  
 * Install and test update packages.  
     <i>There should be a test machine with the previous release installed on it from which we can test the upgrade and new features. </i>
 * Close the ticket.  
@@ -64,6 +64,8 @@ The procedure for creating a new GRAM release:
    git push origin develop  
 * Delete the release branch  
     git branch -d release-X.Y  
+
+See this [git branching model](http://nvie.com/posts/a-successful-git-branching-model) for a good description of how master, develop, feature and release branches should interace.
 
 <b>4. Distribution</b>
 
