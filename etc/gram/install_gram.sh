@@ -1,13 +1,19 @@
 #!/bin/bash
 
 # Install GRAM on either compute or control node
-# usage: install_gram <compute/control/network>
+# usage: install_gram <compute/control/network> <grizzly/juno>
 
 export SENSE="control"
+export OPENSTACKV="juno"
 
-if [ $# -gt 0 ]
+if [ $# -eq 1 ]
 then
     export SENSE=$1
+fi
+
+if [ $# -eq 2 ]
+then
+    export OPENSTACKV=$2
 fi
 
 mkdir /home/gram/.backup
@@ -16,14 +22,18 @@ mkdir /home/gram/.backup
 chown -R gram.gram ~gram /etc/gram
 
 # This seems not to get set early enough in some circumstances...
-mkdir -p /etc/quantum
-mkdir -p /etc/neutron
+if [ $OPENSTACKV = "grizzly" ]
+then
+    mkdir -p /etc/quantum
+else
+    mkdir -p /etc/neutron
+fi
 
 
 # Set up the install shell scripts based on the parameters specified
 # in /etc/gram/config.json
-cd ~gram/gram/src/install
-export PYTHONPATH=~gram/gram/src:$PYTHONPATH
+cd ~gram/gram/$OPENSTACKV/install
+export PYTHONPATH=~gram/gram/src:~gram/gram/$OPENSTACKV:$PYTHONPATH
 python OpenStack.py
 cd /tmp/install
 chmod a+x *.sh
