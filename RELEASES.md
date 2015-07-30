@@ -8,29 +8,29 @@ The GRAM software is maintained in this GitHub repository(https://github.com/GEN
 
 <b>2. Standard Development</b>
 
-It is expected that developers will work on branches off the git develop branch. The master branch contains the configuration managed baseline.
+It is expected that developers will work on feature branches off the git 'develop' branch. The master branch contains the configuration managed baseline.
 
 The standard process for making a change to the GRAM git repository:
 
 * Create a ticket in GitHub for the feature to be added or bug to be fixed. (Here, #XXX).
 * Create a branch for developing the fix.  
-    git checkout develop  
-    git checkout -b tktXXX_new_feature
+    git checkout -b tktXXX_new_feature develop
 * Install the fix on a test machine and test
-* Edit the CHANGES file to include the new feature and reference the associated ticket for the next release. <i>Make sure to document any configuration variables (config.json, config.py) added.</i>     
+* Edit the CHANGES file to include the new feature and reference the associated ticket for the next release. <i>Make sure to document any configuration variables (config.json, config.py) added. For example:</i>     
     Add 'New Feature' and new config parameter 'FooBar' (#XXX).
 * Commit the new feature and merge back into develop  
-    git add -A  
+    git add file1, ....  
     git commit -m"Add feature for ticket XXX"  
     git checkout develop  
     git merge tktXXX_new_feature  
+    git push origin develop
 * Delete feature branch  
     git branch -d tktXXX_new_feature
 * Close ticket XXX
 
 <b>3. Release Process</b>
 
-Major releases require changes to the underlying installation or architecture. These are numbered X.0 where X is the next major release.
+Major releases require changes to the underlying installation or architecture. These are numbered X.0 where X is the next major release. See [Semantic Versioning](http://semver.org) for more detailed criteria for release numbering.
 
 Minor releases do not change the underlying installation or architecture (that is, only GRAM software is changed, but no change to libraries, OpenStack, switch configuration, etc.). These are numbered X.Y where X is the current major release and Y is the next minor release within that major release.
 
@@ -42,13 +42,13 @@ The procedure for creating a new GRAM release:
     git checkout -b release-X.Y
 * Verify that all changes in git match changes documented in CHANGES, and update CHANGES as necessary. 
 * Close tickets that are included in the release but not closed.
-* Set the src/GRAMVERSION file to reflect the next release number  
+* Set the src/GRAMVERSION file to reflect the release number  
     Tag vX.Y  
 * Tag the new release  
     git tag -a -m "GRAM X.Y" vX.Y release-X.Y     
     git push --tags origin    
 * Create update packages  
-    **Need help here**  
+    *** Need help here ***  
 * Install and test update packages.  
     <i>There should be a test machine with the previous release installed on it from which we can test the upgrade and new features. </i>
 * Close the ticket.  
@@ -65,11 +65,13 @@ The procedure for creating a new GRAM release:
 * Delete the release branch  
     git branch -d release-X.Y  
 
+See this [git branching model](http://nvie.com/posts/a-successful-git-branching-model) for a good description of how master, develop, feature and release branches should interace.
+
 <b>4. Distribution</b>
 
 The GRAM releases may be installed at the discretion and convenience of the rack owner. We need to notify the owners of the existence of the new release, the features and fixes contained in the release, the procedure for upgrading (so they can assess risk).
 * Send a note to all GRAM rack owners about the new release telling them to get in touch if they are interested in upgrading.
-* Send the upgrade package and install/upgrade instructions to rack owner that is interested
+* Send the upgrade package and install/upgrade instructions to rack owner that is interested. Include changes to config.json as necessary.
 * It is the responsibility of the rack owner (not the GRAM development team) to notify users of outages due to the upgrade.
 * Support the rack team with any issues in testing or installation as needed.
 * After upgrade, have rack owner send the most recent config.json and GRAMVERSION files for reference.
