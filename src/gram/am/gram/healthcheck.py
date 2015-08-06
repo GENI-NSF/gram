@@ -345,7 +345,7 @@ def check_mgmt_ns(recreate=False):
                       output = osi._execCommand(cmd)
                       
                       print "Rewriting network node neutron l3 agent config files.\n"
-                      cmd = "ssh gram@" + net_node_addr + " sudo /home/gram/gram/src/install/network_files/synch_control_network.sh"
+                      cmd = "ssh gram@" + net_node_addr + " sudo /home/gram/gram/juno/install/network_files/synch_control_network.sh"
                       osi._execCommand(cmd)
 
                   else:
