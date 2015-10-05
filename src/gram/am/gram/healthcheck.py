@@ -30,6 +30,7 @@
 # Eventually this output should report to NAGIOS or some
 # other health-check system. For now it prints a report periodically
 
+import config
 import platform
 import subprocess
 import time
@@ -72,10 +73,11 @@ def get_glance_status():
         pass
     return success
 
-def get_quantum_status():
+def get_network_status():
     success = False
+    net_node_addr = config.network_host_addr
     try:
-        command = "quantum net-list"
+        command = '%s net-list' % config.network_type
         output = osi._execCommand(command)
         success = True
     except:
@@ -129,8 +131,9 @@ def get_compute_status():
             print line   
     print "\n"
 
-def get_quantum_agent_status():
-    cmd = "quantum agent-list"
+def get_network_agent_status():
+    net_node_addr = config.network_host_addr
+    cmd = '%s agent-list' % config.network_type
     print "Checking status of Openstack networking software modules: \n"
     ret = subprocess.check_output(cmd, shell=True)
     lines = ret.split('\n');
@@ -223,11 +226,17 @@ def _getMgmtNamespace() :
        Looks at the namespaces on the machine and finds one that has the management
        network and the external network:
     """
-    mgmt_addr = (netaddr.IPNetwork(osi._getConfigParam('/etc/gram/config.json','management_network_cidr'))).broadcast  
-    public_addr = osi._getConfigParam('/etc/gram/config.json','public_subnet_start_ip')
-
+    mgmt_addr = (netaddr.IPNetwork(config.management_network_cidr)).broadcast  
+    public_addr = config.public_subnet_start_ip
+    net_node_addr = config.network_host_addr
+    ssh_prefix = 'ssh gram@' + net_node_addr + ' sudo '
     # get a list of the namespaces
-    command = 'ip netns list'
+    if config.openstack_type == 'grizzly':
+        command = 'ip netns list'
+    else:
+        command = ssh_prefix + 'ip netns list'
+        print "Checking for management namespace.\n"
+
     output = osi._execCommand(command)
     output_lines = output.split('\n')
     # check for both public and mgmt address in each namespace
@@ -237,7 +246,12 @@ def _getMgmtNamespace() :
         if not line:
             return None
         try:
-            command = 'ip netns exec ' + line + ' ifconfig'
+            if config.openstack_type == 'grizzly':
+                command = 'ip netns exec ' + line + ' ifconfig'
+            else:
+                command = ssh_prefix + 'ip netns exec ' + line + ' ifconfig'
+                print "Checking through ifconfig return.\n"
+
             ifconfig = osi._execCommand(command)
         except subprocess.CalledProcessError as e:
             continue
@@ -266,21 +280,27 @@ def _setField(field,value):
 
 def check_mgmt_ns(recreate=False):
     mgmt_ns = _getMgmtNamespace()
-    conf_mgmt_ns = osi._getConfigParam('/etc/gram/config.json','mgmt_ns')
-    mgmt_net_name = osi._getConfigParam('/etc/gram/config.json','management_network_name')
-    mgmt_net_cidr =  osi._getConfigParam('/etc/gram/config.json','management_network_cidr')
-    mgmt_net_vlan = osi._getConfigParam('/etc/gram/config.json','management_network_vlan')
-    public_subnet_start_ip = osi._getConfigParam('/etc/gram/config.json','public_subnet_start_ip')
-    public_subnet_end_ip = osi._getConfigParam('/etc/gram/config.json','public_subnet_end_ip')
-    public_gateway_ip = osi._getConfigParam('/etc/gram/config.json','public_gateway_ip')
-    public_subnet_cidr = osi._getConfigParam('/etc/gram/config.json','public_subnet_cidr')
-    quantum_conf = "/etc/quantum/l3_agent.ini"
+    conf_mgmt_ns = config.mgmt_ns
+    mgmt_net_name = config.management_network_name
+    mgmt_net_cidr =  config.management_network_cidr
+    mgmt_net_vlan = config.management_network_vlan
+    public_subnet_start_ip = config.public_subnet_start_ip
+    public_subnet_end_ip = config.public_subnet_end_ip
+    public_gateway_ip = config.public_gateway_ip
+    public_subnet_cidr = config.public_subnet_cidr
+    net_node_addr = config.network_host_addr
+    network_conf = "/etc/%s/l3_agent.ini" % config.network_type
 
     if not mgmt_ns or recreate:
         print "WARNING: Management namespace NOT found"
+        if config.network_type == 'quantum':
+            nscmd = 'sudo quantum-l3-agent restart' 
+        else:
+            nscmd = 'ssh gram@' + net_node_addr + \
+                ' sudo service neutron-l3-agent restart'
         for x in range(0,10):
-            print "Restarting Quantum-L3 service to attempt to recover the namespace - attempt " + str(x)
-            osi._execCommand('service quantum-l3-agent restart')
+            print "Restarting L3 service to attempt to recover the namespace - attempt " + str(x)
+            osi._execCommand(nscmd)
             time.sleep(20)
             mgmt_ns = _getMgmtNamespace()
             if mgmt_ns:
@@ -291,53 +311,48 @@ def check_mgmt_ns(recreate=False):
             if input_var == 'y':
               input_var = raw_input("You must delete 'externalRouter' (router),'public' (network) and " + mgmt_net_name + " (network). Using the Horizon interface is recommended. Have you done this and are ready to proceed? [y/N] ")
               if input_var == 'y':
-                #osi._execCommand('quantum net-delete public')
-                #osi._execCommand('quantum net-delete GRAM-mgmt-net')
-                #osi._execCommand('quantum router-delete externalRouter')
-                cmd = "quantum net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared"
-                osi._execCommand(cmd)
-                cmd = "quantum subnet-create " + mgmt_net_name + " " + mgmt_net_cidr
-                output = osi._execCommand(cmd)
-                MGMT_SUBNET_ID = osi._getValueByPropertyName(output, 'id')
-                cmd = "quantum net-create public --router:external=True"
-                output = osi._execCommand(cmd)
-                PUBLIC_NET_ID = osi._getValueByPropertyName(output, 'id') 
-                cmd = "quantum subnet-create --allocation_pool" + \
-                 " start=" + public_subnet_start_ip + \
-                 ",end=" + public_subnet_end_ip + \
-                 " --gateway=" + public_gateway_ip + \
-                 " " + str(PUBLIC_NET_ID) + " " + public_subnet_cidr + \
-                 " -- --enable_dhcp=False"
-                output = osi._execCommand(cmd)
-                cmd = "quantum router-create externalRouter"
-                output = osi._execCommand(cmd)
-                EXTERNAL_ROUTER_ID = osi._getValueByPropertyName(output, 'id')
-                cmd = "quantum router-gateway-set externalRouter " +  PUBLIC_NET_ID
-                output = osi._execCommand(cmd)
-                cmd = "quantum router-interface-add externalRouter " + MGMT_SUBNET_ID
-                output = osi._execCommand(cmd)
+                  cmd = ("%s net-create " + mgmt_net_name + " --provider:network_type vlan --provider:physical_network physnet2 --provider:segmentation_id " + mgmt_net_vlan + " --shared") % config.network_type
+                  osi._execCommand(cmd)
+                  cmd = ("%s subnet-create " + mgmt_net_name + " " + mgmt_net_cidr) % config.network_type
+                  output = osi._execCommand(cmd)
+                  MGMT_SUBNET_ID = osi._getValueByPropertyName(output, 'id')
+                  cmd = ("%s net-create public --router:external=True") % config.network_type
+                  output = osi._execCommand(cmd)
+                  PUBLIC_NET_ID = osi._getValueByPropertyName(output, 'id') 
+                  cmd = ("%s subnet-create --allocation_pool" + \
+                        " start=" + public_subnet_start_ip + \
+                        ",end=" + public_subnet_end_ip + \
+                        " --gateway=" + public_gateway_ip + \
+                        " " + str(PUBLIC_NET_ID) + " " + public_subnet_cidr + \
+                        " -- --enable_dhcp=False") % config.network_type
 
-                regex = "s/^gateway_external_network_id/#/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + quantum_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
-                regex = "s/^\# gateway_external_network_id.*/gateway_external_network_id=" + str(PUBLIC_NET_ID) + "/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + quantum_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
+                  output = osi._execCommand(cmd)
+                  cmd = ("%s router-create externalRouter") % config.network_type
+                  output = osi._execCommand(cmd)
+                  EXTERNAL_ROUTER_ID = osi._getValueByPropertyName(output, 'id')
+                  cmd = ("%s router-gateway-set externalRouter " +  PUBLIC_NET_ID) % config.network_type
+                  output = osi._execCommand(cmd)
+                  cmd = ("%s router-interface-add externalRouter " + MGMT_SUBNET_ID) % config.network_type
+                  output = osi._execCommand(cmd)
 
-                regex = "s/^router_id/#/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + quantum_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
+                  if config.openstack_type == "juno":
+                      print "Sending public net id to the network node.\n"
+                      cmd = "ssh gram@" + net_node_addr +  " echo " + PUBLIC_NET_ID + " > /home/gram/neutron_public_net"
+                      output = osi._execCommand(cmd)
 
-                regex = "s/\# router_id.*/router_id=" + str(EXTERNAL_ROUTER_ID) + "/"
-                cmd = "sed -i " + "\""+ regex + "\"" + " " + quantum_conf
-                #osi._execCommand(cmd)
-                os.system(cmd)
+                      print "Sending external router id to the network node.\n"
+                      cmd = "ssh gram@" + net_node_addr +  " echo " + EXTERNAL_ROUTER_ID + " > /home/gram/neutron_ext_router"
+                      output = osi._execCommand(cmd)
+                      
+                      print "Rewriting network node neutron l3 agent config files.\n"
+                      cmd = "ssh gram@" + net_node_addr + " sudo /home/gram/gram/juno/install/network_files/synch_control_network.sh"
+                      osi._execCommand(cmd)
 
-                osi._execCommand("service quantum-l3-agent restart")
-                mgmt_ns = _getMgmtNamespace()
+                  else:
+                      osi._execCommand("service neutron-l3-agent restart")
+
+
+                  mgmt_ns = _getMgmtNamespace()
 
     if mgmt_ns:
         if conf_mgmt_ns and conf_mgmt_ns == mgmt_ns:
@@ -346,10 +361,18 @@ def check_mgmt_ns(recreate=False):
             print "WARNING: Found management namespace but it does not match config"
             print "Rewriting config value"
             _setField('mgmt_ns',mgmt_ns)
+            osi._execCommand("service gram-am restart")
 
 def check_openstack_services():
     print 'checking OpenStack services...'
-    services = ['nova-api','nova-cert','nova-conductor','nova-consoleauth ','nova-novncproxy','nova-scheduler','quantum-dhcp-agent','quantum-metadata-agent','quantum-server','quantum-l3-agent','quantum-plugin-openvswitch-agent','glance-registry','glance-api','keystone']
+    if config.openstack_type == "juno":
+        services = ['nova-api','nova-cert','nova-conductor','nova-consoleauth ','nova-novncproxy','nova-scheduler', 'neutron-server', 'glance-registry','glance-api','keystone']
+        remote_services = ['neutron-dhcp-agent','neutron-metadata-agent', 'neutron-l3-agent','neutron-plugin-openvswitch-agent']
+    else:
+        services = ['nova-api','nova-cert','nova-conductor','nova-consoleauth ','nova-novncproxy','nova-scheduler', 'glance-registry','glance-api','keystone',
+                    'quantum-dhcp-agent','quantum-metadata-agent','quantum-server','quantum-l3-agent','quantum-plugin-openvswitch-agent']
+        remote_services = []
+
     for service in services:
         cmd = 'service ' + service + ' status'
         result = osi._execCommand(cmd)
@@ -358,6 +381,24 @@ def check_openstack_services():
             cmd = 'service ' + service + ' restart'
             osi._execCommand(cmd)
             cmd = 'service ' + service + ' status'
+            result = osi._execCommand(cmd)
+            if result.find('stop'):
+                print 'Error: the following service is still not running, check logs in /var/logs'
+        else:
+            print service + ' - running'
+
+    net_node_addr = osi._getConfigParam('/etc/gram/config.json','network_host_addr')
+    for service in remote_services:
+        print 'Network node status for ' + service + '\n'
+        cmd = 'ssh gram@' + net_node_addr + ' service ' + service + ' status'
+        result = osi._execCommand(cmd)
+        if not result.find('stop') < 0:
+            print 'Warning: the following service is not running, will attempt to restart it - ' + service
+            cmd = 'ssh gram@' + net_node_addr + ' service ' + service + ' restart'
+            cmd = 'service ' + service + ' restart'
+            osi._execCommand(cmd)
+            print 'Checking status\n'
+            cmd = 'ssh gram@' + net_node_addr + ' service ' + service + ' status'
             result = osi._execCommand(cmd)
             if result.find('stop'):
                 print 'Error: the following service is still not running, check logs in /var/logs'
@@ -393,7 +434,7 @@ def perform_gram_healthcheck():
 
     get_compute_status()
 
-    get_quantum_agent_status()
+    get_network_agent_status()
 
     keystone_status = get_keystone_status()
     if keystone_status:
@@ -413,11 +454,11 @@ def perform_gram_healthcheck():
     else:
         print "Glance - fail"
 
-    quantum_status = get_quantum_status()
-    if quantum_status:
-        print "Quantum - pass"
+    network_status = get_network_status()
+    if network_status:
+        print "Network - pass"
     else:
-        print "Quantum - fail"
+        print "Network - fail"
 
     #host_status = {}
     #if nova_status:
@@ -451,7 +492,7 @@ def perform_gram_healthcheck():
     #    " QNTM %s HOST %s AM %s GRAM %s"
     #print template % \
     #    (hostname, keystone_status, nova_status, \
-    #         glance_status, quantum_status, str(host_status), \
+    #         glance_status, neutron_status, str(host_status), \
     #         am_status, gram_status)
 
 
@@ -459,12 +500,13 @@ def perform_gram_healthcheck():
 
 
 if __name__ == "__main__":
-        logging.basicConfig()
+    config.initialize('/etc/gram/config.json')
+    logging.basicConfig()
 
-        if len(sys.argv) > 1:
-          if sys.argv[1] == 'recreate':
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'recreate':
             check_mgmt_ns(True) 
-        perform_gram_healthcheck()
+    perform_gram_healthcheck()
         #check_mgmt_ns(True)
         #time.sleep(GRAM_HEALTHCHECK_INTERVAL)
 

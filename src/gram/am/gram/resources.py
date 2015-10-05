@@ -304,6 +304,9 @@ class Slice:
    def getSliceURN(self):  # String Slice URN
       return self._slice_urn
 
+   def getURN(self):  # String Slice URN
+      return self._slice_urn
+
    def getUserURN(self): # String User URN
       return self._user_urn
 
@@ -640,8 +643,8 @@ class NetworkLink(Sliver): # was Link
      def __init__(self, my_slice, uuid=None,urn=None) :
         self._subnet = None     # IP subnet: 10.0.x.0/24
         self._endpoints = []    # List of NetworkInterfaces attached to link
-        self._network_uuid = None # quantum UUID of the link's network 
-        self._subnet_uuid = None  # quantum UUID of the link's subnet 
+        self._network_uuid = None # UUID of the link's network 
+        self._subnet_uuid = None  # UUID of the link's subnet 
         self._vlan_tag = None
         self._controller_url = None  # Provided experimenter controller, if any
         Sliver.__init__(self, my_slice, uuid=uuid,urn=urn);

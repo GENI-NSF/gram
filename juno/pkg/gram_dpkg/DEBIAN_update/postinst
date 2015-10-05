@@ -1,0 +1,10 @@
+#!/bin/bash
+cp ~/config_backup.json /etc/gram/config.json
+cp ~/gcf_config_backup /home/gram/.gcf/gcf_config
+cd /home/gram/gram/src/gram/am/gram
+make
+service gram-am restart
+service gram-ch restart
+service gram-ctrl restart 
+service gram-mon restart
+service gram-vmoc restart

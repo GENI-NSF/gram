@@ -55,8 +55,6 @@ class CreateDpkg:
                               default="/tmp/gram.deb", dest="deb_filename")
         parser.add_option("--gcf_root", help="GCF installation", \
                               default="/opt/gcf-2.2", dest="gcf_root")
-        parser.add_option("--mon_root", help="Monitoring installation", \
-                              default="/opt/ops-monitoring", dest="mon_root")
         parser.add_option("--should_cleanup", \
                               help="should cleanup before generating", 
                               default="True", dest="should_cleanup")
@@ -105,18 +103,16 @@ class CreateDpkg:
                               + self.opts.deb_location + "/home/gram/.gcf")
         self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
                               self.opts.deb_location + "/opt")
-        self._execCommand("cp -Rf " + self.opts.mon_root + " " + \
-                              self.opts.deb_location + "/home/gram")
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
                               + self.opts.deb_location + "/etc")
         self._execCommand("cp " + self.opts.gram_root + \
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")
 
-        debian_source = "/DEBIAN_control"
-        if self._compute_node: debian_source = "/DEBIAN_compute"
+        debian_source = "DEBIAN_update"
+        if self._compute_node: debian_source = "DEBIAN_compute"
         self._execCommand("cp -Rf " + \
-                              self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
+                              self.opts.gram_root + "/gram/grizzly/pkg/gram_dpkg/" + \
                               debian_source + " " + self.opts.deb_location)
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
@@ -151,9 +147,9 @@ class CreateDpkg:
                               self.opts.deb_location + "/etc/gram/snapshots")
         self._execCommand("rm -rf " + \
                               self.opts.deb_location + \
-                              "/home/gram/gram/pkg/gram_dpkg/tmp")
+                              "/home/gram/gram/grizzly/pkg/gram_dpkg/tmp")
         self._execCommand("rm -rf " + \
-                              self.opts.deb_location + "/home/gram//gram/.git")
+                              self.opts.deb_location + "/home/gram/gram/.git")
         if not self._compute_node:
             self._execCommand("rm -rf " + \
                                   self.opts.deb_location + "/opt/pox/.git")

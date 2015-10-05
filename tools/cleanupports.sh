@@ -6,7 +6,10 @@ fi
 
 uname=`whoami`
 
-ports=`quantum port-list | grep ip_address | awk '{print $2}' | cut -c1-11`
+ports=`neutron port-list | grep ip_address | awk '{print $2}' | cut -c1-11`
+if [ -e /usr/bin/quantum ]; then 
+    ports=`quantum port-list | grep ip_address | awk '{print $2}' | cut -c1-11`
+fi
 
 function portExists() {
     if [ -z "$1" ]; then

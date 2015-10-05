@@ -1,14 +1,19 @@
 #!/bin/bash
 
 # Install GRAM on either compute or control node
-# usage: install_gram <compute/control>
+# usage: install_gram <compute/control/network> <grizzly/juno>
 
 export SENSE="control"
-export VERSION="grizzly"
+export OPENSTACKV="juno"
 
-if [ $# -gt 1 ]
+if [ $# -eq 1 ]
 then
     export SENSE=$1
+fi
+
+if [ $# -eq 2 ]
+then
+    export OPENSTACKV=$2
 fi
 
 mkdir /home/gram/.backup
@@ -17,18 +22,18 @@ mkdir /home/gram/.backup
 chown -R gram.gram ~gram /etc/gram
 
 # This seems not to get set early enough in some circumstances...
-mkdir -p /etc/quantum
-
-# Set up certificates
-mkdir /etc/gram/certs
-/opt/gcf/src/gen-certs.py --notAll --ch --am --directory=/etc/gram/certs
-chown -R gram.gram /etc/gram/certs
+if [ $OPENSTACKV = "grizzly" ]
+then
+    mkdir -p /etc/quantum
+else
+    mkdir -p /etc/neutron
+fi
 
 
 # Set up the install shell scripts based on the parameters specified
 # in /etc/gram/config.json
-cd ~gram/gram/src/install
-export PYTHONPATH=~gram/gram/src:$PYTHONPATH
+cd ~gram/gram/$OPENSTACKV/install
+export PYTHONPATH=~gram/gram/src:~gram/gram/$OPENSTACKV:$PYTHONPATH
 python OpenStack.py
 cd /tmp/install
 chmod a+x *.sh
@@ -37,6 +42,11 @@ chmod a+x *.sh
 # Control-node specific logic 
 if [ $SENSE = "control" ]
 then
+    # set up certs
+    mkdir /etc/gram/certs
+    /opt/gcf/src/gen-certs.py --notAll --ch --am --directory=/etc/gram/certs
+    chown -R gram.gram /etc/gram/certs
+
     # Change the 'host' entry in .gcf/gcf_config to fit the configuration
     python /etc/gram/modify_conf_env.py ~/.gcf/gcf_config host control_host "" | sh
 
@@ -49,7 +59,5 @@ then
     /etc/gram/install_gram_services.sh
     /etc/gram/gram_services.sh start
 fi
-
-
 
 

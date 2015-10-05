@@ -181,7 +181,7 @@ class Stitching:
        
         self._aggregate_id = data['aggregate_id']
         self._aggregate_url = data['aggregate_url']
-        self._namespace = "http://hpn.east.isi.edu/rspec/ext/stitch/0.1"
+        self._namespace = "http://hpn.east.isi.edu/rspec/ext/stitch/0.1/"
 
         # Dictionary of sliver_urn => 
         #      {'vlan_tag' : vlan_tag, 'link' : link }
@@ -228,7 +228,7 @@ class Stitching:
             config.logger.info("*** Deleting VLAN tag allocation %s : %s" %\
                                    (sliver_id, tag))
 
-    def generateAdvertisement(self):
+    def generateAdvertisement(self, switch_id):
         doc = Document()
 
         base = self.createChild("stitching", doc, doc)
@@ -242,18 +242,26 @@ class Stitching:
 
 
         stitching_mode = self.createChild("stitchingmode", agg, doc, "chainANDTree")
-        scheduled_services = self.createChild("scheduledServices", agg, doc, "false")
-        negotiated_services = self.createChild("negotiatedServices", agg, doc, "true")
+        scheduled_services = self.createChild("scheduledservices", agg, doc, "false")
+        negotiated_services = self.createChild("negotiatedservices", agg, doc, "true")
         
-        lifetime = self.createChild("Lifetime", agg, doc)
+        lifetime = self.createChild("lifetime", agg, doc)
         start_time = "2013-01-01T00:00:00Z"
-        lifetime.setAttribute("start", start_time)
         end_time = "2029-12-31T23:59:59Z"
-        lifetime.setAttribute("end", end_time)
+        start_elt = self.createChild("start", lifetime, doc, start_time);
+        start_elt.setAttribute("type", "time")
+        end_elt = self.createChild("end", lifetime, doc, end_time);
+        end_elt.setAttribute("type", "time")
+        lifetime.setAttribute("id", "life")
 
-        capabilities = self.createChild("capabilities", agg, doc)
-        for capability_type in ["consumer", "producer"]:
-            self.createChild("capability", capabilities, doc, capability_type)
+        self.generateAdvertisementInternal(doc, agg, switch_id)
+
+        return doc
+
+    def generateAdvertisementInternal(self, doc, agg, switch_id):
+
+        node = self.createChild('node', agg, doc);
+        node.setAttribute('id', switch_id)
 
         for link_value, edge_point in self._edge_points.items():
             local_switch = edge_point._local_switch
@@ -270,9 +278,6 @@ class Stitching:
 
             interface_mtu = edge_point._interface_mtu
 
-            node = self.createChild("node", agg, doc)
-            node.setAttribute("id", local_switch)
-
             port = self.createChild("port", node, doc)
             port.setAttribute("id", port_value)
 
@@ -281,7 +286,7 @@ class Stitching:
             
             remote_link_id = self.createChild("remoteLinkId", link, doc, remote_switch)
 
-            traffic_engineering_metric_elt = self.createChild("trafficEnginneringMetric", \
+            traffic_engineering_metric_elt = self.createChild("trafficEngineeringMetric", \
                                                               link, doc, traffic_engineering_metric)
 
             capacity_elt = self.createChild("capacity", link, doc, capacity)
@@ -303,6 +308,10 @@ class Stitching:
             scsi = self.createChild("switchingCapabilitySpecificInfo", scd, doc)
             
             scsi_l2sc = self.createChild("switchingCapabilitySpecificInfo_L2sc", scsi, doc)
+
+            for capability_type in ["consumer", "producer"]:
+                self.createChild("capability", scsi_l2sc, doc, 
+                                 capability_type)
 
             interface_mtu_elt = self.createChild("interfaceMTU", scsi_l2sc, doc, interface_mtu)
 
@@ -572,7 +581,7 @@ class Stitching:
 
             request_details = {"my_nodes_by_interface" : my_nodes_by_interface,
                                "my_links" : my_links,
-                               "my_hops_by_patqh_id" : my_hops_by_path_id}
+                               "my_hops_by_path_id" : my_hops_by_path_id}
 
         return error_string, error_code, request_details
 

@@ -47,14 +47,16 @@ class CreateDpkg:
 
     def parse_args(self) :
         parser = optparse.OptionParser()
-        parser.add_option("--compute_node", help="DEB for compute node", \
-                              default="False", dest="compute_node")
+        parser.add_option("--node", help="control, network or compute", \
+                              default="control", dest="node")
         parser.add_option("--deb_location", help="DEB directory", \
                               default="/tmp/gram_dpkg", dest="deb_location")
         parser.add_option("--deb_filename", help="DEB filename", \
                               default="/tmp/gram.deb", dest="deb_filename")
         parser.add_option("--gcf_root", help="GCF installation", \
                               default="/opt/gcf-2.2", dest="gcf_root")
+        parser.add_option("--mon_root", help="Monitoring installation", \
+                              default="/opt/ops-monitoring", dest="mon_root")
         parser.add_option("--should_cleanup", \
                               help="should cleanup before generating", 
                               default="True", dest="should_cleanup")
@@ -76,7 +78,7 @@ class CreateDpkg:
 
         self._should_cleanup = (self.opts.should_cleanup == "True")
         self._should_generate = (self.opts.should_generate == "True")
-        self._compute_node = (self.opts.compute_node == "True")
+        self._node = self.opts.node
 
 
     def update_file(self, filename, old_str, new_str):
@@ -103,16 +105,22 @@ class CreateDpkg:
                               + self.opts.deb_location + "/home/gram/.gcf")
         self._execCommand("cp -Rf " + self.opts.gcf_root + " " + \
                               self.opts.deb_location + "/opt")
+        self._execCommand("cp -Rf " + self.opts.mon_root + " " + \
+                              self.opts.deb_location + "/home/gram")
         self._execCommand("cp -Rf " + self.opts.gram_root + "/gram/etc/gram " \
                               + self.opts.deb_location + "/etc")
         self._execCommand("cp " + self.opts.gram_root + \
                               "/gram/src/gram/am/gram/config.json " + \
                               self.opts.deb_location + "/etc/gram")
 
-        debian_source = "/DEBIAN_update"
-        if self._compute_node: debian_source = "/DEBIAN_compute"
+        debian_source = "DEBIAN_control"
+        if self._node == "compute": 
+            debian_source = "DEBIAN_compute"
+        elif self._node == "network":
+            debian_source = "DEBIAN_network"
+                
         self._execCommand("cp -Rf " + \
-                              self.opts.gram_root + "/gram/pkg/gram_dpkg/" + \
+                              self.opts.gram_root + "/gram/juno/pkg/gram_dpkg/" + \
                               debian_source + " " + self.opts.deb_location)
         self._execCommand("mv " + \
                               self.opts.deb_location + "/" + debian_source + \
@@ -133,7 +141,7 @@ class CreateDpkg:
                                 self.opts.deb_location + "/opt/gcf")
 
         #  Only install POX on control node
-        if not self._compute_node:
+        if self._node == "control":
             self._execCommand("git clone -b betta http://github.com/noxrepo/pox")
             self._execCommand("mv pox " + self.opts.deb_location + "/opt")
             #self._execCommand("cp -Rf /opt/pox " + \
@@ -147,10 +155,10 @@ class CreateDpkg:
                               self.opts.deb_location + "/etc/gram/snapshots")
         self._execCommand("rm -rf " + \
                               self.opts.deb_location + \
-                              "/home/gram/gram/pkg/gram_dpkg/tmp")
+                              "/home/gram/gram/juno/pkg/gram_dpkg/tmp")
         self._execCommand("rm -rf " + \
-                              self.opts.deb_location + "/home/gram//gram/.git")
-        if not self._compute_node:
+                              self.opts.deb_location + "/home/gram/gram/.git")
+        if self._node == "control":
             self._execCommand("rm -rf " + \
                                   self.opts.deb_location + "/opt/pox/.git")
 

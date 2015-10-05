@@ -1,0 +1,7 @@
+Package: gram
+Version: 0.1
+Priority: optional
+Architecture: all
+Depends: git, module-assistant, cloud-init, xmlsec1, ntp, vlan, bridge-utils 
+Maintainer: GRAM Developers <gram-dev@bbn.com>
+Description: GRAM installation package

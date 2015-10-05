@@ -76,6 +76,9 @@ def _generateScriptInstalls(installItem, scriptFile) :
     if not os.path.isdir(dest) :
         scriptFile.write(' - [ sh, -c, "echo \'    mkdir -p %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
 
+    # By default delete downloaded file
+    delete_downloaded_file = True
+
     # Handle compressed and tar'ed files as necessary
     # ISSUE: Do we use the file extension or the installItem.file_type?
     if (downloadedFile.endswith("tgz") or downloadedFile.endswith("tar.gz")) :
@@ -94,13 +97,18 @@ def _generateScriptInstalls(installItem, scriptFile) :
 
     else :
         # Some other file type- simply copy file to destination
-        scriptFile.write('- [ sh, -c, "echo \'    cp %s %s \' >> %s" ]\n' % (downloadedFile, dest, targetVMlocalTempPath))
+        scriptFile.write(' - [ sh, -c, "echo \'    cp %s %s \' >> %s" ]\n' % (downloadedFile, dest, targetVMlocalTempPath))
+        # If the dest is "/tmp", don't delete the downloaded unexpanded file
+        if dest == "/tmp":
+            delete_downloaded_file = False
 
     # Make file accessible to experimenter
     scriptFile.write(' - [ sh, -c, "echo \'    chmod -R 777 %s \' >> %s "]\n' % (dest, targetVMlocalTempPath))
             
     # Delete the downloaded file
-    scriptFile.write(' - [ sh, -c, "echo \'    rm -f %s \' >> %s "]\n' % (downloadedFile, targetVMlocalTempPath))
+    if delete_downloaded_file:
+        scriptFile.write(' - [ sh, -c, "echo \'    rm -f %s \' >> %s "]\n' % \
+                             (downloadedFile, targetVMlocalTempPath))
     scriptFile.write(' - [ sh, -c, "echo \'fi \' >> %s " ]\n\n' % targetVMlocalTempPath)
 
     scriptFile.write(' - [ sh, -c, "chmod 777 %s" ]\n' % targetVMlocalTempPath)

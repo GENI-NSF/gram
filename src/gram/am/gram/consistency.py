@@ -25,6 +25,7 @@
 
 # check on open_stack consistency
 
+import config
 import open_stack_interface as osi
 from compute_node_interface import compute_node_command, ComputeNodeInterfaceHandler
 
@@ -53,7 +54,7 @@ def check_openstack_consistency():
 
     # Get all ports
     ports = []
-    command_string = 'quantum port-list'
+    command_string = '%s port-list' % config.network_type
     output = osi._execCommand(command_string)
     output_lines = output.split('\n')
     for i in range(3, len(output_lines)-2):
@@ -63,7 +64,7 @@ def check_openstack_consistency():
 
     # Get all nets
     nets = []
-    command_string = 'quantum net-list'
+    command_string = 'net-list' % config.network_type
     output = osi._execCommand(command_string)
     output_lines = output.split('\n')
     for i in range(3, len(output_lines)-2):
@@ -92,9 +93,9 @@ def check_openstack_consistency():
 
 
     print 
-    print "Checking that all QUANTUM ports have a valid tenant ID"
+    print "Checking that all network ports have a valid tenant ID"
     for port in ports:
-        command_string = 'quantum port-show %s' % port
+        command_string = '%s port-show %s' % (config.network_type, port)
         output = osi._execCommand(command_string)
         output_lines = output.split('\n')
         tenant_id = ''
@@ -111,9 +112,9 @@ def check_openstack_consistency():
     
 
     print 
-    print "Checking that all QUANTUM nets have a valid tenant ID"
+    print "Checking that all network nets have a valid tenant ID"
     for net in nets:
-        command_string = 'quantum net-show %s' % net
+        command_string = '%s net-show %s' % (config.network_type, net)
         output = osi._execCommand(command_string)
         output_lines = output.split('\n')
         tenant_id = ''
@@ -129,13 +130,13 @@ def check_openstack_consistency():
         print "NET " + port + " " + tenant_id + " " + str(tenant_name)
 
 # Check that all ports defined on br-int switches are
-# associated with quantum ports
+# associated with quantum/neutron ports
 def check_port_consistency():
 
     print
-    print "Checking that all ports defined on br-int are associated with quantum ports"
+    print "Checking that all ports defined on br-int are associated with quantum/neutron ports"
 
-    # Get list of all currently defined quantum ports
+    # Get list of all currently defined quantum/neutron ports
     port_data = osi._getPortsForTenant(None)
     short_port_names = {}
     for port_name in port_data.keys():
@@ -160,5 +161,6 @@ def check_port_consistency():
     
 
 if __name__ == "__main__":
+    config.initialize('/etc/gram/config.json')
     check_openstack_consistency()
     check_port_consistency()

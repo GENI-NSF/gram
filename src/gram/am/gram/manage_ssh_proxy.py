@@ -24,6 +24,8 @@
 import open_stack_interface
 import config
 import os
+import pdb;
+
 
 # Table to map current IP addresses to ports
 class SSHProxyTable:
@@ -107,11 +109,17 @@ def _addNewProxy(addr,port=None) :
     """
     Access the GRAM SSH proxy daemon and create a new proxy with the given address
     """
+
+    #pdb.set_trace();
     portNumber = SSHProxyTable._add(addr, port)
     if portNumber == 0 :
         return 0
 
-    cmd_string = '%s ' % config.ssh_proxy_exe
+    #network functionality on a separate node now
+    cmd_string = ''
+    if config.openstack_type == 'juno':
+	    cmd_string = 'ssh -t %s sudo ' % config.network_host_addr
+    cmd_string = cmd_string + '%s ' % config.ssh_proxy_exe
     cmd_string = cmd_string + '-m C -a %s ' % addr
     cmd_string = cmd_string + ' -p %d ' % portNumber
     cmd_string = cmd_string + ' -n %s ' % open_stack_interface._getConfigParam('/etc/gram/config.json','mgmt_ns')
@@ -133,9 +141,13 @@ def _removeProxy(addr) :
     Access the GRAM SSH proxy daemon and delete the with the given address
     """
 
+    #pdb.set_trace();
     portNumber = SSHProxyTable._remove(addr)
     if portNumber > 0 :
-	    cmd_string = '%s ' % config.ssh_proxy_exe
+	    cmd_string = ''
+	    if config.openstack_type == 'juno':
+		    cmd_string = 'ssh -t %s sudo ' % config.network_host_addr
+	    cmd_string = cmd_string + '%s ' % config.ssh_proxy_exe
 	    cmd_string = cmd_string + '-m D -a %s ' % addr
 	    cmd_string = cmd_string + ' -p %d ' % portNumber
 	    cmd_string = cmd_string + ' -n %s ' % open_stack_interface._getConfigParam('/etc/gram/config.json','mgmt_ns')
@@ -149,8 +161,11 @@ def _getIpTable():
     """ 
     Print out the IP tables
     """
-
-    cmd_string = '%s ' % config.ssh_proxy_exe
+    #pdb.set_trace();
+    cmd_string = ""
+    if config.openstack_type == 'juno':
+	    cmd_string = 'ssh -t %s sudo ' % config.network_host_addr
+    cmd_string = cmd_string + '%s ' % config.ssh_proxy_exe
     cmd_string = cmd_string + ' -m L -n %s' % open_stack_interface._getConfigParam('/etc/gram/config.json','mgmt_ns')
    
     output = ""
@@ -162,6 +177,7 @@ def _getIpTable():
     return output
 
 if __name__ == "__main__":
+	config.initialize('/etc/gram/config.json')
 	print "TABLE = %s" % SSHProxyTable._get()
 	SSHProxyTable._restore({"10.10.10.8": 105, "10.10.10.9" : 106})
 	print "TABLE = %s" % SSHProxyTable._get()

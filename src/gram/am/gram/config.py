@@ -165,10 +165,19 @@ glance_user = "glance"
 glance_password = None
 keystone_user = "keystone"
 keystone_password = None
-quantum_user = "quantum"
-quantum_password = None
+network_user = "quantum"
+network_password = None
+service_password = "service"
+network_database = "quantum"
 gmoc_user = "gram"
 gmoc_password = ' '
+
+#Host and Control Information
+control_host_external_addr = None
+network_host_addr = "10.10.8.101"
+control_email_addr = None
+host_fqdn = None
+network_host = None
 
 # OpenStack user configuration 
 os_tenant_name = None
@@ -180,6 +189,11 @@ os_no_cache = 1
 service_token = None
 service_endpoint = "http://localhost:35357/v2.0"
 
+# Installation configuration
+network_type = "quantum"
+openstack_type = "grizzly"
+switch_type = "dell"
+
 # TCP port over which metadata is transmitted
 metadata_port = 8775
 
@@ -187,8 +201,15 @@ metadata_port = 8775
 control_host = None
 control_host_addr = None
 
+# Location of compute nodes
+location = None
+
 # List of compute node names and addresses
 compute_hosts = None
+
+#List of shared vlans
+shared_vlan_info = None
+
 
 # List of host names and addresses to put in /etc/hosts file
 host_file_entries = None
@@ -201,8 +222,15 @@ gmoc_pop_name = ' '
 gmoc_am_type = 'gram'
 gmoc_debug_level = monitor.gmoc.GMOC_DEBUG_OFF
 
-
-
+# Configuration of switch/VLAN/Port handling
+# We support two configurations
+# 1. There is one VMOC controller port and the switch sends
+#    tagged packets to VMOC
+# 2. There are multiple VMOC controller ports, one per VLAN
+#    and the switch sends non-tagged packets to VMOC
+# We provide a list of port/vlan/handle_untagged dictionaries
+# by default, we handle a single port, all vlans and expect tagged packets
+vlan_port_map = {6633: {'vlan' : 'all', 'handle_untagged' : False}}
 
 glance_images = None
 
@@ -288,7 +316,7 @@ def initialize(config_file):
                 elif current_type == 'float':
                     new_value = float(new_value)
                 elif current_type == 'bool':
-                    new_value = bool(new_value)
+                    new_value = new_value not in ['False', 'false', 'f', '0']
                 else:
                     logger.info("Can't coerce type " + current_type + " to " + 
                                 new_type)

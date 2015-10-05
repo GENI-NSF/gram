@@ -28,6 +28,7 @@ from pox.lib.packet.vlan import vlan
 from pox.lib.util import dpid_to_str
 from pox.lib.util import str_to_bool
 import time
+import gram.am.gram.config as config
 
 log = core.getLogger()
 
@@ -175,11 +176,14 @@ class L2SimpleLearningSwitch (object):
       msg = of.ofp_flow_mod()
       msg.out_port = of.OFPP_NONE
 
-#        msg.match = of.ofp_match.from_packet(packet, event.port)
-#        msg.match = of.ofp_match(dl_src = packet.src, dl_dst = packet.dst);
-      msg.match = of.ofp_match()
-      msg.match.dl_src = packet.src
-      msg.match.dl_dst = packet.dst
+      # Use this line for the HP switch and comment out the next for
+      if(config.switch_type == 'HP'):
+        msg.match = of.ofp_match.from_packet(packet, event.port)
+      else:
+        # These 3 lines of code work for the DELL switch
+        msg.match = of.ofp_match()
+        msg.match.dl_src = packet.src
+        msg.match.dl_dst = packet.dst
 
       p = packet.next
       if isinstance(p, vlan):

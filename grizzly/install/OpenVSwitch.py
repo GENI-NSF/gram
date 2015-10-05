@@ -100,8 +100,8 @@ class OpenVSwitch(GenericInstaller):
         backup_directory = config.backup_directory
         control_host = config.control_host
         rabbit_password = config.rabbit_password
-        quantum_user = config.quantum_user
-        quantum_password = config.quantum_password
+        quantum_user = config.network_user
+        quantum_password = config.network_password
         os_password = config.os_password
         mgmt_if = config.management_interface
         mgmt_net_name = config.management_network_name

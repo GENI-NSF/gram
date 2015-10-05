@@ -56,11 +56,11 @@ def init() :
     """
     # Get the UUID of the GRAM management network
     mgmt_net_name = config.management_network_name 
-    cmd_string = 'quantum net-list'
+    cmd_string = '%s net-list' % config.network_type
     try :
         output = _execCommand(cmd_string)
     except :
-        config.logger.error('GRAM AM failed at init.  Failed to do a quantum net-list')
+        config.logger.error('GRAM AM failed at init.  Failed to do a quantum/neutron net-list')
         sys.exit(1)
         
     mgmt_net_uuid = _getUUIDByName(output, mgmt_net_name)
@@ -241,8 +241,8 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
                 
     # For each VirtualMachine object in the slice, create an  
             
-    # For each link to be provisioned, set up a quantum network and subnet if
-    # it does not already have one.  (It will have a quantum network and 
+    # For each link to be provisioned, set up a quantum/neutron network and subnet if
+    # it does not already have one.  (It will have a quantum/neutron network and 
     # subnet if it was provisioned by a previous call to provision.)
     links_created_this_call = list()  # Links created by this call to provision
     for link in links_to_be_provisioned :
@@ -260,7 +260,7 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
                 #    _deleteNetworkLink(geni_slice, links_created_this_call)
                 #_deleteUserByUUID(admin_user_info['admin_uuid'])
                 #_deleteTenantByUUID(tenant_uuid)
-                return 'GRAM internal error: Failed to create a quantum network for link %s' % link.getName()
+                return 'GRAM internal error: Failed to create a network for link %s' % link.getName()
 
             link.setNetworkUUID(uuids['network_uuid'])
             link.setSubnetUUID(uuids['subnet_uuid'])
@@ -283,7 +283,7 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
         #    _deleteNetworkLink(geni_slice, links_created_this_call)
         #_deleteUserByUUID(admin_user_info['admin_uuid'])
         #_deleteTenantByUUID(tenant_uuid)
-        return 'GRAM internal error: Failed to get vlan ids for quantum networks created for slice  %s' % geni_slice.getSliceURN()
+        return 'GRAM internal error: Failed to get vlan ids for networks created for slice  %s' % geni_slice.getSliceURN()
 
     for net_uuid in nets_info.keys():
         net_info = nets_info[net_uuid]
@@ -344,8 +344,9 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
     num_compute_nodes = _getComputeNodeCount()
     config.logger.info('Number of compute nodes = %s' % num_compute_nodes)
     
-    _createAllVMs(vms_to_be_provisioned, num_compute_nodes, 
-                       users, gram_manager, geni_slice)
+    create_return = _createAllVMs(vms_to_be_provisioned, num_compute_nodes, 
+                                  users, gram_manager, geni_slice)
+    return create_return
 
 def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager, slice_object):
     num_vms_created = 0    # number of VMs created in this provision call
@@ -417,13 +418,15 @@ def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager,
     gram_manager.persist_state() # Save updated state after the VM's are set up
     config.logger.info("Exiting createAllVMs thread...")
 
+    return None
+
 # Delete all ports associated with given slice/tenant
 # Allow some failures: there will be some that can't be deleted
 # Or are automatically deleted by deleting others
 # def _deleteNetworkPorts(geni_slice):
 #     tenant_uuid = geni_slice.getTenantUUID();
 # 
-#     ports_cmd = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+#     ports_cmd = 'neutron port-list -- --tenant_id=%s' % tenant_uuid
 #     ports_output = _execCommand(ports_cmd)
 #     config.logger.info('ports output = %s' % ports_output)
 #     port_lines = ports_output.split('\n')
@@ -431,7 +434,7 @@ def _createAllVMs(vms_to_be_provisioned, num_compute_nodes, users, gram_manager,
 #         port_columns = port_lines[i].split('|')
 #         port_id = port_columns[1].strip()
 #         try:
-#             delete_port_cmd = 'quantum port-delete %s' % port_id
+#             delete_port_cmd = 'neutron port-delete %s' % port_id
 #             print delete_port_cmd
 #             _execCommand(delete_port_cmd)
 #         except Exception:
@@ -481,7 +484,7 @@ def deleteSlivers(geni_slice, slivers) :
     if len(links_to_be_deleted) == 0 and geni_slice.getTenantRouterUUID():
         # Delete the router
         router_uuid = geni_slice.getTenantRouterUUID()
-        cmd_string = 'quantum router-delete %s' % router_uuid
+        cmd_string = '%s router-delete %s' % (config.network_type, router_uuid)
         try:
             _execCommand(cmd_string)
             geni_slice.setTenantRouterUUID(None)
@@ -665,10 +668,23 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
                                    secgroup_name)
         return None
 
-    # For VMs with external control plane IP's, add a rule to route all ports > 32000
+    # For VMs with external control plane IP's, add a rule to route all ports > 30000
     cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-add-rule %s tcp 32001 65535 0.0.0.0/0 ' % secgroup_name
+    cmd_string += ' secgroup-add-rule %s tcp 30000 65535 0.0.0.0/0 ' % secgroup_name
+    try :
+        _execCommand(cmd_string)
+    except :
+        # Failed to add rule.  Cleanup actions before we return
+        #    - Delete the security group
+        _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
+                                   secgroup_name)
+        return None
+
+    # For VMs with external control plane IP's, add a rule to route all ports > 30000
+    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+        % (admin_name, admin_pwd, tenant_name)
+    cmd_string += ' secgroup-add-rule %s udp 30000 65535 0.0.0.0/0 ' % secgroup_name
     try :
         _execCommand(cmd_string)
     except :
@@ -733,8 +749,8 @@ def _createRouter(tenant_name, router_name) :
     """
         Create an OpenStack router and return the uuid of this new router.
     """
-    cmd_string = 'quantum router-create --tenant-id %s %s' % \
-        (tenant_name, router_name)
+    cmd_string = '%s router-create --tenant-id %s %s' % \
+        (config.network_type, tenant_name, router_name)
 
     try :
         output = _execCommand(cmd_string) 
@@ -762,7 +778,7 @@ def _createNetworkForLink(link_object,used_ips=None) :
     # Create a network with the exprimenter specified name for the link
     tenant_uuid = slice_object.getTenantUUID()
     network_name = link_object.getName()
-    cmd_string = 'quantum net-create %s --tenant-id %s --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id %s' % (network_name, tenant_uuid, link_object.getVLANTag())
+    cmd_string = '%s net-create %s --tenant-id %s --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id %s' % (config.network_type, network_name, tenant_uuid, link_object.getVLANTag())
                                                            
     try :
         output = _execCommand(cmd_string) 
@@ -812,8 +828,8 @@ def _createNetworkForLink(link_object,used_ips=None) :
     end_ip = str(subnet_ip[-3])
 
 
-    cmd_string = 'quantum subnet-create --tenant-id %s --gateway %s  --allocation-pool start=%s,end=%s  %s %s' % \
-        (tenant_uuid, gateway_addr, start_ip,end_ip,network_uuid, subnet_addr)
+    cmd_string = '%s subnet-create --tenant-id %s --gateway %s  --allocation-pool start=%s,end=%s  %s %s' % \
+        (config.network_type, tenant_uuid, gateway_addr, start_ip,end_ip,network_uuid, subnet_addr)
     try :
         output = _execCommand(cmd_string) 
     except :
@@ -825,17 +841,18 @@ def _createNetworkForLink(link_object,used_ips=None) :
         subnet_uuid = _getValueByPropertyName(output, 'id')
 
     # create and delete a port on the subnet to create dhcp at a desired address
-    #cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid,str(subnet_ip[-4]), network_uuid)
+    #cmd_string = 'neutron port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid,str(subnet_ip[-4]), network_uuid)
     #output = _execCommand(cmd_string)
     #port_uuid = _getValueByPropertyName(output, 'id')
-    #cmd_string = 'quantum port-delete %s' % (port_uuid)
+    #cmd_string = 'neutron port-delete %s' % (port_uuid)
     #output = _execCommand(cmd_string)
 
 
     # Add an interface for this link to the tenant router 
     router_name = slice_object.getTenantRouterName()
-    cmd_string = 'quantum router-interface-add %s %s' % (router_name,
-                                                         subnet_uuid)
+    cmd_string = '%s router-interface-add %s %s' % (config.network_type,
+                                                    router_name,
+                                                    subnet_uuid)
     try :
         _execCommand(cmd_string) 
     except :
@@ -863,7 +880,7 @@ def _deleteNetworkLink(slice_object, net_uuid) :
             if link.getNetworkUUID() == net_uuid:
                 subnet_uuid = link.getSubnetUUID()
         router_name = slice_object.getTenantRouterName()
-        cmd_string = 'quantum router-interface-delete %s %s' % (router_name, subnet_uuid)
+        cmd_string = '%s router-interface-delete %s %s' % (config.network_type, router_name, subnet_uuid)
         try:
             _execCommand(cmd_string)
         except:
@@ -871,7 +888,7 @@ def _deleteNetworkLink(slice_object, net_uuid) :
 
         # Delete the router before deleting the net/subnet
         router_uuid = slice_object.getTenantRouterUUID()
-        cmd_string = 'quantum router-delete %s' % router_uuid
+        cmd_string = '%s router-delete %s' % (config.network_type, router_uuid)
         try:
             _execCommand(cmd_string)
         except:
@@ -879,7 +896,7 @@ def _deleteNetworkLink(slice_object, net_uuid) :
         
 
 
-        cmd_string = 'quantum net-delete %s' % net_uuid
+        cmd_string = '%s net-delete %s' % (config.network_type, net_uuid)
         try :
             _execCommand(cmd_string)
         except :
@@ -891,7 +908,7 @@ def _deleteNetworkLink(slice_object, net_uuid) :
 
 
 def _getNetsForTenant(tenant_uuid):
-    cmd_string = 'quantum net-list -- --tenant_id=%s' % tenant_uuid
+    cmd_string = '%s net-list -- --tenant_id=%s' % (config.network_type, tenant_uuid)
     try :
         output = _execCommand(cmd_string)
     except :
@@ -909,7 +926,7 @@ def _getNetsForTenant(tenant_uuid):
         name = line_parts[2].strip()
         subnets = line_parts[3].strip()
 
-        cmd_string = 'quantum net-show %s' % net_id
+        cmd_string = '%s net-show %s' % (config.network_type, net_id)
         try :
             net_output = _execCommand(cmd_string)
         except :
@@ -938,9 +955,9 @@ def _getNetsForTenant(tenant_uuid):
 #  for each port associated ith a given tenant
 def _getPortsForTenant(tenant_uuid,device_id=None):
     if device_id != None:
-        cmd_string = 'quantum port-list -- --tenant_id=%s --device_id=%s' % (tenant_uuid,device_id)
+        cmd_string = '%s port-list -- --tenant_id=%s --device_id=%s' % (config.network_type, tenant_uuid,device_id)
     else:
-        cmd_string = 'quantum port-list -- --tenant_id=%s' % tenant_uuid
+        cmd_string = '%s port-list -- --tenant_id=%s' % (config.network_type, tenant_uuid)
     try :
         output = _execCommand(cmd_string)
     except :
@@ -982,13 +999,14 @@ def _createVM(vm_object, users, placement_hint):
     for nic in vm_net_infs :
         if nic.isEnabled() :
             link_object = nic.getLink()
+            if link_object == None: continue
             net_uuid = link_object.getNetworkUUID()
             nic_ip_addr = nic.getIPAddress()
             subnet_uuid = link_object.getSubnetUUID()
             if nic.getIPAddress():
-                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (tenant_uuid, subnet_uuid,nic.getIPAddress(), net_uuid)
+                cmd_string = '%s port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (config.network_type, tenant_uuid, subnet_uuid,nic.getIPAddress(), net_uuid)
             else:
-                cmd_string = 'quantum port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (tenant_uuid, subnet_uuid, net_uuid)
+                cmd_string = '%s port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (config.network_type, tenant_uuid, subnet_uuid, net_uuid)
             output = _execCommand(cmd_string) 
             nic.setUUID(_getValueByPropertyName(output, 'id'))
 
@@ -1081,12 +1099,14 @@ def _createVM(vm_object, users, placement_hint):
             mgmt_ip = eval(ports_info[port]['fixed_ips'])['ip_address']
             found = string.find(mgmt_ip,mgmt_net_prefix)
             if found != -1:
-                fip_cmd = "quantum floatingip-create --tenant-id " + tenant_uuid + " public"
+                fip_cmd = "%s floatingip-create --tenant-id %s public" %\
+                    (config.network_type, tenant_uuid)
                 output = _execCommand(fip_cmd)
                 fip_id = _getValueByPropertyName(output,'id')
                 fip = _getValueByPropertyName(output,'floating_ip_address')
                 vm_object.setExternalIp(fip)
-                fip_cmd = "quantum floatingip-associate " +  fip_id + " " + port
+                fip_cmd = "%s floatingip-associate %s %s" %\
+                    (config.network_type, fip_id, port)
                 output = _execCommand(fip_cmd)
 
 
@@ -1166,7 +1186,7 @@ def _deleteImage(options):
 # Perform operational action (reboot, suspend, resume) on given VM
 # By the time this is called, we've already checked that the VM is in 
 # the appropriate state
-def _performOperationalAction(vm_object, action):
+def _performOperationalAction(vm_object, action, options):
 
     ret_val = True
     uuid = vm_object.getUUID()
@@ -1203,7 +1223,7 @@ def _deleteVM(vm_object) :
     for nic in vm_object.getNetworkInterfaces() :
         port_uuid = nic.getUUID()
         if port_uuid:
-            cmd_string = 'quantum port-delete %s' % port_uuid
+            cmd_string = '%s port-delete %s' % (config.network_type, port_uuid)
             try :
                 _execCommand(cmd_string)
             except :
@@ -1214,7 +1234,7 @@ def _deleteVM(vm_object) :
     vm_uuid = vm_object.getUUID()
     fip_ids = _getFloatingIpByVM(vm_uuid)
     for fip_id in fip_ids:
-        cmd_string = 'quantum floatingip-delete ' + fip_id
+        cmd_string = '%s floatingip-delete %s' % (config.network_type, fip_id)
         try :
             _execCommand(cmd_string)
         except :
@@ -1247,7 +1267,7 @@ def _getRouterUUID(router_name) :
         We may not need this function when we have per tenant routers
         working.
     """
-    cmd_string = 'quantum router-list'
+    cmd_string = '%s router-list' % config.network_type
     output = _execCommand(cmd_string) 
 
     return _getUUIDByName(output, router_name)
@@ -1469,14 +1489,14 @@ def _lookup_vlan_for_port(port, port_map):
 
 def _getFloatingIpByVM(vm_uuid):
     """ Helper function to get the floating ip assigned to a specified VM
-        It uses Quantum to get the ports associated with the VM, then checks
+        It uses Quantum/Neutron to get the ports associated with the VM, then checks
         if there is any floating IP associated with each port. It returns
         a list of IDs of floating IPs of the VM.
     """
 
     fip_ids = []
     # Get a list of ports on the VM
-    cmd = 'quantum port-list --device_id=' + vm_uuid
+    cmd = '%s port-list --device_id=%s' % (config.network_type, vm_uuid)
     output = _execCommand(cmd)
     output_lines = output.split('\n')
     name = 'subnet'
@@ -1485,7 +1505,7 @@ def _getFloatingIpByVM(vm_uuid):
             columns = line.split('|')
             port_id = columns[1].strip()
             # for each port get a list of associated floating IPs
-            output2 = _execCommand("quantum floatingip-list -- --port_id=" + port_id)
+            output2 = _execCommand("%s floatingip-list -- --port_id=%s" % (config.network_type, port_id))
             port = re.escape(port_id)
             output_lines2 = output2.split('\n')
             # Find the row in the output table that has the desired port
@@ -1639,6 +1659,28 @@ def _parseTableOutput(output):
         
     return output
 
+def listImages():
+    cmd_string = "glance image-list"
+    output = _execCommand(cmd_string)
+    parsed_output = _parseTableOutput(output)
+#    print "OUTPUT = %s" % output
+#    print "PARSED_OUTPUT = %s" % parsed_output
+    names = parsed_output['Name']
+    num_images = len(names)
+    res = {}
+    for i in range(num_images):
+        image_name = names[i]
+        attribs = {}
+        for key, values in parsed_output.items():
+            if key == 'Name': continue
+            value = values[i]
+            attribs[key] = value
+        custom =  image_name not in config.disk_image_metadata
+        attribs['Custom'] = custom
+        res[image_name] = attribs
+#    print "RES = %s" % res
+    return res
+
 
 def get_all_tenant_info():
 
@@ -1668,7 +1710,7 @@ def get_all_tenant_info():
     user_uuids_by_tenant_id = {}
     for i in range(len(users_info['id'])):
         if users_info['name'][i] not in \
-                ['admin', 'cinder', 'glance', 'nova', 'quantum']:
+                ['admin', 'cinder', 'glance', 'nova', config.network_type]:
             user_uuid = users_info['id'][i]
             user_cmd_string = 'keystone user-get %s' % user_uuid
             user_output = _execCommand(user_cmd_string)
@@ -1691,7 +1733,7 @@ def get_all_tenant_info():
             vm_uuids = vms_info['ID']
         result[tenant_id]['vm_uuids'] = vm_uuids
 
-        cmd_string = 'quantum router-list -F id --tenant_id=%s' % tenant_id
+        cmd_string = '%s router-list -F id --tenant_id=%s' % (config.network_type, tenant_id)
         output = _execCommand(cmd_string)
         router_info = _parseTableOutput(output)
         router_uuids = []
@@ -1699,7 +1741,7 @@ def get_all_tenant_info():
             router_uuids = router_info['id']
         result[tenant_id]['router_uuids'] = router_uuids
 
-        cmd_string = 'quantum net-list -F id --tenant_id=%s' % tenant_id
+        cmd_string = '%s net-list -F id --tenant_id=%s' % (config.network_type, tenant_id)
         output = _execCommand(cmd_string)
         net_info = _parseTableOutput(output)
         net_uuids = []
@@ -1707,7 +1749,7 @@ def get_all_tenant_info():
             net_uuids = net_info['id']
         result[tenant_id]['net_uuids'] = net_uuids
 
-        cmd_string = 'quantum subnet-list -F id --tenant_id=%s' % tenant_id
+        cmd_string = '%s subnet-list -F id --tenant_id=%s' % (config.network_type, tenant_id)
         output = _execCommand(cmd_string)
         subnet_info = _parseTableOutput(output)
         subnet_uuids = []

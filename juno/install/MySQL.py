@@ -29,13 +29,16 @@ class MySQL(GenericInstaller):
     # Return a list of command strings for installing this component
     def installCommands(self):
         self.comment("*** MySQL Install ***")
-        self.sed('s/127.0.0.1/0.0.0.0/g', '/etc/mysql/my.cnf')
+        self.backup("/etc/mysql", config.backup_directory, "my.cnf")
+        self.sed('s/^bind-address.*$/bind-address = ' + config.control_address +'\\ndefault-storage-engine = innodb\\ninnodb_file_per_table\\ncollation-server = utf8_general_ci\\ninit-connect = \'SET NAM\
+ES utf8\'\\ncharacter-set-server = utf8\\n/', '/etc/mysql/my.cnf')
+
         self.add("service mysql restart")
         sql_filename = '/tmp/commands.sql'
         self.writeToFile('CREATE DATABASE nova;', sql_filename)
         self.appendToFile('CREATE DATABASE glance;', sql_filename)
         self.appendToFile('CREATE DATABASE keystone;', sql_filename)
-        self.appendToFile('CREATE DATABASE quantum;', sql_filename)
+        self.appendToFile('CREATE DATABASE neutron;', sql_filename)
         self.appendToFile('CREATE DATABASE monitoring;', sql_filename)
         self.generatePrivileges('nova', config.nova_user, \
                                     config.nova_password, 
@@ -46,13 +49,14 @@ class MySQL(GenericInstaller):
         self.generatePrivileges('keystone', config.keystone_user,
                                     config.keystone_password, \
                                     False, sql_filename)
-        self.generatePrivileges('quantum',  config.quantum_user, \
-                                    config.quantum_password, \
+        self.generatePrivileges('neutron',  config.network_user, \
+                                    config.network_password, \
                                     True, sql_filename)
-        self.generatePrivileges('monitoring',  config.quantum_user, \
-                                    config.quantum_password, \
+        self.generatePrivileges('monitoring',  config.network_user, \
+                                    config.network_password, \
                                     True, sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
+        self.add("mysql_secure_installation")
         #Not really sure this should happen here - need to go to the directory - paths are not absolute
         #Leaving for reference, but should be done by hand for now - RRH 5/13/2014
         #self.comment("Create monitoring schema - needs to be done after DB creation")
@@ -67,19 +71,19 @@ class MySQL(GenericInstaller):
         self.writeToFile('DROP DATABASE nova;', sql_filename)
         self.appendToFile('DROP DATABASE glance;', sql_filename)
         self.appendToFile('DROP DATABASE keystone;', sql_filename)
-        self.appendToFile('DROP DATABASE quantum;', sql_filename)
+        self.appendToFile('DROP DATABASE neutron;', sql_filename)
         self.appendToFile('DROP DATABASE monitoring;', sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
 
     def generatePrivileges(self, db, user_name, user_pwd, \
                            compute_nodes, filename):
         self.generatePrivilegesForAddress(db, user_name, user_pwd, 'localhost', filename)
-        self.generatePrivilegesForAddress(db, user_name, user_pwd, config.control_address, filename)
-        if compute_nodes:
-            nodes = config.compute_hosts
-            for node in nodes:
-                addr = nodes[node]
-                self.generatePrivilegesForAddress(db, user_name, user_pwd, addr, filename)
+        self.generatePrivilegesForAddress(db, user_name, user_pwd, '%', filename)
+#        if compute_nodes:
+#            nodes = config.compute_hosts
+#            for node in nodes:
+#                addr = nodes[node]
+#                self.generatePrivilegesForAddress(db, user_name, user_pwd, addr, filename)
 
     def generatePrivilegesForAddress(self, db, user_name, user_pwd, \
                                          address, filename):

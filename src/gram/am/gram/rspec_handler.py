@@ -134,7 +134,8 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
             if value.lower() == 'true':
                 vm_object.setExternalIp('true')
     
-        found = node.getElementsByTagName('emulab:routable_control_ip')
+        found = node.getElementsByTagName('emulab:routable_control_ip') +\
+            node.getElementsByTagName('routable_control_ip')
         if found:
             vm_object.setExternalIp('true')
 
@@ -299,6 +300,13 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
         link_object.setName(link_name)
         sliver_list.append(link_object)
 
+        # Check if a shared vlan is specified for the link
+        shared_vlan_tags = link.getElementsByTagName('sharedvlan:link_shared_vlan')
+        if len(shared_vlan_tags) == 1:
+            vlan_tag = int(shared_vlan_tags[0].attributes['name'].value)
+            link_object.setVLANTag(vlan_tag)
+            config.logger.info("Using shared vlan: " + str(vlan_tag))
+
         # Gather OF Controller for this link (if any)
         controllers = link.getElementsByTagName('openflow:controller')
         if len(controllers) > 0:
@@ -365,6 +373,9 @@ def generateManifestForSlivers(geni_slice, geni_slivers, recompute, \
 
     # Clone the request and set the 'type' to 'manifest
     request = geni_slice.getRequestRspec()
+    if request == None:
+        return None, constants.REQUEST_PARSE_FAILED, "Empty Request RSpec"
+
     if isinstance(request, basestring): request = parseString(request)
     manifest_doc = request.cloneNode(True)
     config.logger.error("DOC = %s" % manifest_doc.toxml())
@@ -561,6 +572,12 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         node_type = '<sliver_type name="%s"/>' % flavor_name
         node_types = node_types + node_type + "\n"
 
+    # Constants for linking compute nodes to switch
+    switch_cmid = am_urn
+    switch_name = "TORswitch"
+    switch_cid = config.urn_prefix + "node+" + switch_name
+    switch_iface_cid = config.urn_prefix+"interface+" + switch_name + ":internal"
+
     #images = open_stack_interface._listImages()
     #print "IMAGES = " + str(images)
     images = config.disk_image_metadata
@@ -577,6 +594,13 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         disk_image = '      <disk_image name="%s" os="%s" version="%s" description="%s" />' % (image, os, version, description)
         image_types = image_types + disk_image + "\n"
 
+    location_block = ''
+    if config.location != None and \
+            'latitude' in config.location and 'longitude' in config.location:
+        location_block = '<location latitude="%s" longitude="%s"/>' % \
+            (config.location['latitude'], 
+             config.location['longitude'])
+
     sliver_block = ''
     for flavor_name in flavors.values():
         entry = '    <sliver_type name="%s">' % flavor_name
@@ -585,11 +609,77 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         sliver_block = sliver_block + '    </sliver_type> \n'
 
     node_block = ''
+    stitching_link_block = ""
     for compute_node in compute_nodes.keys():
-        entry = '<node component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % (compute_node, component_manager_id, urn_prefix + socket.gethostname() + '+node+' + compute_node, exclusive)
+        component_id_template = urn_prefix + socket.gethostname() + '+%s+' + compute_node
+        component_id = component_id_template % 'node'
+        component_id_interface = component_id_template % 'interface'
+        interface_block ='    <interface component_id="%s:%s" role="%s"/>\n' % (component_id_interface, 'eth2', 'experimental')
+        entry = '<node component_name="%s" component_manager_id="%s" component_id="%s" exclusive="%s">' % \
+            (compute_node, component_manager_id, component_id, exclusive)
         node_block = node_block + entry + '\n'
+        node_block = node_block + location_block + '\n'
         node_block = node_block + sliver_block
+        node_block = node_block + interface_block
         node_block = node_block + '</node> \n \n'
+
+        stitching_link_template = '<link component_name="%s" ' + \
+            'component_id="%s">\n' +\
+            '<interface_ref component_id="%s:eth2"/>\n' + \
+            '<interface_ref component_id="%s"/>\n' + \
+            '</link>'
+        link_name = "link-" + compute_node
+        link_id = urn_prefix + "link+" + switch_name + "_" + compute_node
+        stitching_link = stitching_link_template % \
+            (link_name, link_id, component_id_interface, switch_iface_cid)
+        stitching_link_block = stitching_link_block + "\n" + stitching_link
+
+    # Add links from local switch to remote switch for stitched links
+    external_refs = ""
+    if stitching_handler and 'edge_points' in config.stitching_info:
+        for edge_point in config.stitching_info['edge_points']:
+            # ***
+            remote_link = edge_point['remote_switch']
+            local_link = edge_point['local_link']
+            remote_parts = remote_link.split('+')
+            remote_name = remote_parts[-1]
+            local_name = local_link.split("+")[-1]
+            link_cn = local_name + "/" + remote_name
+            link_cid = urn_prefix + 'link+' + link_cn
+            link_cmid = '+'.join(remote_parts[:2]) + "+authority+am"
+            link_template = '<link component_name="%s" component_id="%s">\n' +\
+                '   <interface_ref component_id="%s"/>\n' +\
+                '   <interface_ref component_id="%s"/>\n' +\
+                '</link>'
+            external_link = link_template % (link_cn, link_cid, local_link, remote_link)
+            stitching_link_block = stitching_link_block + "\n" + external_link
+            external_ref = '<external_ref component_id="%s" component_manager_id="%s"/>' % (link_cid, link_cmid)
+            external_refs = external_refs + "\n" + external_ref
+
+    # Add node for the switch with interface to all the compute nodes
+    switch_node_template = \
+        '<node component_manager_id="%s" component_name="%s" ' +\
+        'component_id="%s" exclusive="True">'
+    switch_hw_type = '   <hardware_type name ="switch" />'
+    switch_interface_template = \
+        '   <interface component_id="%s" role="experimental"/>'
+    switch_node =  switch_node_template % \
+        (switch_cmid, switch_name, switch_cid)
+    switch_node_ifaces = ""
+    switch_node_iface = switch_interface_template % switch_iface_cid
+    switch_node_ifaces = "\n" + switch_node_iface
+    
+    # And (if stitching) interfaces to all stitch ports
+    if stitching_handler and 'edge_points' in config.stitching_info:
+        for edge_point in config.stitching_info['edge_points']:
+            local_link = edge_point['local_link']
+            stitch_iface = switch_interface_template % local_link
+            switch_node_ifaces = switch_node_ifaces + "\n" + stitch_iface
+        
+    switch_node = switch_node + "\n" + switch_hw_type + \
+        switch_node_ifaces + "\n</node>"
+    node_block = node_block + "\n" + switch_node
+
 
     POA_header = '<rspec_opstate xmlns="http://www.geni.net/resources/rspec/ext/opstate/1" ' + \
                 'aggregate_manager_id=' + '"' + am_urn + '" '
@@ -631,15 +721,15 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
 # custome image list
     ci_block = ""
-    u_images = open_stack_interface._listImages().values()
-    if len(u_images) > len(images):
-      ci_block = '<node component_id="" component_manager_id="' + component_manager_id + '" exclusive="false">\n'
-      ci_block += '<sliver_type name="" >\n'
-      for u_image in u_images:
-        if u_image not in images:  
-            ci_block += '<disk_image name="' + u_image + '"  description="custom"/>\n'
-      ci_block += "</sliver_type>\n"
-      ci_block += "</node>\n"       
+#    u_images = open_stack_interface._listImages().values()
+#    if len(u_images) > len(images):
+#      ci_block = '<node component_id="" component_manager_id="' + component_manager_id + '" exclusive="false">\n'
+#      ci_block += '<sliver_type name="" >\n'
+#      for u_image in u_images:
+#        if u_image not in images:  
+#            ci_block += '<disk_image name="' + u_image + '"  description="custom"/>\n'
+#      ci_block += "</sliver_type>\n"
+#      ci_block += "</node>\n"       
 
 #    tmpl = '''  <node component_manager_id="%s"
 #        component_name="%s"
@@ -655,6 +745,8 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
     schema_locs = ["http://www.geni.net/resources/rspec/3",
                    "http://www.geni.net/resources/rspec/3/ad.xsd",
+                   "http://hpn.east.isi.edu/rspec/ext/stitch/0.1/",
+                   "http://hpn.east.isi.edu/rspec/ext/stitch/0.1/stitch-schema.xsd",
                    "http://www.geni.net/resources/rspec/ext/opstate/1",
                    "http://www.geni.net/resources/rspec/ext/opstate/1/ad.xsd"]
     advert_header = '''<?xml version="1.0" encoding="UTF-8"?> 
@@ -664,10 +756,59 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 #    config.logger.error("STITCHING_HANDLER = %s" % stitching_handler)
     if stitching_handler:
         stitching_advertisement_doc = \
-            stitching_handler.generateAdvertisement()
+            stitching_handler.generateAdvertisement(switch_cid)
         stitching_advertisement = \
-            stitching_advertisement_doc.childNodes[0].toxml()
-    result = advert_header  + '\n' + node_block + stitching_advertisement + POA_block + ci_block + '</rspec>'
+            stitching_advertisement_doc.childNodes[0].toprettyxml()
+
+        stitching_nodes = ""
+        stitching_node_elts = stitching_advertisement_doc.getElementsByTagName('node');
+        for stitching_node_elt in stitching_node_elts:
+            node_id = stitching_node_elt.attributes['id'].value
+            stitching_node = stitching_advertisement_doc.createElement("node")
+            stitching_node.setAttribute('component_name', node_id)
+            stitching_node.setAttribute('component_id', component_id)
+            stitching_node.setAttribute('component_manager_id', component_manager_id)
+            stitching_node.setAttribute("exclusive", exclusive)
+            link_elts = stitching_node_elt.getElementsByTagName('link')
+            if len(link_elts) == 0: continue
+            link_elt =link_elts[0];
+            stitching_node_interface_id = link_elt.attributes['id'].value
+            stitching_node_interface_elt = stitching_advertisement_doc.createElement('interface')
+            stitching_node_interface_elt.setAttribute('component_id', stitching_node_interface_id)
+            stitching_node_interface_elt.setAttribute('role', 'experimental')
+            stitching_node.appendChild(stitching_node_interface_elt)
+
+            stitching_nodes += stitching_node.toprettyxml()
+
+        stitching_links = ""
+        client_id = 0
+        for compute_node in compute_nodes.keys():
+            component_id = urn_prefix + socket.gethostname() + '+interface+' + compute_node
+            compute_interface_ref = "%s:%s" % (component_id, 'eth2')
+            for stitching_node in stitching_node_elts:
+                link_elts = stitching_node.getElementsByTagName('link')
+                if len(link_elts) == 0: continue
+                link_elt = link_elts[0]
+                switch_interface_ref = link_elt.attributes['id'].value
+                link_id = "stitch-compute-link-%d" % client_id
+                client_id = client_id+1
+                stitching_link = '<link component_id="%s">\n<interface_ref component_id="%s"/>\n<interface_ref component_id="%s"/>\n</link>\n\n' % \
+                    (link_id, compute_interface_ref, switch_interface_ref)
+                stitching_links += stitching_link
+
+        
+#        node_block = node_block + '\n' + stitching_nodes + '\n' + stitching_links;
+
+    # Need to have a node for every compute node
+    #   with its eth2 interface
+    # PLUS a node for the switch 'force10'
+    #   with all the stitchable interfaces
+    # Then a link from every eth2 interface to the swtich
+
+    result = advert_header  + '\n' + external_refs + '\n' + \
+        node_block + '\n' + \
+        stitching_link_block + '\n' + stitching_advertisement + \
+        POA_block + ci_block + '</rspec>'
 
 #        (tmpl % (component_manager_id, component_name, \
 #                     component_id, exclusive, node_types, \

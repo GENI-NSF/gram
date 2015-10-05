@@ -1,0 +1,7 @@
+Package: gram
+Version: 0.1
+Priority: optional
+Architecture: all
+Depends: git, module-assistant, cloud-init, cloud-image-utils, xmlsec1, ntp, vlan, bridge-utils, rabbitmq-server, keystone, python-keystoneclient, glance, python-glanceclient, nova-api, nova-cert, nova-conductor, nova-consoleauth, nova-novncproxy, nova-scheduler, python-novaclient, nova-doc, neutron-server, neutron-plugin-ml2, python-neutronclient, cinder-api, cinder-scheduler, cinder-volume, iscsitarget, open-iscsi, iscsitarget-dkms, openstack-dashboard, apache2, libapache2-mod-wsgi, memcached, python-memcache, emacs, python-dateutil
+Maintainer: GRAM Developers <gram-dev@bbn.com>
+Description: GRAM installation package
