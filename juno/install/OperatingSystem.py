@@ -169,7 +169,7 @@ class OperatingSystem(GenericInstaller):
         #self.appendToFile("neutron ALL=NOPASSWD: ALL","/etc/sudoers.d/neutron_sudoers")
 
         self.writeToFile('Defaults:gram !requiretty', "/etc/sudoers.d/gram_sudoers")
-        self.appendToFile('gram ALL = (root) NOPASSWD: /usr/local/bin/gram_ssh_proxy, /*/ip',"/etc/sudoers.d/gram_sudoers")
+        self.appendToFile('gram ALL = (root) NOPASSWD: /usr/local/bin/gram_ssh_proxy, /*/ip, /usr/sbin/service, /home/gram/gram/juno/install/network_files/synch_control_network.sh',"/etc/sudoers.d/gram_sudoers")
 
 
         # write the interface file

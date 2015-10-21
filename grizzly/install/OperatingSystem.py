@@ -128,7 +128,7 @@ class OperatingSystem(GenericInstaller):
             self.sed("s/^dbtype:.*$/dbtype: mysql/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.sed("s/^database:.*$/database: monitoring/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.sed("s/^username:.*$/username: quantum/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
-            self.sed("s/^password:.*$/password: " + config.quantum_password + "/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
+            self.sed("s/^password:.*$/password: " + config.network_password + "/",'/home/gram/ops-monitoring/config/local_datastore_operator.conf')
             self.add('sudo a2enmod ssl')
             self.add('sudo a2ensite default-ssl');
 

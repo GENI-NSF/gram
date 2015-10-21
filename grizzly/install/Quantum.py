@@ -40,8 +40,8 @@ class Quantum(GenericInstaller):
     def installCommands(self):
         control_address = config.control_address
         metadata_port = config.metadata_port
-        quantum_user = config.quantum_user
-        quantum_password = config.quantum_password
+        quantum_user = config.network_user
+        quantum_password = config.network_password
         rabbit_password = config.rabbit_password
         os_password = config.os_password
         backup_directory = config.backup_directory
@@ -200,7 +200,7 @@ class Quantum(GenericInstaller):
                  self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_l3_agent_filename)
         self.add("service quantum-l3-agent restart")
-        self.add("export PYTHONPATH=$PYTHONPATH:/opt/gcf/src:/home/gram/gram/src:/home/gram/gram/src/gram/am/gram")
+        self.add("export PYTHONPATH=$PYTHONPATH:/opt/gcf/src:/home/gram/gram/src:/home/gram/gram/grizzly:/home/gram/gram/src/gram/am/gram")
 
         self.sed("s/^\# use_namespaces.*/use_namespaces = True/", self.quantum_directory + "/" + self.quantum_dhcp_conf_filename)
 

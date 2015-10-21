@@ -46,11 +46,11 @@ class MySQL(GenericInstaller):
         self.generatePrivileges('keystone', config.keystone_user,
                                     config.keystone_password, \
                                     False, sql_filename)
-        self.generatePrivileges('quantum',  config.quantum_user, \
-                                    config.quantum_password, \
+        self.generatePrivileges('quantum',  config.network_user, \
+                                    config.network_password, \
                                     True, sql_filename)
-        self.generatePrivileges('monitoring',  config.quantum_user, \
-                                    config.quantum_password, \
+        self.generatePrivileges('monitoring',  config.network_user, \
+                                    config.network_password, \
                                     True, sql_filename)
         self.executeSQL(sql_filename, config.mysql_password)
         #Not really sure this should happen here - need to go to the directory - paths are not absolute
