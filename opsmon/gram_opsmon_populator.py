@@ -63,6 +63,10 @@ class OpsMonPopulator:
         self._aggregate_id = config['aggregate_id']
         self._aggregate_urn = config['aggregate_urn']
 
+        # Set the current time for all methods in run loop
+        self._current_time = 0
+        self._ts = ''
+
         # Aggregate info query url
         self._aggregate_href = self._base_url + "/info/aggregate/" + self._aggregate_id
 
@@ -76,7 +80,8 @@ class OpsMonPopulator:
 
         self._prev_values = {}
         self._config = config
-        self._table_manager = table_manager.TableManager('local', config_path, False)
+        self._table_manager = table_manager.TableManager('local', config_path)
+        self._table_manager.poll_config_store() # Grab schemas
         for cmd in self._node_commands:
             tablename = cmd['table']
             self._prev_values[tablename] = {}
@@ -96,6 +101,8 @@ class OpsMonPopulator:
         self._interfacevlan_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/port-vlan#"
         self._link_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/link#"
         self._user_schema = "http://www.gpolab.bbn.com/monitoring/schema/20140501/user#"
+
+        self._populator_version = '20140501'
 
         # Change ' to " in any expressions (can't parse " in json)
         for cmd in self._node_commands:
@@ -205,9 +212,12 @@ class OpsMonPopulator:
     def run(self):
         print "GRAM OPSMON process for %s" % self._aggregate_id
         while True:
+            self._current_time = time.time()
+            self._ts = str(int(self._current_time*1000000))
             self._latest_snapshot = gram_slice_info.find_latest_snapshot()
             self._objects_by_urn = gram_slice_info.parse_snapshot(self._latest_snapshot)
             self.delete_static_entries()
+            self.purge_data_tables()
             self.update_info_tables()
             self.update_data_tables()
             self.update_slice_tables()
@@ -219,7 +229,7 @@ class OpsMonPopulator:
 #            self.execute_data_file(data_filename)
 #            print "FILE = %s" % data_filename
 #            os.unlink(data_filename)
-            print "Updated OpsMon dynamic data for %s at %d" % (self._aggregate_id, int(time.time()))
+            print "Updated OpsMon dynamic data for %s at %d" % (self._aggregate_id, int(self._current_time))
             time.sleep(self._frequency_sec)
 
     # Update static H/W config information based on config plus information
@@ -233,15 +243,17 @@ class OpsMonPopulator:
 
     # Update aggregate info tables
     def update_aggregate_info(self):
-        ts = str(int(time.time()*1000000))
-        self._table_manager.purge_old_tsdata('ops_aggregate', ts)
+        self._table_manager.purge_old_tsdata('ops_aggregate', self._ts)
         meas_ref = self._measurement_href
-        agg = [self._agg_schema, self._aggregate_id, self._aggregate_href, self._aggregate_urn, ts, meas_ref]
+        routable_ip_poolsize = 0
+        op_status = 'UP'
+        metricsgroup_id = 'all'
+        agg = [self._agg_schema, self._aggregate_id, self._aggregate_href, self._aggregate_urn, self._ts, meas_ref, 
+               self._populator_version, op_status, routable_ip_poolsize, metricsgroup_id]
         info_insert(self._table_manager, 'ops_aggregate', agg)
 
     def update_link_info(self):
-        ts = str(int(time.time()*1000000))
-        self._table_manager.purge_old_tsdata('ops_link', ts)
+        self._table_manager.purge_old_tsdata('ops_link', self._ts)
 
         links = [link for link in self._objects_by_urn.values() \
                      if link['__type__'] == 'NetworkLink']
@@ -250,34 +262,44 @@ class OpsMonPopulator:
             link_urn = link['sliver_urn']
             link_id = self.get_link_id(link_urn)
             link_href = self.get_link_href(link_id)
-            link_info = [self._link_schema, link_id, link_href, link_urn, ts]
+            link_info = [self._link_schema, link_id, link_href, link_urn, self._ts]
             info_insert(self._table_manager, 'ops_link', link_info)
 
-            agg_resource_info = [link_id, self._aggregate_id, link_href, link_urn]
-            info_insert(self._table_manager, 'ops_aggregate_resource', agg_resource_info)
+#            agg_resource_info = [link_id, self._aggregate_id, link_href, link_urn]
+#            info_insert(self._table_manager, 'ops_aggregate_resource', agg_resource_info)
 
     # Update node info tables
     def update_node_info(self):
-        ts = str(int(time.time()*1000000))
-        self._table_manager.purge_old_tsdata('ops_node', ts)
+#        self._table_manager.purge_old_tsdata('ops_node', self._ts)
         for node_id, nd in self._nodes.items():
-            node = [nd['schema'], nd['id'], nd['href'], nd['urn'], ts, nd['mem_total_kb']]
+            node_type = 'compute'
+            virtualization_type = 'kvm'
+            parent_node_id = None
+            metricsgroup_id = 'all'
+            node = [nd['schema'], nd['id'], nd['href'], nd['urn'], self._ts, node_type, 
+                    nd['mem_total_kb'], virtualization_type,
+                    parent_node_id, self._aggregate_id, metricsgroup_id]
             resource = [nd['id'], self._aggregate_id, nd['urn'], nd['href']]
-            info_insert(self._table_manager, "ops_node", node)
-            info_insert(self._table_manager, 'ops_aggregate_resource', resource)
+            info_upsert(self._table_manager, "ops_node", node, ['id'])
+#            info_insert(self._table_manager, 'ops_aggregate_resource', resource)
+
+            num_vms = 0
+            for object_urn, objects_attributes in self._objects_by_urn.items():
+                if object_urn == nd['urn'] and object_attributes['__type__'] == 'VirtualMachine':
+                    num_vms = num_vms + 1
+            num_vms_data = [nd['id'], self._ts, num_vms]
+            info_insert(self._table_manager, 'ops_node_num_vms_allocated', num_vms_data)
 
     # Update interface info tables
     def update_interface_info(self):
-        ts = str(int(time.time()*1000000))
+#        # Clear out old node interface info
+#        for node_urn, node_info in self._nodes.items():
+#            node_id = self.get_node_id(node_info['id'])
+#            self._table_manager.delete_stmt('ops_node_interface', node_id)
 
         # Clear out old interface info:
-        self._table_manager.purge_old_tsdata('ops_interface', ts)
-        # Clear out old sliver resource info
-        for node_urn, node_info in self._nodes.items():
-            node_id = self.get_node_id(node_info['id'])
-            self._table_manager.delete_stmt('ops_node_interface', node_id)
-
-        # Insert into ops_node_interface
+#        self._table_manager.purge_old_tsdata('ops_interface', self._ts)
+        # Insert into ops_node_interface and ops_interface
         for node_info in self._config['hosts']:
             node_urn = node_info['urn']
             node_id = self.get_node_id(node_info['id'])
@@ -285,25 +307,30 @@ class OpsMonPopulator:
                 iface_id = self.get_interface_id(node_urn, iface_name)
                 iface_urn = self.get_interface_urn(node_urn, iface_name) 
                 iface_href = self.get_interface_href(iface_id)
-                node_interface_info = [iface_id, node_id, iface_urn, iface_href]
-                info_insert(self._table_manager, 'ops_node_interface', node_interface_info)
-
                 iface_address = iface_data['address']
                 iface_role = iface_data['role']
                 iface_address_type = iface_data['type']
                 iface_max_bps = iface_data['max_bps']
                 iface_max_pps = 0
 
+                parent_interface_id = None
+                metricsgroup_id = 'all'
+
                 interface_info = [self._interface_schema, iface_id, iface_href, iface_urn, \
-                                      ts, iface_address_type, \
-                                      iface_address, iface_role, iface_max_bps, iface_max_pps]
-                info_insert(self._table_manager, 'ops_interface', interface_info)
+                                  self._ts, 
+                                  # iface_address_type, iface_address, 
+                                  iface_role, iface_max_bps, iface_max_pps,
+                                  parent_interface_id, node_id, metricsgroup_id]
+                info_upsert(self._table_manager, 'ops_interface', interface_info, ['id'])
+
+#                node_interface_info = [iface_id, node_id, iface_urn, iface_href]
+#                info_upsert(self._table_manager, 'ops_node_interface', node_interface_info, ['id'])
+
 
     # Update the ops_link_interface_vlan and ops_interfacevlan
     # tables to reflect current VLAN allocations
     def update_interfacevlan_info(self):
-        ts = str(int(time.time()*1000000))
-        self._table_manager.purge_old_tsdata('ops_interfacevlan', ts)
+        self._table_manager.purge_old_tsdata('ops_interfacevlan', self._ts)
 
         links = [link for link in self._objects_by_urn.values() \
                      if link['__type__'] == 'NetworkLink']
@@ -349,7 +376,7 @@ class OpsMonPopulator:
             link_id = self.get_link_id(link_urn)
 
             ifacevlan_info = [self._interfacevlan_schema, ifacevlan_id, 
-                              ifacevlan_href, ifacevlan_urn, ts, tag,
+                              ifacevlan_href, ifacevlan_urn, self._ts, tag,
                               iface_urn, iface_href]
             
             info_insert(self._table_manager, 'ops_interfacevlan', 
@@ -378,7 +405,7 @@ class OpsMonPopulator:
                 iface_id = self.get_interface_id(iface_urn, 'EGRESS')
                 iface_href = self.get_interface_href(iface_id)
                 ifacevlan_info = [self._interfacevlan_schema, ifacevlan_id,
-                                  ifacevlan_href, ifacevlan_urn, ts, vlan_tag, 
+                                  ifacevlan_href, ifacevlan_urn, self._ts, vlan_tag, 
                                   iface_urn, iface_href]
                 info_insert(self._table_manager, 'ops_interfacevlan',
                             ifacevlan_info);
@@ -397,8 +424,6 @@ class OpsMonPopulator:
     # And associated measurements (pps, bps, etc)
     def update_switch_info(self):
 
-        ts = str(int(time.time()*1000000))
-
         # Add entry into ops_node for each switch
         switches = []
         if 'stitching_info' in self._gram_config and \
@@ -411,9 +436,16 @@ class OpsMonPopulator:
             for switch_name in switches:
                 switch_id = self.get_node_id(switch_name)
                 switch_href = self.get_node_href(switch_id)
+                node_type = 'switch'
+                virtualization_type = ''
+                mem_total_kb = 0
+                metricsgroup_id = 'all'
+                parent_node_id = None
                 switch_node_info = [self._node_schema, switch_id, switch_href,\
-                                        switch_name, ts, 0] # 0 = mem_total_kb
-                info_insert(self._table_manager, 'ops_node', switch_node_info)
+                                    switch_name, self._ts, node_type, mem_total_kb, 
+                                    virtualization_type,
+                                    parent_node_id, self._aggregate_id, metricsgroup_id]
+                info_upsert(self._table_manager, 'ops_node', switch_node_info, ['id'])
 
             # Enter an interface in the ops_interface for the egress_ports
             # As well as ops_node_interface
@@ -457,33 +489,36 @@ class OpsMonPopulator:
                             value = self._compute_change_rate(value, 
                                                               meas_table,
                                                               iface_id)
-                            ts_data = [iface_id, ts, value]
+                            ts_data = [iface_id, self._ts, value]
                             info_insert(self._table_manager, meas_table, 
                                         ts_data)
                          
                 # Insert interface and node_interface entries for egress port
+                parent_interface_id = None
+                metricsgroup_id = 'all'
                 iface_info = [self._interface_schema, iface_id, iface_href,
-                              iface_urn, ts, iface_address_type,
-                              iface_address, iface_role, 
-                              iface_max_bps, iface_max_pps]
-                info_insert(self._table_manager, 'ops_interface', iface_info)
-                node_iface_info = [iface_id, switch_id, iface_urn, iface_href]
-                info_insert(self._table_manager, 'ops_node_interface', 
-                            node_iface_info)
+                              iface_urn, self._ts, 
+                              # iface_address_type, iface_address, 
+                              iface_role, 
+                              iface_max_bps, iface_max_pps,
+                              parent_interface_id, switch_id, metricsgroup_id]
+                info_upsert(self._table_manager, 'ops_interface', iface_info, ['id'])
+#                node_iface_info = [iface_id, switch_id, iface_urn, iface_href]
+#                info_upsert(self._table_manager, 'ops_node_interface', 
+#                            node_iface_info, ['id'])
 
 
 
 
     # update slice tables based on most recent snapshot
     def update_slice_tables(self):
-        ts = int(time.time()*1000000)
 
         # Clear out old slice/user info
-        self._table_manager.purge_old_tsdata('ops_slice', ts)
-        self._table_manager.purge_old_tsdata('ops_user', ts)
-        self._table_manager.purge_old_tsdata('ops_authority', ts)
+        self._table_manager.purge_old_tsdata('ops_slice', self._ts)
+        self._table_manager.purge_old_tsdata('ops_user', self._ts)
+        self._table_manager.purge_old_tsdata('ops_authority', self._ts)
         self.delete_all_entries_in_table('ops_slice_user')
-        self.delete_all_entries_in_table('ops_authority_slice')
+#        self.delete_all_entries_in_table('ops_authority_slice')
 
         user_urns = []
         authority_urns = []
@@ -511,7 +546,7 @@ class OpsMonPopulator:
             slice_id = self.get_slice_id(slice_urn)
             slice_href = self.get_slice_href(slice_id)
             slice_info = [self._slice_schema, slice_id, slice_href,
-                          slice_urn, slice_uuid, ts, authority_urn, 
+                          slice_urn, slice_uuid, self._ts, authority_urn, 
                           authority_href, created, expires]
             info_insert(self._table_manager, 'ops_slice', slice_info)
 
@@ -525,9 +560,9 @@ class OpsMonPopulator:
                 info_insert(self._table_manager, 'ops_slice_user', slice_user_info)
 
             # Link from slice to authority
-            auth_slice_info = [slice_id, authority_id, slice_urn, slice_href]
-            info_insert(self._table_manager, 'ops_authority_slice', 
-                        auth_slice_info)
+#            auth_slice_info = [slice_id, authority_id, slice_urn, slice_href]
+#            info_insert(self._table_manager, 'ops_authority_slice', 
+#                        auth_slice_info)
 
         # Fill in users table
         for user_urn in user_urns:
@@ -545,7 +580,7 @@ class OpsMonPopulator:
             full_name = None # *** Don't have this
             email = None # *** Don't have this
 
-            user_info = [self._user_schema, user_id, user_href, user_urn, ts,
+            user_info = [self._user_schema, user_id, user_href, user_urn, self._ts,
                          authority_urn, authority_href, full_name, email]
             info_insert(self._table_manager, 'ops_user', user_info)
 
@@ -555,19 +590,16 @@ class OpsMonPopulator:
             authority_href = self.get_authority_href(authority_id)
             
             authority_info = [self._authority_schema, authority_id,
-                              authority_href, authority_urn, ts]
+                              authority_href, authority_urn, self._ts]
             info_insert(self._table_manager, 'ops_authority', authority_info)
             
 
     # update sliver tables based on most recent snapshot
     def update_sliver_tables(self):
-        ts = int(time.time()*1000000)
-
         # Clear out old sliver info:
-        self._table_manager.purge_old_tsdata('ops_sliver', ts)
+        self._table_manager.purge_old_tsdata('ops_sliver', self._ts)
         # Clear out old sliver resource and aggregate sliver
-        self.delete_all_entries_in_table('ops_sliver_resource')
-        self.delete_all_entries_in_table('ops_aggregate_sliver')
+#        self.delete_all_entries_in_table('ops_aggregate_sliver')
             
 
         # Insert into ops_sliver_resource table and ops_aggregate_sliver table
@@ -600,28 +632,29 @@ class OpsMonPopulator:
 
             # Insert into ops_sliver_table
             sliver_info = [schema, sliver_id, sliver_href, sliver_urn, sliver_uuid, \
-                               ts, self._aggregate_urn, self._aggregate_href, \
+                               self._ts, self._aggregate_urn, self._aggregate_href, \
                                slice_urn, slice_uuid, creator, \
                                created, expires]
             info_insert(self._table_manager, 'ops_sliver', sliver_info)
 
-            # Insert into ops_sliver_resource table
-            sliver_resource_info = [node_id, sliver_id, node_urn, node_href]
-            info_insert(self._table_manager, 'ops_sliver_resource', sliver_resource_info)
+#            # Insert into ops_sliver_resource table
+#            sliver_resource_info = [node_id, sliver_id, node_urn, node_href]
+#            info_insert(self._table_manager, 'ops_sliver_resource', sliver_resource_info)
 
             # Insert into ops_aggregate_sliver table
-            sliver_aggregate_info = \
-                [sliver_id, self._aggregate_id, sliver_urn, sliver_href]
-            info_insert(self._table_manager, 'ops_aggregate_sliver', sliver_aggregate_info)
+#            sliver_aggregate_info = \
+#                [sliver_id, self._aggregate_id, sliver_urn, sliver_href]
+#            info_insert(self._table_manager, 'ops_aggregate_sliver', sliver_aggregate_info)
 
     # Update aggregate measurement tables on most recent snapshot
     def update_aggregate_tables(self):
-        ts = int(time.time()*1000000)
+        # The ops_aggregate_num_vms_allocated has been moved to ops_node_num_vms_allocated
+        return
 
-        num_vms_table = 'ops_aggregate_num_vms_allocated'
+        num_vms_table = 'ops_node_num_vms_allocated'
 
         # Clear out old node info
-        self._table_manager.purge_old_tsdata(num_vms_table, ts)
+        self._table_manager.purge_old_tsdata(num_vms_table, self._ts)
 
         # Count number of VM's in current snapshot
         num_vms = 0
@@ -630,17 +663,26 @@ class OpsMonPopulator:
                 num_vms = num_vms + 1
         
         # Write a record to the ops_aggregate_num_vms_allocated table
-        num_vms_info = [self._aggregate_id, ts, num_vms]
+        num_vms_info = [self._aggregate_id, self._ts, num_vms]
         info_insert(self._table_manager, num_vms_table, num_vms_info)
+
+    # Remove old records from data tables
+    def purge_data_tables(self):
+        ts = int(self._current_time*1000000)
+        window_threshold = ts - (self._window_duration_sec * 1000000)
+
+        # Delete old records from data tables
+        for command in self._node_commands + self._interface_commands:
+            tablename = command['table'] 
+            self._table_manager.purge_old_tsdata(tablename, window_threshold)
 
 
     # Update data tables 
-    # Remove old records
     # Grab new entries from hosts
     # and place in appropriate data tables
     def update_data_tables(self):
 
-        ts = int(time.time()*1000000)
+        ts = int(self._current_time*1000000)
         window_threshold = ts - (self._window_duration_sec * 1000000)
 
         # Delete old records from data tables
@@ -669,7 +711,7 @@ class OpsMonPopulator:
                 if change_rate:
                     value = self._compute_change_rate(value, tablename, host_id)
 
-                ts_data = [host_id, ts, value]
+                ts_data = [host_id, self._ts, value]
                 info_insert(self._table_manager,  tablename, ts_data)
 
             interface_info_rsh_command = ['rsh', host_address, self._interface_info_rsh_command]
@@ -688,7 +730,7 @@ class OpsMonPopulator:
                     if change_rate:
                         value = self._compute_change_rate(value, tablename, interface_id)
 
-                    ts_data = [interface_id, ts, value]
+                    ts_data = [interface_id, self._ts, value]
                     info_insert(self._table_manager, tablename, ts_data)
 
     def _compute_change_rate(self, value, tablename, identifier):
@@ -712,7 +754,7 @@ class OpsMonPopulator:
         return external_vlans
 
     def delete_static_entries(self):
-        self.delete_all_entries_in_table('ops_aggregate_resource')
+#        self.delete_all_entries_in_table('ops_aggregate_resource')
         self.delete_all_entries_in_table('ops_link_interfacevlan')
 
     # Delete all entries in a given table
@@ -730,14 +772,28 @@ def flatten_urn(urn):
     return urn.replace(':', '_').replace('+', '_')
 
 # creates a values string from an ordered array of values
-def info_insert(table_manager, table_str, row_arr):
+def values_string(row_arr):
     val_str = "('"
         
     for val in row_arr:
         val_str += str(val) + "','" # join won't do this
     val_str = val_str[:-2] + ")" # remove last 2 of 3 chars: ',' and add )
 
+    return val_str
+
+# Create and execute insert statement from array of values on table
+def info_insert(table_manager, table_str, row_arr):
+    val_str = values_string(row_arr)
     table_manager.insert_stmt(table_str, val_str)
+
+# Create and execute upsert statement from array of values on table
+def info_upsert(table_manager, table_str, row_arr, id_columns):
+    if table_str not in table_manager.schema_dict:
+        print "Undefined table for upsert: %s" % table_str
+        return
+    table_schema = table_manager.schema_dict[table_str]
+    table_manager.upsert(table_str, table_schema, row_arr, id_columns)
+
 
 def main():
     if len(sys.argv) < 2:
