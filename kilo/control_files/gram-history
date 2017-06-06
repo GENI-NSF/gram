@@ -1,0 +1,734 @@
+    1  pwd
+    2  ls
+    3  scp rrosales@128.89.118.104:interfaces .
+    4  vi interfaces 
+    5  scp rrosales@128.89.118.104:hosts .
+    6  sudo cp interfaces /etc/network/interfaces
+    7  sudo cp hosts /etc/hosts
+    8  vi /etc/hosts
+    9  sudo ifup eth1 
+   10  sudo ifup eth2
+   11  sudo ifup eth3
+   12  ifconfig -a
+   13  scp interfaces gram@128.89.118.103
+   14  scp interfaces gram@128.89.118.103:
+   15  ifconfig -a
+   16  ping 10.10.8.105
+   17  ping 10.10.8.101
+   18  ping 10.10.8.103
+   19  ping 10.10.8.102
+   20  ping 10.10.8.103
+   21  exit
+   22  ping 10.10.8.102
+   23  ping 10.10.8.105
+   24  ping 10.10.8.103
+   25  exit
+   26  apt-get install ubuntu-cloud-keyring
+   27  echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list
+   28  apt-get update && apt-get dist-upgrade
+   29  apt-get install mariadb-server python-mysqldb
+   30  vi /etc/mysql/conf.d/mysqld_safe_syslog.cnf 
+   31  ls /etc/mysql/my.cnf 
+   32  vi /etc/mysql/my.cnf 
+   33  service mysql restart
+   34  mysql_secure_installation 
+   35  exit
+   36  apt-get install rabbitmq-server
+   37  rabbitmqctl add_user openstack os_pwd
+   38  rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+   39  exit
+   40  sudo bash
+   41  mysql -u root -p
+   42  apt-get install rabbitmq-server
+   43  sudo bash
+   44  mysql -u root -p
+   45  openssl rand -hex 10
+   46  sudo bash
+   47  echo "manual" > /etc/init/keystone.override
+   48  apt-get install keystone python-openstackclient apache2 libapache2-mod-wsgi memcached python-memcache
+   49  vi /etc/keystone/keystone.conf 
+   50  openssl rand -hex 10
+   51  vi /etc/keystone/keystone.conf 
+   52  su -s /bin/sh -c "keystone-manage db_sync" keystone
+   53  vi /etc/apache2/apache2.conf 
+   54  ls /etc/apache2/sites-enabled/000-default.conf 
+   55  vi /etc/apache2/sites-enabled/000-default.conf 
+   56  vi /etc/apache2/sites-available/000-default.conf 
+   57  vi /etc/apache2/sites-available/wsgi-keystone.conf
+   58  ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
+   59  mkdir -p /var/www/cgi-bin/keystone
+   60  curl http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo  | tee /var/www/cgi-bin/keystone/main /var/www/cgi-bin/keystone/admin
+   61  chown -R keystone:keystone /var/www/cgi-bin/keystone
+   62  chmod 755 /var/www/cgi-bin/keystone/*
+   63  service apache2 restart
+   64  rm -f /var/lib/keystone/keystone.db
+   65  sudo service apache2 status
+   66  sudo grep admin /etc/keystone/keystone.conf
+   67  export OS_TOKEN=f7fd0d75471aa1a6ced2
+   68  export OS_URL=http://gram1-control:35357/v2.0
+   69  openstack service create   --name keystone --description "OpenStack Identity" identity
+   70  openstack endpoint create --publicurl http://gram1-control:5000/v2.0 --internalurl http://gram1-control:5000/v2.0 --adminurl http://gram1-control:5000/v2.0 --region regionOne identity
+   71  openstack project create --description "Admin Project" admin
+   72  openstack user create --password-prompt admin
+   73  openstack role create admin
+   74  openstack role add --project admin --user admin admin
+   75  openstack project create --description "Service Project" service
+   76  openstack project create --description "Demo Project" demo
+   77  openstack user create --password-prompt demo
+   78  openstack role create user
+   79  openstack role add --project demo --user demo user
+   80  vi /etc/keystone/keystone-paste.ini
+   81  sudo vi /etc/keystone/keystone-paste.ini
+   82  sudo cp /etc/keystone/keystone-paste.ini ~
+   83  sudo vi /etc/keystone/keystone-paste.ini
+   84  unset OS_TOKEN OS_URL
+   85  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password token issue
+   86  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default--os-project-name admin --os-username admin --os-auth-type password token issue
+   87  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default --os-project-name admin --os-username admin --os-auth-type password token issue
+   88  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   89  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+   90  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   91  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+   92  history | grep openstack
+   93  openstack project create --description "Service Project" service
+   94  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   95  openstack --os-auth-url http://gram1-control:35357 --os-username admin --os-auth-type password project list
+   96  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   97  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+   98  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+   99  sudo service apache2 restart
+  100  sudo service apache2 status
+  101  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  102  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  103  pwd
+  104  ls
+  105  sudo diff keystone-paste.ini /etc/keystone/
+  106  sudo cp keystone-paste.ini /etc/keystone/
+  107  history | grep export
+  108  export OS_TOKEN=f7fd0d75471aa1a6ced2
+  109  export OS_URL=http://gram1-control:35357/v2.0
+  110  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  111  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  112  history | grep unset
+  113  unset OS_TOKEN OS_URL
+  114  sudo vi /etc/keystone/keystone.ini
+  115  ls
+  116  sudo vi /etc/keystone/keystone-paste.ini
+  117  diff ~/keystone-paste.ini /etc/keystone/keystone-paste.ini
+  118  sudo diff ~/keystone-paste.ini /etc/keystone/keystone-paste.ini
+  119  pwd
+  120  mysql -u root -p
+  121  sudo su -s /bin/sh -c "keystone-manage db_sync" keystone
+  122  vi /etc/apache2/sites-available/000-default.conf 
+  123  sudo service apache2 restart
+  124  history | grep export
+  125  export OS_TOKEN=f7fd0d75471aa1a6ced2
+  126  export OS_URL=http://gram1-control:35357/v2.0
+  127  history | grep openstack
+  128  history | grep openstack | grep keystone
+  129  openstack service create   --name keystone --description "OpenStack Identity" identity
+  130  history | grep endpoint
+  131  openstack endpoint create --publicurl http://gram1-control:5000/v2.0 --internalurl http://gram1-control:5000/v2.0 --adminurl http://gram1-control:5000/v2.0 --region regionOne identity
+  132  history | grep openstack
+  133  history | grep openstack | grep project
+  134  openstack project create --description "Admin Project" admin
+  135  openstack user create --password-prompt admin
+  136  openstack role create admin
+  137  openstack role add --project admin --user admin admin
+  138  openstack project create --description "Service Project" service
+  139  history | grep project | grep list
+  140  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  141  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+  142  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  143  mysql -u root -p
+  144  history | grep export
+  145  export OS_TOKEN=f7fd0d75471aa1a6ced2
+  146  export OS_URL=http://gram1-control:35357/v2.0
+  147  mysql -u root -p
+  148  openstack project create --description "Demo Project" demo
+  149  mysql -u root -p
+  150  openstack user create --password-prompt demo
+  151  openstack role create user
+  152  openstack role add --project demo --user demo user
+  153  pwd
+  154  ls
+  155  mysql -u root -p
+  156  sudo vi /etc/init/keystone.override 
+  157  sudo bash
+  158  printenv
+  159  openstack service create --name keystone --description "OpenStack Identity" identity
+  160  openstack endpoint create --publicurl http://gram1-control:5000/v2.0 --internalurl http://gram1-control:5000/v2.0 --adminurl http://gram1-control:35357/v2.0 --region regionOne identity
+  161  openstack project create --description "Admin Project" admin
+  162  openstack user create --password-prompt admin
+  163  openstack role create admin
+  164  openstack role add --project admin --user admin admin
+  165  openstack project create --description "Service Project" service
+  166  openstack project create --description "Demo Project" demo
+  167  openstack user create --password-prompt demo
+  168  openstack role create user
+  169  openstack role add --project demo --user demo user
+  170  ls
+  171  sudo vi /etc/keystone/keystone-paste.ini
+  172  sudo diff keystone-paste.ini /etc/keystone/keystone-paste.ini
+  173  sudo vi /etc/keystone/keystone-paste.ini
+  174  unset OS_TOKEN OS_URL
+  175  openstack --os-auth-url http://controller:35357  --os-project-name admin --os-username admin --os-auth-type password token issue
+  176  openstack --os-auth-url http://gram1-control:35357  --os-project-name admin --os-username admin --os-auth-type password token issue
+  177  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default --os-project-name admin --os-username admin --os-auth-type password token issue
+  178  openstack --os-auth-url http://gram1-control:35357 --os-project--name admin --os-username admin --os-auth-type password project list
+  179  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  180  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+  181  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  182  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default --os-project-name demo --os-username demo --os-auth-type password token issue
+  183  openstack --os-auth-url http://gram1-control:5000 --os-project-domain-id default --os-user-domain-id default --os-project-name demo --os-username demo --os-auth-type password user list
+  184  sudo vi /etc/novarc
+  185  vi demo-openrc.csh
+  186  source /etc/novarc 
+  187  openstack token issue
+  188  mysql -u root -p
+  189  source /etc/novarc 
+  190  openstack user create --password-prompt glance
+  191  openstack role add --project service --user glance admin
+  192  openstack service create --name glance  --description "OpenStack Image service" image
+  193  openstack endpoint create --publicurl http://gram1-control:9292 --internalurl http://gram1-control:9292 --adminurl http://gram1-control:9292 --region regionOne image
+  194  sudo bash
+  195  echo "export OS_IMAGE_API_VERSION=2" | tee -a demo-openrc.sh
+  196  vi demo-openrc.sh 
+  197  cd
+  198  echo "export OS_IMAGE_API_VERSION=2" | tee -a admin-openrc.sh
+  199  source admin-openrc.sh 
+  200  mkdir /tmp/images
+  201  wget -P /tmp/images http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
+  202  glance image-create --name "cirros-0.3.4-x86_64" --file /tmp/images/cirros-0.3.4-x86_64-disk.img
+  203  glance image-create --name "cirros-0.3.4-x86_64" --file /tmp/images/cirros-0.3.4-x86_64-disk.img --disk-format qcow2 --container-format bare --visibility public --progress
+  204  glance image-list
+  205  sudo vi /etc/novarc 
+  206  pwd
+  207  ls
+  208  vi demo-openrc.csh 
+  209  vi demo-openrc.sh 
+  210  glance image-list
+  211  source demo-openrc.sh 
+  212  glance image-list
+  213  rm -r /tmp/images
+  214  mysql -u root -p
+  215  source /etc/novarc 
+  216  openstack user create --password-prompt nova
+  217  openstack role add --project service --user nova admin
+  218  openstack service create --name nova --description "OpenStack Compute" compute
+  219  openstack endpoint create --publicurl http://gram1-control:8774/v2/%\(tenant_id\)s --internalurl http://gram1-control:8774/v2/%\(tenant_id\)s --adminurl http://gram1-control:8774/v2/%\(tenant_id\)s --region regionOne compute
+  220  history > ~/gram-history
+    1  pwd
+    2  ls
+    3  scp rrosales@128.89.118.104:interfaces .
+    4  vi interfaces 
+    5  scp rrosales@128.89.118.104:hosts .
+    6  sudo cp interfaces /etc/network/interfaces
+    7  sudo cp hosts /etc/hosts
+    8  vi /etc/hosts
+    9  sudo ifup eth1 
+   10  sudo ifup eth2
+   11  sudo ifup eth3
+   12  ifconfig -a
+   13  scp interfaces gram@128.89.118.103
+   14  scp interfaces gram@128.89.118.103:
+   15  ifconfig -a
+   16  ping 10.10.8.105
+   17  ping 10.10.8.101
+   18  ping 10.10.8.103
+   19  ping 10.10.8.102
+   20  ping 10.10.8.103
+   21  exit
+   22  ping 10.10.8.102
+   23  ping 10.10.8.105
+   24  ping 10.10.8.103
+   25  exit
+   26  apt-get install ubuntu-cloud-keyring
+   27  echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list
+   28  apt-get update && apt-get dist-upgrade
+   29  apt-get install mariadb-server python-mysqldb
+   30  vi /etc/mysql/conf.d/mysqld_safe_syslog.cnf 
+   31  ls /etc/mysql/my.cnf 
+   32  vi /etc/mysql/my.cnf 
+   33  service mysql restart
+   34  mysql_secure_installation 
+   35  exit
+   36  apt-get install rabbitmq-server
+   37  rabbitmqctl add_user openstack os_pwd
+   38  rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+   39  exit
+   40  sudo bash
+   41  mysql -u root -p
+   42  apt-get install rabbitmq-server
+   43  sudo bash
+   44  mysql -u root -p
+   45  openssl rand -hex 10
+   46  sudo bash
+   47  echo "manual" > /etc/init/keystone.override
+   48  apt-get install keystone python-openstackclient apache2 libapache2-mod-wsgi memcached python-memcache
+   49  vi /etc/keystone/keystone.conf 
+   50  openssl rand -hex 10
+   51  vi /etc/keystone/keystone.conf 
+   52  su -s /bin/sh -c "keystone-manage db_sync" keystone
+   53  vi /etc/apache2/apache2.conf 
+   54  ls /etc/apache2/sites-enabled/000-default.conf 
+   55  vi /etc/apache2/sites-enabled/000-default.conf 
+   56  vi /etc/apache2/sites-available/000-default.conf 
+   57  vi /etc/apache2/sites-available/wsgi-keystone.conf
+   58  ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
+   59  mkdir -p /var/www/cgi-bin/keystone
+   60  curl http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo  | tee /var/www/cgi-bin/keystone/main /var/www/cgi-bin/keystone/admin
+   61  chown -R keystone:keystone /var/www/cgi-bin/keystone
+   62  chmod 755 /var/www/cgi-bin/keystone/*
+   63  service apache2 restart
+   64  rm -f /var/lib/keystone/keystone.db
+   65  sudo service apache2 status
+   66  sudo grep admin /etc/keystone/keystone.conf
+   67  export OS_TOKEN=f7fd0d75471aa1a6ced2
+   68  export OS_URL=http://gram1-control:35357/v2.0
+   69  openstack service create   --name keystone --description "OpenStack Identity" identity
+   70  openstack endpoint create --publicurl http://gram1-control:5000/v2.0 --internalurl http://gram1-control:5000/v2.0 --adminurl http://gram1-control:5000/v2.0 --region regionOne identity
+   71  openstack project create --description "Admin Project" admin
+   72  openstack user create --password-prompt admin
+   73  openstack role create admin
+   74  openstack role add --project admin --user admin admin
+   75  openstack project create --description "Service Project" service
+   76  openstack project create --description "Demo Project" demo
+   77  openstack user create --password-prompt demo
+   78  openstack role create user
+   79  openstack role add --project demo --user demo user
+   80  vi /etc/keystone/keystone-paste.ini
+   81  sudo vi /etc/keystone/keystone-paste.ini
+   82  sudo cp /etc/keystone/keystone-paste.ini ~
+   83  sudo vi /etc/keystone/keystone-paste.ini
+   84  unset OS_TOKEN OS_URL
+   85  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password token issue
+   86  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default--os-project-name admin --os-username admin --os-auth-type password token issue
+   87  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default --os-project-name admin --os-username admin --os-auth-type password token issue
+   88  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   89  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+   90  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   91  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+   92  history | grep openstack
+   93  openstack project create --description "Service Project" service
+   94  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   95  openstack --os-auth-url http://gram1-control:35357 --os-username admin --os-auth-type password project list
+   96  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+   97  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+   98  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+   99  sudo service apache2 restart
+  100  sudo service apache2 status
+  101  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  102  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  103  pwd
+  104  ls
+  105  sudo diff keystone-paste.ini /etc/keystone/
+  106  sudo cp keystone-paste.ini /etc/keystone/
+  107  history | grep export
+  108  export OS_TOKEN=f7fd0d75471aa1a6ced2
+  109  export OS_URL=http://gram1-control:35357/v2.0
+  110  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  111  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  112  history | grep unset
+  113  unset OS_TOKEN OS_URL
+  114  sudo vi /etc/keystone/keystone.ini
+  115  ls
+  116  sudo vi /etc/keystone/keystone-paste.ini
+  117  diff ~/keystone-paste.ini /etc/keystone/keystone-paste.ini
+  118  sudo diff ~/keystone-paste.ini /etc/keystone/keystone-paste.ini
+  119  pwd
+  120  mysql -u root -p
+  121  sudo su -s /bin/sh -c "keystone-manage db_sync" keystone
+  122  vi /etc/apache2/sites-available/000-default.conf 
+  123  sudo service apache2 restart
+  124  history | grep export
+  125  export OS_TOKEN=f7fd0d75471aa1a6ced2
+  126  export OS_URL=http://gram1-control:35357/v2.0
+  127  history | grep openstack
+  128  history | grep openstack | grep keystone
+  129  openstack service create   --name keystone --description "OpenStack Identity" identity
+  130  history | grep endpoint
+  131  openstack endpoint create --publicurl http://gram1-control:5000/v2.0 --internalurl http://gram1-control:5000/v2.0 --adminurl http://gram1-control:5000/v2.0 --region regionOne identity
+  132  history | grep openstack
+  133  history | grep openstack | grep project
+  134  openstack project create --description "Admin Project" admin
+  135  openstack user create --password-prompt admin
+  136  openstack role create admin
+  137  openstack role add --project admin --user admin admin
+  138  openstack project create --description "Service Project" service
+  139  history | grep project | grep list
+  140  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  141  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+  142  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  143  apt-get install keystone python-openstackclient apache2 libapache2-mod-wsgi memcached python-memcache
+  144  sudo vi /etc/keystone/keystone.conf 
+  145  su -s /bin/sh -c "keystone-manage db_sync" keystone
+  146  vi /etc/apache2/apache2.conf 
+  147  vi /etc/apache2/sites-available/000-default.conf 
+  148  vi /etc/apache2/sites-available/wsgi-keystone.conf 
+  149  ls -l /etc/apache2/sites-available/wsgi-keystone.conf 
+  150  ls -l /var/www/cgi-bin/keystone/
+  151  vi /var/www/cgi-bin/keystone/main 
+  152  vi /var/www/cgi-bin/keystone/admin 
+  153  ls -l /var/www/cgi-bin/keystone/
+  154  ls -ld /var/www/cgi-bin/keystone/
+  155  ls -l /var/www/cgi-bin/keystone/*
+  156  service apache2 restart
+  157  exit
+  158  apt-get install glance python-glanceclient
+  159  history > ~gram/root-history
+  160  vi /etc/glance/glance-api.conf 
+  161  vi /etc/glance/glance-registry.conf 
+  162  vi /etc/glance/glance-api.conf 
+  163  vi /etc/glance/glance-registry.conf 
+  164  su -s /bin/sh -c "glance-manage db_sync" glance
+  165  ervice glance-registry restart
+  166  service glance-registry restart
+  167  service glance-api restart
+  168  rm -f /var/lib/glance/glance.sqlite
+  169  exit
+  170  apt-get install nova-api nova-cert nova-conductor nova-consoleauth nova-novncproxy nova-scheduler python-novaclient
+  171  vi /etc/nova/nova.conf 
+  172  ifconfig -a | grep 10.10.8
+  173  vi /etc/nova/nova.conf 
+  174  su -s /bin/sh -c "nova-manage db sync" nova
+  175  service nova-api restart
+  176  service nova-cert restart
+  177  service nova-consoleauth restart
+  178  service nova-scheduler restart
+  179  service nova-conductor restart
+  180  service nova-novncproxy restart
+  181  rm -f /var/lib/nova/nova.sqlite 
+  182  exit
+  183  history | grep service
+  184  service nova-api restart;176;177;178;179;180
+  185  service nova-api restart;service nova-cert restart;service nova-consoleauth restart;service nova-scheduler restart;service nova-conductor restart;service nova-novncproxy restart
+  186  exit
+  187  service nova-api restart;service nova-cert restart;service nova-consoleauth restart;service nova-scheduler restart;service nova-conductor restart;service nova-novncproxy restart
+  188  exit
+  189  ls /var/lib/ntp/
+  190  exit
+  191  ntpq -c peers
+  192  ntpq -c assoc
+  193  vi /etc/ntp.conf 
+  194  service ntp restart
+  195  service ntp status
+  196  ntpq -c peers
+  197  ntpq -c assoc
+  198  exit
+  199  apt-get install neutron-server neutron-plugin-ml2 python-neutronclient
+  200  vi /etc/neutron/neutron.conf 
+  201  pwd
+  202  ls
+  203  vi /etc/keystone/keystone.conf 
+  204  vi /etc/glance/*.conf
+  205  vi /etc/nova/nova.conf 
+  206  vi /etc/neutron/plugins/ml2/ml2_conf.ini 
+  207  vi /etc/nova/nova.conf 
+  208  su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+  209  service nova-api restart
+  210  service neutron-server restart
+  211  neutron agent-list
+  212  exit
+  213  vi /etc/neutron/plugins/ml2/ml2_conf.ini 
+  214  exit
+  215  vi /etc/nova/nova.conf 
+  216  service nova-api restart
+  217  exit
+  218  service nova-api restart
+  219  exit
+  220  mysql -u root -p
+  221  history | grep export
+  222  export OS_TOKEN=f7fd0d75471aa1a6ced2
+  223  export OS_URL=http://gram1-control:35357/v2.0
+  224  mysql -u root -p
+  225  openstack project create --description "Demo Project" demo
+  226  mysql -u root -p
+  227  openstack user create --password-prompt demo
+  228  openstack role create user
+  229  openstack role add --project demo --user demo user
+  230  pwd
+  231  ls
+  232  mysql -u root -p
+  233  sudo vi /etc/init/keystone.override 
+  234  sudo bash
+  235  printenv
+  236  openstack service create --name keystone --description "OpenStack Identity" identity
+  237  openstack endpoint create --publicurl http://gram1-control:5000/v2.0 --internalurl http://gram1-control:5000/v2.0 --adminurl http://gram1-control:35357/v2.0 --region regionOne identity
+  238  openstack project create --description "Admin Project" admin
+  239  openstack user create --password-prompt admin
+  240  openstack role create admin
+  241  openstack role add --project admin --user admin admin
+  242  openstack project create --description "Service Project" service
+  243  openstack project create --description "Demo Project" demo
+  244  openstack user create --password-prompt demo
+  245  openstack role create user
+  246  openstack role add --project demo --user demo user
+  247  ls
+  248  sudo vi /etc/keystone/keystone-paste.ini
+  249  sudo diff keystone-paste.ini /etc/keystone/keystone-paste.ini
+  250  sudo vi /etc/keystone/keystone-paste.ini
+  251  unset OS_TOKEN OS_URL
+  252  openstack --os-auth-url http://controller:35357  --os-project-name admin --os-username admin --os-auth-type password token issue
+  253  openstack --os-auth-url http://gram1-control:35357  --os-project-name admin --os-username admin --os-auth-type password token issue
+  254  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default --os-project-name admin --os-username admin --os-auth-type password token issue
+  255  openstack --os-auth-url http://gram1-control:35357 --os-project--name admin --os-username admin --os-auth-type password project list
+  256  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password project list
+  257  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password user list
+  258  openstack --os-auth-url http://gram1-control:35357 --os-project-name admin --os-username admin --os-auth-type password role list
+  259  openstack --os-auth-url http://gram1-control:35357 --os-project-domain-id default --os-user-domain-id default --os-project-name demo --os-username demo --os-auth-type password token issue
+  260  openstack --os-auth-url http://gram1-control:5000 --os-project-domain-id default --os-user-domain-id default --os-project-name demo --os-username demo --os-auth-type password user list
+  261  sudo vi /etc/novarc
+  262  vi demo-openrc.csh
+  263  source /etc/novarc 
+  264  openstack token issue
+  265  mysql -u root -p
+  266  source /etc/novarc 
+  267  openstack user create --password-prompt glance
+  268  openstack role add --project service --user glance admin
+  269  openstack service create --name glance  --description "OpenStack Image service" image
+  270  openstack endpoint create --publicurl http://gram1-control:9292 --internalurl http://gram1-control:9292 --adminurl http://gram1-control:9292 --region regionOne image
+  271  sudo bash
+  272  echo "export OS_IMAGE_API_VERSION=2" | tee -a demo-openrc.sh
+  273  vi demo-openrc.sh 
+  274  cd
+  275  echo "export OS_IMAGE_API_VERSION=2" | tee -a admin-openrc.sh
+  276  source admin-openrc.sh 
+  277  mkdir /tmp/images
+  278  wget -P /tmp/images http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
+  279  glance image-create --name "cirros-0.3.4-x86_64" --file /tmp/images/cirros-0.3.4-x86_64-disk.img
+  280  glance image-create --name "cirros-0.3.4-x86_64" --file /tmp/images/cirros-0.3.4-x86_64-disk.img --disk-format qcow2 --container-format bare --visibility public --progress
+  281  glance image-list
+  282  sudo vi /etc/novarc 
+  283  pwd
+  284  ls
+  285  vi demo-openrc.csh 
+  286  vi demo-openrc.sh 
+  287  glance image-list
+  288  source demo-openrc.sh 
+  289  glance image-list
+  290  rm -r /tmp/images
+  291  mysql -u root -p
+  292  source /etc/novarc 
+  293  openstack user create --password-prompt nova
+  294  openstack role add --project service --user nova admin
+  295  openstack service create --name nova --description "OpenStack Compute" compute
+  296  openstack endpoint create --publicurl http://gram1-control:8774/v2/%\(tenant_id\)s --internalurl http://gram1-control:8774/v2/%\(tenant_id\)s --adminurl http://gram1-control:8774/v2/%\(tenant_id\)s --region regionOne compute
+  297  history > ~/gram-history
+  298  vi ~/gram-history 
+  299  sudo bash
+  300  source /etc/novarc 
+  301  nova service-list
+  302  ssh -Y gram@128.89.91.170
+  303  ssh -Y gram@128.89.91.172
+  304  nova service-list
+  305  sudo bash
+  306  nova service-list
+  307  nova endpoints
+  308  ssh -Y gram@128.89.91.172
+  309  nova service-list
+  310  nova image-list
+  311  ssh -Y gram@128.89.91.172
+  312  nova service-list
+  313  sudo bash
+  314  nova service-list
+  315  pwd
+  316  ls
+  317  mkdir gram1-compute3-configs
+  318  ls gram1-compute3-configs/
+  319  service ntp status
+  320  date
+  321  sudo apt-get install ntp
+  322  sudo vi /etc/ntp.conf 
+  323  pwd
+  324  ls
+  325  sudo service ntp restart
+  326  nova service-list
+  327  neutron agent-list
+  328  sudo bash
+  329  date
+  330  sudo bash
+  331  nova service-list
+  332  nova endpoints
+  333  nova image-list
+  334  mysql -u root -p
+  335  nova service-list
+  336  openstack user create --password-prompt neutron
+  337  openstack role add --project service --user neutron admin
+  338  openstack service create --name neutron --description "OpenStack Networking" network
+  339  openstack endpoint create --publicurl http://gram1-control:9696 --adminurl http://gram1-control:9696 --internalurl http://gram1-control:9696 --region regionOne network
+  340  sudo bash
+  341  neutron ext-list
+  342  neutron agent-list
+  343  sudo bash
+  344  nova service-list
+  345  nova image-list
+  346  sudo bash
+  347  neutron agent-list
+  348  sudo bash
+  349  neutron agent-list
+  350  ssh -Y gram@128.89.118.103
+  351  ssh -Y gram@10.10.8.103
+  352  /etc/gram/install_gram_services.sh 
+  353  cd
+  354  exit
+  355  pwd
+  356  ls
+  357  cd gram
+  358  ls
+  359  sudo cp -r etc/gram /etc/gram
+  360  scp rrosales@128.89.118.104:~/config.json .
+  361  vi config
+  362  vi config.json 
+  363  sudo cp config /etc/gram/
+  364  sudo cp config.json /etc/gram/
+  365  sudo chown -R gram.gram /etc/gram
+  366  cd /top
+  367  cd /opt
+  368  sudo scp -r gram@128.89.118.105:/opt/gcf .
+  369  ls -l gcf/
+  370  pwd
+  371  ls
+  372  vi /etc/gram/config.json 
+  373  vi /etc/novarc 
+  374  pwd
+  375  ls
+  376  pwd
+  377  ls
+  378  cd
+  379  pwd
+  380  ls
+  381  vi /etc/gram/install_gram.sh 
+  382  more /etc/gram/install_gram.sh 
+  383  cd ~/gram/juno/install/
+  384  export PYTHONPATH=~gram/gram/src:~gram/gram/juno:$PYTHONPATH
+  385  python OpenStack.py 
+  386  cd /tmp/install/
+  387  chmod a+x *.sh
+  388  ls -l /etc/gram/
+  389  mkdir /etc/gram/certs
+  390  /opt/gcf/src/gen-certs.py --notAll --ch --am --directory=/etc/gram/certs
+  391  mkdir /home/gram/.backup
+  392  cd
+  393  pwd
+  394  ls
+  395  vi gram/gcf_config 
+  396  pwd
+  397  cd gram
+  398  ls -la
+  399  pwd
+  400  ls
+  401  cd /tmp/install/
+  402  ls
+  403  vi /etc/gram/install_gram.sh 
+  404  more /etc/gram/install_gram.sh 
+  405  chown -R gram.gram /etc/gram/certs
+  406  mkdir ~/.gcf
+  407  cp ~/gram/gcf_config ~/.gcf
+  408  vi ~/.gcf/gcf_config 
+  409  cd ~/gram/src/gram/am/gram/
+  410  make -B gram ssh_proxy
+  411  sudo apt-get install make
+  412  make -B gram ssh_proxy
+  413  make -B gram_ssh_proxy
+  414  sudo apt-get install gcc
+  415  make -B gram_ssh_proxy
+  416  sudo make -B gram_ssh_proxy
+  417  pwd
+  418  ls
+  419  more /etc/gram/install_gram.sh 
+  420  sudo bash
+  421  pwd
+  422  ls
+  423  vi /tmp/install/install_control.sh 
+  424  sudo bash
+  425  apt-get install openstack-dashboard
+  426  vi /etc/openstack-dashboard/local_settings.py 
+  427  serivce apache2 reload
+  428  service apache2 reload
+  429  service apache2 status
+  430  service apache2 restart
+  431  service apache2 status
+  432  pwd
+  433  ls
+  434  vi /tmp/install/install_control.sh 
+  435  vi /tmp/install/install_operating_system_control.sh 
+  436  /tmp/install/install_operating_system_control.sh 
+  437  source /etc/novarc
+  438  nova service-list
+  439  exit
+  440  hostname
+  441  exit
+  442  service neutron-server restart
+  443  exit
+  444  tail -f /var/log/upstart/gram-am.log 
+  445  sudo tail -f /var/log/upstart/gram-am.log 
+  446  pwd
+  447  ls
+  448  exit
+  449  pwd
+  450  ls
+  451  source /etc/novarc 
+  452  nova service-list
+  453  neutron agent-list
+  454  wget http://cloud-images.ubuntu.com/releases/precise/release/ubuntu-12.04-server-cloudimg-amd64-disk1.img
+  455  glance image-create --name "ubuntu-12.04" --is-public=true --disk-format=qcow2 --container-format=bare < ubuntu-12.04-server-cloudimg-amd64-disk1.img
+  456  history | grep glance
+  457  glance image-create --name "ubuntu-12.04" --visibility=public --disk-format=qcow2 --container-format=bare < ubuntu-12.04-server-cloudimg-amd64-disk1.img
+  458  glance image-list
+  459  sudo vim /var/log/upstart/gram-am.log 
+  460  make
+  461  sudo tail -f /var/log/upstart/gram-am.log 
+  462  sudo vi /var/log/upstart/gram-am.log 
+  463  vi gram/juno/pkg/gram_dpkg/DEBIAN_control/control 
+  464  sudo apt-get cloud-init cloud-image-utils
+  465  sudo apt-get install cloud-init cloud-image-utils
+  466  sudo tail -f /var/log/upstart/gram-am.log 
+  467  pwd
+  468  vi /var/log/upstart/gram-am.log 
+  469  sudo vi /var/log/upstart/gram-am.log 
+  470  sudo cp /var/log/upstart/gram-am.log .
+  471  vi gram-am.log 
+  472  chown -R gram gram-am.log 
+  473  sudo chown -R gram gram-am.log 
+  474  vi gram-am.log 
+  475  source /etc/novarc
+  476  keystone tenant-create --name geni:gram1-control:gcf+slice+c1
+  477  keystone user-create --name admin-geni:gram1-control:gcf+slice+c1 --pass sliceMaster:-) --enabled true --tenant-id c6c0f0e65d934fc0b490aea2e284b0d0
+  478  keystone user-create --name admin-geni:gram1-control:gcf+slice+c1 --pass sliceMaster: --enabled true --tenant-id c6c0f0e65d934fc0b490aea2e284b0d0
+  479  source /etc/novarc
+  480  keystone tenant-create --name geni:gram1-control:gcf+slice+c1
+  481  ps -ef | grep gram-am
+  482  sudo service gram-am status
+  483  sudo service gram-am stop
+  484  keystone tenant-create --name geni:gram1-control:gcf+slice+c1
+  485  openstack create tenant geni:gram1-control:gcf+slice+c1
+  486  openstack project create geni:gram1-control:gcf+slice+c1
+  487  keystone tenant-list
+  488  openstack
+  489*  tenant-list
+  490  openstack
+  491  openstack --help
+  492  openstack user create --name admin-geni:gram1-control:gcf+slice+c1 --pass sliceMaster --enabled=true
+  493  openstack project list
+  494  openstack user create --name admin-geni:gram1-control:gcf+slice+c1 --password sliceMaster --enabled --project geni:gram1-control:gcf+slice+c1
+  495  openstack user create --password sliceMaster --enabled --project geni:gram1-control:gcf+slice+c1 admin-geni:gram1-control:gcf+slice+c1
+  496  openstack user create --password sliceMaster --enable --project geni:gram1-control:gcf+slice+c1 admin-geni:gram1-control:gcf+slice+c1
+  497  openstack role list
+  498  openstack user list
+  499  openstack delete user dbe13d727279465da423d639070eefc6 
+  500  openstack user delete dbe13d727279465da423d639070eefc6 
+  501  openstack user list
+  502  openstack
+  503  openstack user list
+  504  openstack project list
+  505  openstack role add --project geni:gram1-control:gcf+slice+c1 --user admin-geni:gram1-control:gcf+slice+c1 
+  506  openstack role add --project geni:gram1-control:gcf+slice+c1 --user admin-geni:gram1-control:gcf+slice+c1  user
+  507  openstack user list
+  508  openstack role list
+  509  nova --os-username=admin-geni:gram1-control:gcf+slice+z1 --os-password=sliceMaster: --os-tenant-name=geni:gram1-control:gcf+slice+z1 secgroup-create geni:gram1-control:gcf+slice+z1_secgrp tenant-security-group
+  510  nova
+  511  history | grep openstack
+  512  nova --os-username=admin-geni:gram1-control:gcf+slice+z1 --os-password=sliceMaster --os-tenant-name=geni:gram1-control:gcf+slice+z1 secgroup-create geni:gram1-control:gcf+slice+z1_secgrp tenant-security-group
+  513  nova --os-username=admin-geni:gram1-control:gcf+slice+c1 --os-password=sliceMaster --os-tenant-name=geni:gram1-control:gcf+slice+c1 secgroup-create geni:gram1-control:gcf+slice+c1_secgrp tenant-security-group
+  514  history >> ~/gram-history 
