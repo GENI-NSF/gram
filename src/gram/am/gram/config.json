@@ -13,13 +13,20 @@
    "aggregate_id" : "urn:publicid:IDN+gram1-control.bbn.com+authority+am",
 
    "default_VM_flavor": "m1.small",
-   "default_OS_image": "ubuntu-12.04",
+   "default_OS_image": "ubuntu-14.04",
    "default_OS_type": "Linux",
-   "default_OS_version": "12",
+   "default_OS_version": "14",
 
 
    "disk_image_metadata":
    {
+   "ubuntu-14.04":
+       {
+        "os": "Linux",
+        "version": "14.0",
+        "description":" Standard Ubuntu",
+        "boot_complete_msg" : "cloud-init boot finished at"
+        },
    "ubuntu-12.04":
        {
         "os": "Linux",
