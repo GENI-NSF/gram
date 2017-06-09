@@ -1,26 +1,3 @@
-#----------------------------------------------------------------------
-# Copyright (c) 2013-2016 Raytheon BBN Technologies
-#
-# Permission is hereby granted, free of charge, to any person obtaining
-# a copy of this software and/or hardware specification (the "Work") to
-# deal in the Work without restriction, including without limitation the
-# rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Work, and to permit persons to whom the Work
-# is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be
-# included in all copies or substantial portions of the Work.
-#
-# THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
-# IN THE WORK.
-#----------------------------------------------------------------------
-
 
 import datetime
 import dateutil
@@ -833,13 +810,13 @@ class GramManager :
 #            print cmd
             os.system(cmd)
 
-            cmd = "keystone tenant-list"
+            cmd = "openstack project list"
             output = open_stack_interface._execCommand(cmd)
             output_fields = open_stack_interface._parseTableOutput(output)
-            tenant_uuids =  output_fields['id']
-#            print "TENANT_UUIDS = %s" % tenant_uuids
+            tenant_uuids =  output_fields['ID']
+            print "TENANT_UUIDS = %s" % tenant_uuids
             try:
-                config.logger.info("Cleaning up danglihg secgrps")
+                config.logger.info("Cleaning up dangling secgrps")
                 uuids_expr =  ",".join("'" + tenant_uuid + "'" \
                                            for tenant_uuid in tenant_uuids)
 
@@ -848,8 +825,8 @@ class GramManager :
                         (config.network_user, config.mysql_password,
                          config.control_host_addr, config.network_database,
                          '"', table_name, uuids_expr, '"')
-#                    print cmd
-                    os.system(cmd)
+                    print cmd
+                    #RRH - have to figure out why tables don't exist in the neutron database - os.system(cmd)
             except Exception, e:
                 print e
                 

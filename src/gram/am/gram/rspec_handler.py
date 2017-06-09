@@ -608,6 +608,23 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         sliver_block = sliver_block + image_types
         sliver_block = sliver_block + '    </sliver_type> \n'
 
+    pis = config.rpi_metadata
+    pi_names =  ""
+    for pi_name in pis:
+	if config.rpi_metadata.has_key(pi_name):
+	    pidata = config.rpi_metadata[pi_name]
+	    if pidata.has_key('ip_address'): ip_address = pidata['ip_address']
+	    if pidata.has_key('vlan'): vlan = pidata['vlan']
+	rpi = '      <rpi name="%s" ip_address="%s" vlan="%s" />' % (pi_name, ip_address, vlan)
+	pi_names = pi_names + rpi + "\n"
+
+
+    pi_block = ''
+    entry = '    <pi_data>'
+    pi_block = pi_block + entry + '\n'
+    pi_block = pi_block + pi_names
+    pi_block = pi_block + '    </pi_data> \n'
+
     node_block = ''
     stitching_link_block = ""
     for compute_node in compute_nodes.keys():
@@ -621,6 +638,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         node_block = node_block + location_block + '\n'
         node_block = node_block + sliver_block
         node_block = node_block + interface_block
+	node_block = node_block + pi_block
         node_block = node_block + '</node> \n \n'
 
         stitching_link_template = '<link component_name="%s" ' + \
@@ -714,8 +732,8 @@ def generateAdvertisement(am_urn, stitching_handler = None):
                    '<action name="delete_snapshot" next=""> \n' + \
                        '<description>Delete a public image of a snapshot</description> \n' + \
                    '</action> \n' +   \
-                '<description>These operations can be run on VMs in a any state.Must \
-                 specify vm_name and snapshot_name in optsfile.</description> \n' + \
+                '<description>These operations can be run on VMs in any state. Must '+ \
+                 'specify vm_name and snapshot_name in optsfile.</description> \n' + \
                 '</state> \n' + \
                 '</rspec_opstate> \n'
 
