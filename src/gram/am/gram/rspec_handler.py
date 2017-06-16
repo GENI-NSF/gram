@@ -63,6 +63,39 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
         # Get information about the node from the rspec
         node_attributes = node.attributes
 
+	# If this request has a pi_tag, handle it differently
+	if node_attributes.has_key('pi_tag'):
+	    temp1 = geni_slice._slice_urn.rsplit('+',1)
+	    temp2 = temp1[1]
+	    # Boolean used to determine if the requested pi_name is in the database
+	    flag = 0
+#	    print 'PI KEY DETECTED IN ASSOCIATION WITH SLICE: "%s"' % (temp2)
+	    # Set the pi_state to match the request
+	    if node_attributes.has_key('client_id') :
+		node_name = node_attributes['client_id'].value
+		pi_list = config.rpi_metadata
+		for pi_name in pi_list:
+		   if node_name == pi_name:
+			flag = 1
+			if pi_list[pi_name]['available'].lower() == 'true':
+			    pi_list[pi_name]['available'] = 'False'
+			    pi_list[pi_name]['owner'] = temp2	
+			else :
+			    # Resource not available
+			    error_string = \
+				'Rspec error: Raspberry Pi with name %s is not available' % \
+				node_name
+			    error_code = constants.UNSUPPORTED
+	                    config.logger.error(error_string)
+            		    return error_string, error_code, sliver_list, None
+		if flag == 0:
+		   # Invalid Raspberry Pi name
+		   error_string = \
+			'Rspec error: Invalid Raspberry Pi name of %s' % node_name
+		   error_code = constants.UNSUPPORTED
+		   config.logger.error(error_string)
+		   return error_string, error_code, sliver_list, None
+
 
         # Find the name of the node.  We need to make sure we don't already
         # have a node with this name before we do anything else.
@@ -608,22 +641,56 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         sliver_block = sliver_block + image_types
         sliver_block = sliver_block + '    </sliver_type> \n'
 
-    pis = config.rpi_metadata
-    pi_names =  ""
-    for pi_name in pis:
+    # Advertise the current state of pi allocation
+    pi_list = config.rpi_metadata
+    pi_info = config.rpi_info
+    pi_result = ""
+
+    # The preset sliver and hardware information that is advertised
+    if pi_info.has_key('hardware_type'): pi_hw = pi_info['hardware_type']
+    if pi_hw.has_key('name'): pi_hw_name = pi_hw['name']
+    if pi_hw.has_key('emulab'): pi_hw_emulab = pi_hw['emulab']
+    pi_hw_block = '  <hardware_type name="%s">\n    <emulab:node_type type_slots="%s" />\n  </hardware_type>' \
+	 % (pi_hw_name, pi_hw_emulab)
+    if pi_info.has_key('sliver_type'): pi_sliver = pi_info['sliver_type']
+    if pi_info.has_key('disk_image'): pi_disk = pi_info['disk_image']
+    if pi_disk.has_key('name'): pi_disk_name = pi_disk['name']
+    if pi_disk.has_key('os'): pi_disk_os = pi_disk['os']
+    if pi_disk.has_key('version'): pi_disk_version = pi_disk['version']
+    if pi_disk.has_key('description'): pi_disk_desc = pi_disk['description']
+    pi_sliver_block = '  <sliver_type name="%s">\n    <disk_image name="%s" os="%s" version="%s" description="%s" />' % \
+	(pi_sliver, pi_disk_name, pi_disk_os, pi_disk_version, pi_disk_desc)
+
+    # The other pi-related information
+    for pi_name in pi_list:
 	if config.rpi_metadata.has_key(pi_name):
-	    pidata = config.rpi_metadata[pi_name]
-	    if pidata.has_key('ip_address'): ip_address = pidata['ip_address']
-	    if pidata.has_key('vlan'): vlan = pidata['vlan']
-	rpi = '      <rpi name="%s" ip_address="%s" vlan="%s" />' % (pi_name, ip_address, vlan)
-	pi_names = pi_names + rpi + "\n"
+	   pidata = config.rpi_metadata[pi_name]
+	   availability = pidata['available']
+	   #if availability.lower() == 'true':
+	   pidata = config.rpi_metadata[pi_name]
+	   interface_result = ""
+	   if pidata.has_key('component_id'): component_id = pidata['component_id']
+	   if pidata.has_key('exclusive'): exclusive = pidata['exclusive']
+	   if pidata.has_key('available'): available = pidata['available']
+	   if pidata.has_key('public_ipv4'): public_ipv4 = pidata['public_ipv4']
+	   if pidata.has_key('vlan'): vlan = pidata['vlan']  
+	   if pidata.has_key('owner'): owner = pidata['owner']  
+	   if pidata.has_key('interface'): interface_list = pidata['interface']
+	   for interface in interface_list:
+		interface_data = interface_list[interface]
+		if interface_data.has_key('interface_component_id'): interface_component_id = interface_data['interface_component_id']
+		if interface_data.has_key('role'): role = interface_data['role']
+		if interface_data.has_key('public_ipv4'): interface_ip = interface_data['public_ipv4']
+	   	interface_result = interface_result + '  <interface component_id="%s" role="%s" public_ipv4="%s" /> \n' % \
+		    (interface_component_id, role, interface_ip) 
+	   rpi_1 = '\n'+'<node component_manager_id="%s" component_name="%s" component_id="%s" exclusive="%s" available="%s" owner="%s" >' % \
+		    (component_manager_id, pi_name, component_id, exclusive, available, owner)
+	   pi_result = pi_result + rpi_1 + "\n" + pi_hw_block  + "\n" + pi_sliver_block + "\n" +'  </sliver_type>\n  '+ location_block  +\
+		 "\n" + interface_result + "</node>"+ "\n"
 
-
+    # For formatting of the pi_blocks
     pi_block = ''
-    entry = '    <pi_data>'
-    pi_block = pi_block + entry + '\n'
-    pi_block = pi_block + pi_names
-    pi_block = pi_block + '    </pi_data> \n'
+    pi_block = pi_block + pi_result
 
     node_block = ''
     stitching_link_block = ""
@@ -638,7 +705,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
         node_block = node_block + location_block + '\n'
         node_block = node_block + sliver_block
         node_block = node_block + interface_block
-	node_block = node_block + pi_block
+	#node_block = node_block + pi_block
         node_block = node_block + '</node> \n \n'
 
         stitching_link_template = '<link component_name="%s" ' + \
@@ -825,6 +892,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 
     result = advert_header  + '\n' + external_refs + '\n' + \
         node_block + '\n' + \
+	pi_block + \
         stitching_link_block + '\n' + stitching_advertisement + \
         POA_block + ci_block + '</rspec>'
 

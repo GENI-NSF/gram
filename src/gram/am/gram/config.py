@@ -114,7 +114,10 @@ vmoc_accept_clear_all_flows_on_startup = True
 # Maps disk_image by name to dic with {os, version, description}
 disk_image_metadata = {}
 
-# Maps pi_data with ip and vlan
+# Contains info relating to raspberry pis
+rpi_info = {}
+
+# Maps pi_data to dic
 rpi_metadata = {}
 
 # Backup directory for rolling back gram/openstack installation

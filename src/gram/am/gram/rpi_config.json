@@ -51,27 +51,94 @@
         }
    },
 
+   "rpi_info":
+   {
+   "component_manager_id" : "urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+authority+cm",
+   "hardware_type":
+       {
+        "name": "pc",
+        "emulab": "1"
+        },
+   "sliver_type": "raw-pc",
+   "disk_image":
+       {
+	"name":"urn:publicid:IDN+boscontroller.gram.gpolab.com+image+emulab-ops:you_image",
+	"os":"Fedora",
+	"version":"15",
+	"description":"Description for your image"
+        }
+   },
+
+
    "rpi_metadata":
    {
    "rpi-1":
        {
-        "ip_address": "128.89.91.174",
-        "vlan": "2001"
+	"component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+node+rpi-1",
+	"client_id":"rpi-1",
+	"owner":"",
+	"exclusive":"True",
+	"available":"True",
+        "public_ipv4": "128.89.91.174",
+        "vlan": "2001",
+	"interface": 
+		{
+		 "eth0":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-1:eth0","role":"control","public_ipv4":"128.89.91.174"},
+		 "eth1":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-1:eth1","role":"data","public_ipv4":"tbd"},
+		 "eth2":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-1:eth2","role":"management","public_ipv4":"tbd"},
+		 "eth3":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-1:eth3","role":"experimental","public_ipv4":"tbd"}
+		}
         },
    "rpi-2":
        {
-         "ip_address": "128.89.91.175",
-         "vlan": "2002"
-        },
+        "component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+node+rpi-2",
+	"client_id":"rpi-2",
+	"owner":"",
+	"exclusive":"True",
+	"available":"True",
+ 	"public_ipv4": "128.89.91.175",
+        "vlan": "2002",
+	"interface":
+		{
+		 "eth0":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-2:eth0","role":"control","public_ipv4":"128.89.91.175"},
+		 "eth1":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-2:eth1","role":"data","public_ipv4":"tbd"},
+		 "eth2":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-2:eth2","role":"management","public_ipv4":"tbd"},
+		 "eth3":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-2:eth3","role":"experimental","public_ipv4":"tbd"}
+		}
+       },
    "rpi-3":
        {
-         "ip_address": "128.89.91.176",
-         "vlan": "2003"
+        "component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+node+rpi-3",
+	"client_id":"rpi-3",
+	"owner":"",
+	"exclusive":"True",
+	"available":"True",
+ 	"public_ipv4": "128.89.91.176",
+        "vlan": "2003",
+	"interface": 
+		{
+		 "eth0":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-3:eth0","role":"control","public_ipv4":"128.89.91.176"},
+		 "eth1":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-3:eth1","role":"data","public_ipv4":"tbd"},
+		 "eth2":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-3:eth2","role":"management","public_ipv4":"tbd"},
+		 "eth3":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-3:eth3","role":"experimental","public_ipv4":"tbd"}
+		}
         },
    "rpi-4":
        {
-         "ip_address": "128.89.91.177",
-         "vlan": "2004"
+        "component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+node+rpi-4",
+	"client_id":"rpi-4",
+	"owner":"",
+	"exclusive":"True",
+	"available":"True",
+ 	"public_ipv4": "128.89.91.177",
+        "vlan": "2004",
+	"interface": 
+		{
+		 "eth0":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-4:eth0","role":"control","public_ipv4":"128.89.91.177"},
+		 "eth1":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-4:eth1","role":"data","public_ipv4":"tbd"},
+		 "eth2":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-4:eth2","role":"management","public_ipv4":"tbd"},
+		 "eth3":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-4:eth3","role":"experimental","public_ipv4":"tbd"}
+		}
         }
    },
 

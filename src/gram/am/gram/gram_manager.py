@@ -132,7 +132,8 @@ class GramManager :
 
         # Reconcile restored state with state of OpenStack
         # Are any resources no longer there? If so delete slices
-        self.reconcile_state()
+#Commented out by JM for pi testing
+#        self.reconcile_state()
 
         # If any slices restored from snapshot, report to VMOC
         with SliceURNtoSliceObject._lock:
@@ -542,7 +543,22 @@ class GramManager :
             for sliver in sliver_objects :
                 slice_object.removeSliver(sliver)
 
-            ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
+            # Make Raspberry Pi's Available
+	    temp1 = slice_object.getSliceURN()
+	    temp2 = temp1.rsplit('+',1)
+	    temp3 = temp2[1]
+	    slice_name = temp3
+	    # Print statement to be removed
+	    print 'SLICE %s DELETED, AS DESIRED' % slice_name
+	    pi_list = config.rpi_metadata
+	    for pi_name in pi_list:
+		if pi_list[pi_name]['owner'] == slice_name:
+		   pi_list[pi_name]['owner'] = ""
+		   pi_list[pi_name]['available'] = 'True'
+		   print 'OWNER HAS BEEN CLEARED'
+	    
+
+	    ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
             ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY
             ### EXPIRE.  FOR NOW WE DELETE THEM WHEN ALL THEIR SLIVERS ARE 
             ### DELETED.
@@ -967,8 +983,6 @@ class GramManager :
                     slice_slivers = slice_object.getSlivers().values()
                     config.logger.info("Deleting Slice URN = %s" % slice_urn)
                     self.delete(slice_object, slice_slivers, {})
-
-
 
     def __del__(self) :
         config.logger.info('In destructor')
