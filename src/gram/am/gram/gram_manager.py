@@ -100,7 +100,8 @@ class GramManager :
         self._internal_vlans = \
             vlan_pool.VLANPool(config.internal_vlans, "INTERNAL")
 
-        open_stack_interface.init() # OpenStack related initialization
+#Commented out by JM for pi testing
+#        open_stack_interface.init() # OpenStack related initialization
 
         # Set up a signal handler to clean up on a control-c
         # signal.signal(signal.SIGINT, open_stack_interface.cleanup)
@@ -144,7 +145,8 @@ class GramManager :
         # Remove extraneous snapshots
         self.prune_snapshots()
 
-        thread.start_new_thread(self.periodic_cleanup,())
+#COMMENTED OUT BY JM FOR PI TESTSING
+#        thread.start_new_thread(self.periodic_cleanup,())
 
     def getStitchingState(self) : return self._stitching
 
