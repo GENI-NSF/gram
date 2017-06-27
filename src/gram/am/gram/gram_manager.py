@@ -27,12 +27,14 @@ import os
 import getpass
 import signal
 import time
+import subprocess
 
 import config
 import constants
 from gcf.sfa.trust.certificate import Certificate
 from resources import GramImageInfo, Slice, VirtualMachine, NetworkLink
 import rspec_handler
+import provision_interface
 import open_stack_interface
 import stitching
 import utils
@@ -344,15 +346,16 @@ class GramManager :
         
         # Lock this slice so nobody else can mess with it during provisioning
         with slice_object.getLock() :
-            err_str = open_stack_interface.provisionResources(slice_object,
-                                                              sliver_objects,
-                                                              users, self)
-            if err_str != None :
+	    err_str = provision_interface.provisionResources(slice_object, sliver_objects, users, self)
+           # err_str = open_stack_interface.provisionResources(slice_object,
+           #                                                   sliver_objects,
+           #                                                   users, self)
+           # if err_str != None :
                 # We failed to provision this slice for some reason (described
                 # in err_str)
-                code = {'geni_code': constants.OPENSTACK_ERROR}
-                self.delete(slice_object, sliver_objects, options)        
-                return {'code': code, 'value': '', 'output': err_str}
+           #     code = {'geni_code': constants.OPENSTACK_ERROR}
+           #     self.delete(slice_object, sliver_objects, options)        
+           #     return {'code': code, 'value': '', 'output': err_str}
     
             # Set expiration times on the provisioned resources
             # Set expiration times on the allocated resources
@@ -535,7 +538,7 @@ class GramManager :
                     sliver.setOperationalState(constants.stopping)
 
             # Delete provisioned slivers
-            success =  open_stack_interface.deleteSlivers(slice_object, 
+            success =  provision_interface.deleteSlivers(slice_object, 
                                                           provisioned_slivers)
 
             sliver_status_list = \
@@ -558,7 +561,14 @@ class GramManager :
 		   pi_list[pi_name]['owner'] = ""
 		   pi_list[pi_name]['available'] = 'True'
 		   print 'OWNER HAS BEEN CLEARED'
-	    
+	   
+	   # ssh = subprocess.Popen(["ssh", "pi@128.89.73.43", "sudo", "./clean.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+           # result = ssh.stdout.readlines()
+   	   # if result == []:
+        #	error = ssh.stderr.readlines()
+        #	config.logger.info("Error: %s" % error)
+    	#    else:
+        #	config.logger.info("RESULT IS HERE: %s" % result)  
 
 	    ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
             ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY

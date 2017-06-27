@@ -97,40 +97,40 @@ def parseRequestRspec(agg_urn, geni_slice, rspec, stitching_handler=None) :
 		   return error_string, error_code, sliver_list, None
 
 
-#        # Find the name of the node.  We need to make sure we don't already
-#        # have a node with this name before we do anything else.
-#        if node_attributes.has_key('client_id') :
-#            node_name = node_attributes['client_id'].value
-#            list_of_existing_vms = geni_slice.getVMs()
-#            for i in range(0, len(list_of_existing_vms)) :
-#                if node_name == list_of_existing_vms[i].getName() :
-#                    # Duplicate name.  Fail this allocate
-#                    error_string = \
-#                        'Rspec error: VM with name %s already exists' % \
-#                        node_name
-#                    error_code = constants.REQUEST_PARSE_FAILED
-#                    config.logger.error(error_string)
-#                    return error_string, error_code, sliver_list, None
-#        else :
-#            error_string = 'Malformed rspec: Node name not specified' 
-#            error_code = constants.REQUEST_PARSE_FAILED
-#            config.logger.error(error_string)
-#            return error_string, error_code, sliver_list, None
-#
-#        # If the node is already bound (component_manager_id is set)
-#        # Ignore the node if it isn't bound to my component_manager_id
-#        if node_attributes.has_key('component_manager_id'):
-#            cmi = node_attributes['component_manager_id'].value
-#            if cmi  != agg_urn:
-#                print "Ignoring remote node : %s" % cmi
-#                continue
-#
-#        # Create a VirtualMachine object for this node and add it to the list
-#        # of virtual machines that belong to this slice at this aggregate
-#        vm_object = VirtualMachine(geni_slice)
-#        vm_object.setName(node_name)
-#        sliver_list.append(vm_object)
-#
+        # Find the name of the node.  We need to make sure we don't already
+        # have a node with this name before we do anything else.
+        if node_attributes.has_key('client_id') :
+            node_name = node_attributes['client_id'].value
+            list_of_existing_vms = geni_slice.getVMs()
+            for i in range(0, len(list_of_existing_vms)) :
+                if node_name == list_of_existing_vms[i].getName() :
+                    # Duplicate name.  Fail this allocate
+                    error_string = \
+                        'Rspec error: VM with name %s already exists' % \
+                        node_name
+                    error_code = constants.REQUEST_PARSE_FAILED
+                    config.logger.error(error_string)
+                    return error_string, error_code, sliver_list, None
+        else :
+            error_string = 'Malformed rspec: Node name not specified' 
+            error_code = constants.REQUEST_PARSE_FAILED
+            config.logger.error(error_string)
+            return error_string, error_code, sliver_list, None
+
+        # If the node is already bound (component_manager_id is set)
+        # Ignore the node if it isn't bound to my component_manager_id
+        if node_attributes.has_key('component_manager_id'):
+            cmi = node_attributes['component_manager_id'].value
+            if cmi  != agg_urn:
+                print "Ignoring remote node : %s" % cmi
+                continue
+
+        # Create a VirtualMachine object for this node and add it to the list
+        # of virtual machines that belong to this slice at this aggregate
+        vm_object = VirtualMachine(geni_slice)
+        vm_object.setName(node_name)
+        sliver_list.append(vm_object)
+
 #        # Check for component_id
 #        compute_hosts = GramImageInfo._compute_hosts.keys()
 #        if node_attributes.has_key('component_id'):
