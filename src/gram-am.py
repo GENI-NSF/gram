@@ -50,6 +50,7 @@ import gram
 import gram.am
 import gram.am.am3
 import gram.am.gram_am2
+import gram.am.rpiv3
 import gram.am.gram.config
 from gcf.geni.config import read_config
 
@@ -85,6 +86,8 @@ def parse_args(argv):
                       help="V3 server port", metavar="PORT")
     parser.add_option("-q", "--v2_port", type=int,
                       help="V2 server port", metavar="PORT")
+    parser.add_option("-z", "--rpi_port", type=int, 
+                      help="RPI V3 server port", metavar="PORT")
     parser.add_option("--debug", action="store_true", default=False,
                        help="enable debugging output")
     parser.add_option("-V", "--api-version", type=int,
@@ -134,6 +137,8 @@ def main(argv=None):
         opts.v3_port = gram.am.gram.config.gram_am_port
     if not opts.v2_port:
         opts.v2_port = gram.am.gram.config.gram_am_v2_port
+    if not opts.rpi_port:
+        opts.rpi_port = gram.am.gram.config.gram_am_rpi_port        
 
     level = logging.INFO
     if opts.debug:
@@ -245,15 +250,30 @@ def main(argv=None):
                                           authorizer=authorizer,
                                           resource_manager = resource_manager,
                                           GRAM=GRAM)
+
+    ams_rpi_v3 = gram.am.rpiv3.GramAggregateManagerServer((opts.host, int(opts.rpi_port)),
+                                          keyfile=keyfile,
+                                          certfile=certfile,
+                                          trust_roots_dir=getAbsPath(opts.rootcadir),
+                                          ca_certs=comboCertsFile,
+                                          base_name=config['global']['base_name'],
+                                          authorizer=authorizer,
+                                          resource_manager = resource_manager,
+                                          GRAM=GRAM)
     #else:
     #    msg = "Unknown API version: %d. Valid choices are \"1\", \"2\", or \"3\""
     #    sys.exit(msg % (opts.api_version))
 
     logging.getLogger('gcf-am').info('GENI AM 3 Listening on port %s...' % (opts.v3_port))
     logging.getLogger('gcf-am').info('GENI AM 2 Listening on port %s...' % (opts.v2_port))
+    logging.getLogger('gcf-am').info('GENI AM PI Listening on port %s...' % (opts.rpi_port))
  
     thread = threading.Thread(target=ams_v2.serve_forever,args=())
     thread.start()
+
+    thread = threading.Thread(target=ams_rpi_v3.serve_forever,args=())
+    thread.start()
+
     ams_v3.serve_forever()
 
 if __name__ == "__main__":

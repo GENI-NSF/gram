@@ -21,19 +21,20 @@
 # IN THE WORK.
 #----------------------------------------------------------------------
 
-
 import datetime
 import dateutil
 import os
 import getpass
 import signal
 import time
+import subprocess
 
 import config
 import constants
 from gcf.sfa.trust.certificate import Certificate
 from resources import GramImageInfo, Slice, VirtualMachine, NetworkLink
 import rspec_handler
+import provision_interface
 import open_stack_interface
 import stitching
 import utils
@@ -101,7 +102,8 @@ class GramManager :
         self._internal_vlans = \
             vlan_pool.VLANPool(config.internal_vlans, "INTERNAL")
 
-        open_stack_interface.init() # OpenStack related initialization
+#Commented out by JM for pi testing
+#        open_stack_interface.init() # OpenStack related initialization
 
         # Set up a signal handler to clean up on a control-c
         # signal.signal(signal.SIGINT, open_stack_interface.cleanup)
@@ -133,7 +135,8 @@ class GramManager :
 
         # Reconcile restored state with state of OpenStack
         # Are any resources no longer there? If so delete slices
-        self.reconcile_state()
+#Commented out by JM for pi testing
+#        self.reconcile_state()
 
         # If any slices restored from snapshot, report to VMOC
         with SliceURNtoSliceObject._lock:
@@ -144,7 +147,8 @@ class GramManager :
         # Remove extraneous snapshots
         self.prune_snapshots()
 
-        thread.start_new_thread(self.periodic_cleanup,())
+#COMMENTED OUT BY JM FOR PI TESTSING
+#        thread.start_new_thread(self.periodic_cleanup,())
 
     def getStitchingState(self) : return self._stitching
 
@@ -342,15 +346,16 @@ class GramManager :
         
         # Lock this slice so nobody else can mess with it during provisioning
         with slice_object.getLock() :
-            err_str = open_stack_interface.provisionResources(slice_object,
-                                                              sliver_objects,
-                                                              users, self)
-            if err_str != None :
+	    err_str = provision_interface.provisionResources(slice_object, sliver_objects, users, self)
+           # err_str = open_stack_interface.provisionResources(slice_object,
+           #                                                   sliver_objects,
+           #                                                   users, self)
+           # if err_str != None :
                 # We failed to provision this slice for some reason (described
                 # in err_str)
-                code = {'geni_code': constants.OPENSTACK_ERROR}
-                self.delete(slice_object, sliver_objects, options)        
-                return {'code': code, 'value': '', 'output': err_str}
+           #     code = {'geni_code': constants.OPENSTACK_ERROR}
+           #     self.delete(slice_object, sliver_objects, options)        
+           #     return {'code': code, 'value': '', 'output': err_str}
     
             # Set expiration times on the provisioned resources
             # Set expiration times on the allocated resources
@@ -533,7 +538,8 @@ class GramManager :
                     sliver.setOperationalState(constants.stopping)
 
             # Delete provisioned slivers
-            success =  open_stack_interface.deleteSlivers(slice_object, 
+	    # Uses provision_interface instead of openstack_interface, because pis
+            success =  provision_interface.deleteSlivers(slice_object, 
                                                           provisioned_slivers)
 
             sliver_status_list = \
@@ -543,7 +549,21 @@ class GramManager :
             for sliver in sliver_objects :
                 slice_object.removeSliver(sliver)
 
-            ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
+            # Make Raspberry Pi's Available
+	    temp1 = slice_object.getSliceURN()
+	    temp2 = temp1.rsplit('+',1)
+	    temp3 = temp2[1]
+	    slice_name = temp3
+	    # Print statement to be removed
+	    #print 'SLICE %s DELETED, AS DESIRED' % slice_name
+	    pi_list = config.rpi_metadata
+	    for pi_name in pi_list:
+		if pi_list[pi_name]['owner'] == slice_name:
+		   pi_list[pi_name]['owner'] = ""
+		   pi_list[pi_name]['available'] = 'True'
+		   #print 'OWNER HAS BEEN CLEARED'
+	   
+	    ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
             ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY
             ### EXPIRE.  FOR NOW WE DELETE THEM WHEN ALL THEIR SLIVERS ARE 
             ### DELETED.
@@ -833,13 +853,13 @@ class GramManager :
 #            print cmd
             os.system(cmd)
 
-            cmd = "keystone tenant-list"
+            cmd = "openstack project list"
             output = open_stack_interface._execCommand(cmd)
             output_fields = open_stack_interface._parseTableOutput(output)
-            tenant_uuids =  output_fields['id']
-#            print "TENANT_UUIDS = %s" % tenant_uuids
+            tenant_uuids =  output_fields['ID']
+            print "TENANT_UUIDS = %s" % tenant_uuids
             try:
-                config.logger.info("Cleaning up danglihg secgrps")
+                config.logger.info("Cleaning up dangling secgrps")
                 uuids_expr =  ",".join("'" + tenant_uuid + "'" \
                                            for tenant_uuid in tenant_uuids)
 
@@ -848,8 +868,8 @@ class GramManager :
                         (config.network_user, config.mysql_password,
                          config.control_host_addr, config.network_database,
                          '"', table_name, uuids_expr, '"')
-#                    print cmd
-                    os.system(cmd)
+                    print cmd
+                    #RRH - have to figure out why tables don't exist in the neutron database - os.system(cmd)
             except Exception, e:
                 print e
                 
@@ -968,8 +988,6 @@ class GramManager :
                     slice_slivers = slice_object.getSlivers().values()
                     config.logger.info("Deleting Slice URN = %s" % slice_urn)
                     self.delete(slice_object, slice_slivers, {})
-
-
 
     def __del__(self) :
         config.logger.info('In destructor')

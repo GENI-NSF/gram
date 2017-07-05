@@ -40,6 +40,7 @@ import monitor.gmoc
 # GRAM aggregate manager ports for V2 and V3
 gram_am_port = 5001
 gram_am_v2_port = 5002
+gram_am_rpi_port = 7010
 
 # OpenStack related configuration
 default_VM_flavor = 'm1.small'  
@@ -50,7 +51,7 @@ default_OS_version = '12'
 # Name of external router
 external_router_name = 'externalRouter'
 
-tenant_admin_pwd = 'sliceMaster:-)'  # Password for the tenant's admin user
+tenant_admin_pwd = 'sliceMaster:'  # Password for the tenant's admin user
                                   # account
 
 
@@ -112,6 +113,12 @@ vmoc_accept_clear_all_flows_on_startup = True
 
 # Maps disk_image by name to dic with {os, version, description}
 disk_image_metadata = {}
+
+# Contains info relating to raspberry pis
+rpi_info = {}
+
+# Maps pi_data to dic
+rpi_metadata = {}
 
 # Backup directory for rolling back gram/openstack installation
 backup_directory = "/home/gram/.backup"

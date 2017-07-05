@@ -201,6 +201,19 @@ class GramJSONEncoder(json.JSONEncoder):
 # of the JSON encoding of all slices and then all slivers
 def write_state(filename, gram_manager, slices, stitching_handler):
     #print "WS.CALL " + str(slices) + " " + filename
+   
+    #Store the state of pi allocations to the persistent state attribute
+    persistent_state = gram_manager.getPersistentState()
+    pi_list = config.rpi_metadata
+    for pi_name in pi_list:
+        pidata = pi_list[pi_name]
+        availability = pidata['available']
+        owner = pidata['owner']
+        rpi_1 = '%s %s %s' % (pi_name, availability, owner)
+        persistent_state[pi_name] = rpi_1
+    
+    gram_manager.setPersistentState(persistent_state)
+
     file = open(filename, "w")
     objects = []
     for slice in slices.values(): 
@@ -475,7 +488,19 @@ def read_state(filename, gram_manager, stitching_handler):
             elif "SSH_PROXY" in json_obj:
                 # Restore SSH Proxy table (IP address to port)
                 SSHProxyTable._restore(json_obj['SSH_PROXY'])
-
+    
+    # Set the state of pi allocation to match the persistent state
+    pi_persistent_state = gram_manager.getPersistentState()
+    pi_list = config.rpi_metadata
+    for pi_name in pi_list:
+	if pi_persistent_state[pi_name] != None:
+	   pi_data = pi_persistent_state[pi_name]
+	   pi_data_list = pi_data.split(" ")
+	   availability = pi_data_list[1]
+	   owner = pi_data_list[2]
+	   pi_list[pi_name]['available'] = availability
+	   pi_list[pi_name]['owner'] = owner
+    
     slices = dict()
     decoder = GramJSONDecoder(stitching_handler)
     for json_object in json_data: 
