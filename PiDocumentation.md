@@ -8,12 +8,12 @@
 2. Activate the GCF clearinghouse
   1. python gcf/src/gcf-ch.py
 3. On a different terminal, activate the GENI Aggregate Manager
-  1. ssh into boscontroller (see step 1)
-  2. source admin-openrc (sets environmental variables)
-  3. python gram/src/gram-am.py --config_file ~/gram/src/gram/am/gram/rpi_config.json
-  **NOTE**: The above steps 3-b and 3-c are currently aliased to "st2" on boscontroller
-  **NOTE**: Step 3-c activated the Aggregate Manager, but passed in a different config file
-  **NOTE**: rpi_config.json currently has the initial configuration info for the raspberry pis
+- 1. ssh into boscontroller (see step 1)
+- 2. source admin-openrc (sets environmental variables)
+- 3. python gram/src/gram-am.py --config_file ~/gram/src/gram/am/gram/rpi_config.json
+- **NOTE**: The above steps 3-b and 3-c are currently aliased to "st2" on boscontroller
+- **NOTE**: Step 3-c activated the Aggregate Manager, but passed in a different config file
+- **NOTE**: rpi_config.json currently has the initial configuration info for the raspberry pis
 
 ### Workflow: 
 
