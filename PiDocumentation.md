@@ -60,9 +60,9 @@
 
 ### Additional Notes
 
-**While SSH'd into the pi:**
-  **NOTE**: Again, currently all users have sudo access
-  **NOTE**: When this sliver is deleted, your home directory will be removed
+- **While SSH'd into the pi:**
+- **NOTE**: Again, currently all users have sudo access
+- **NOTE**: When this sliver is deleted, your home directory will be removed
 
 - **NOTE**: If your slivers expire, or the AM or CH shuts down, before you delete the slice:
 - **NOTE**: you may need to create the slice again, allocate an unallocated node to that slice,
