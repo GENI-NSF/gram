@@ -647,19 +647,21 @@ def generateAdvertisement(am_urn, stitching_handler = None):
     pi_result = ""
 
     # The preset sliver and hardware information that is advertised
-    if pi_info.has_key('hardware_type'): pi_hw = pi_info['hardware_type']
-    if pi_hw.has_key('name'): pi_hw_name = pi_hw['name']
-    if pi_hw.has_key('emulab'): pi_hw_emulab = pi_hw['emulab']
-    pi_hw_block = '  <hardware_type name="%s">\n    <emulab:node_type type_slots="%s" />\n  </hardware_type>' \
-	 % (pi_hw_name, pi_hw_emulab)
-    if pi_info.has_key('sliver_type'): pi_sliver = pi_info['sliver_type']
-    if pi_info.has_key('disk_image'): pi_disk = pi_info['disk_image']
-    if pi_disk.has_key('name'): pi_disk_name = pi_disk['name']
-    if pi_disk.has_key('os'): pi_disk_os = pi_disk['os']
-    if pi_disk.has_key('version'): pi_disk_version = pi_disk['version']
-    if pi_disk.has_key('description'): pi_disk_desc = pi_disk['description']
-    pi_sliver_block = '  <sliver_type name="%s">\n    <disk_image name="%s" os="%s" version="%s" description="%s" />' % \
-	(pi_sliver, pi_disk_name, pi_disk_os, pi_disk_version, pi_disk_desc)
+#    if pi_info.has_key('hardware_type'): pi_hw = pi_info['hardware_type']
+#    if pi_hw.has_key('name'): pi_hw_name = pi_hw['name']
+#    if pi_hw.has_key('emulab'): pi_hw_emulab = pi_hw['emulab']
+#    pi_hw_block = '  <hardware_type name="%s">\n    <emulab:node_type type_slots="%s" />\n  </hardware_type> \n' \
+#	 % (pi_hw_name, pi_hw_emulab)
+#    if pi_info.has_key('sliver_type'): pi_sliver = pi_info['sliver_type']
+#    if pi_info.has_key('disk_image'): pi_disk = pi_info['disk_image']
+#    if pi_disk.has_key('name'): pi_disk_name = pi_disk['name']
+#    if pi_disk.has_key('os'): pi_disk_os = pi_disk['os']
+#    if pi_disk.has_key('version'): pi_disk_version = pi_disk['version']
+#    if pi_disk.has_key('description'): pi_disk_desc = pi_disk['description']
+#    pi_sliver_block = '  <sliver_type name="%s">\n    <disk_image name="%s" os="%s" version="%s" description="%s" /> \n  </sliver_type> \n  ' % \
+#	(pi_sliver, pi_disk_name, pi_disk_os, pi_disk_version, pi_disk_desc)
+    pi_sliver_block = ""
+    pi_hw_block = ""
 
     # The other pi-related information
     for pi_name in pi_list:
@@ -685,7 +687,7 @@ def generateAdvertisement(am_urn, stitching_handler = None):
 		    (interface_component_id, role, interface_ip) 
 	   rpi_1 = '\n'+'<node component_manager_id="%s" component_name="%s" component_id="%s" exclusive="%s" available="%s" owner="%s" >' % \
 		    (component_manager_id, pi_name, component_id, exclusive, available, owner)
-	   pi_result = pi_result + rpi_1 + "\n" + pi_hw_block  + "\n" + pi_sliver_block + "\n" +'  </sliver_type>\n  '+ location_block  +\
+	   pi_result = pi_result + rpi_1 + "\n" + pi_hw_block  + pi_sliver_block + location_block  +\
 		 "\n" + interface_result + "</node>"+ "\n"
 
     # For formatting of the pi_blocks
@@ -913,5 +915,4 @@ def getHostFromUrn(urn):
         m = re.search(r'.*\+node\+(.*)',urn)
         if m:
             return m.group(1)
-
 

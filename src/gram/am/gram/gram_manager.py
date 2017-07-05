@@ -538,6 +538,7 @@ class GramManager :
                     sliver.setOperationalState(constants.stopping)
 
             # Delete provisioned slivers
+	    # Uses provision_interface instead of openstack_interface, because pis
             success =  provision_interface.deleteSlivers(slice_object, 
                                                           provisioned_slivers)
 
@@ -554,22 +555,14 @@ class GramManager :
 	    temp3 = temp2[1]
 	    slice_name = temp3
 	    # Print statement to be removed
-	    print 'SLICE %s DELETED, AS DESIRED' % slice_name
+	    #print 'SLICE %s DELETED, AS DESIRED' % slice_name
 	    pi_list = config.rpi_metadata
 	    for pi_name in pi_list:
 		if pi_list[pi_name]['owner'] == slice_name:
 		   pi_list[pi_name]['owner'] = ""
 		   pi_list[pi_name]['available'] = 'True'
-		   print 'OWNER HAS BEEN CLEARED'
+		   #print 'OWNER HAS BEEN CLEARED'
 	   
-	   # ssh = subprocess.Popen(["ssh", "pi@128.89.73.43", "sudo", "./clean.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-           # result = ssh.stdout.readlines()
-   	   # if result == []:
-        #	error = ssh.stderr.readlines()
-        #	config.logger.info("Error: %s" % error)
-    	#    else:
-        #	config.logger.info("RESULT IS HERE: %s" % result)  
-
 	    ### THIS CODE SHOULD BE MOVED TO EXPIRE WHEN WE ACTUALLY EXPIRE
             ### SLIVERS AND SLICES.  SLICES SHOULD BE DELETED ONLY WHEN THEY
             ### EXPIRE.  FOR NOW WE DELETE THEM WHEN ALL THEIR SLIVERS ARE 

@@ -44,7 +44,8 @@ import manage_ssh_proxy
 
 from xml.dom.minidom import *
 
-
+# Modification of the method found in openstack_interface
+# Used to allow SSH access to the allocated raspberry pis
 def provisionResources(geni_slice, slivers, users, gram_manager) :
     """
         Allocate network and VM resources for this slice.
@@ -105,56 +106,48 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
         for nic in vm.getNetworkInterfaces() :
             nic.enable()
  
-    create_return = _createAllVMs(vms_to_be_provisioned,
+    create_return = _createAllPiVMs(vms_to_be_provisioned,
                                   users, gram_manager, geni_slice)
     return create_return
 
-# To be renamed to pis
-def _createAllVMs(vms_to_be_provisioned, users, gram_manager, geni_slice):
+# Method where Pis are "provisioned"
+def _createAllPiVMs(vms_to_be_provisioned, users, gram_manager, geni_slice):
     
-    #config.logger.info('vms_to_be_provisioned = "%s" len of vms = "%s" users = "%s" gram_manager = "%s" geni_slice = "%s" ' % \
-#	(vms_to_be_provisioned, vm_len, users, gram_manager, geni_slice)) 
-
-    # List that will hold one script for each user. Script will establish ssh access	
-    scriptList = []
-
     # Parse manifest rspec to get currently allocated pi name
+    # Currently only valid for single pi requests
     mani_rspec = geni_slice._manifest_rspec
-    temp = mani_rspec.split('"')
-    pi_name = temp[13]
+    if mani_rspec != None :
+        temp = mani_rspec.split('"')
+        pi_name = temp[13]
 
-    # retrieve proper ip address based on pi name
-    pi_list = config.rpi_metadata
-    pidata = pi_list[pi_name]
-    public_ipv4 = pidata['public_ipv4']
-    #config.logger.info("public_ipv4 = %s" % public_ipv4)
+        # retrieve proper ip address based on pi name
+        pi_list = config.rpi_metadata
+        pidata = pi_list[pi_name]
+        public_ipv4 = pidata['public_ipv4']
+        #config.logger.info("public_ipv4 = %s" % public_ipv4)
     
-    HOST = "pi@%s" % public_ipv4
-    #config.logger.info("host = %s" % HOST) 
+        HOST = "pi@%s" % public_ipv4
+        #config.logger.info("host = %s" % HOST) 
  
-    # Generate one init script and one clean script that will handle all users
-    initScript=_generateAccount(users)
-    cleanScript=_generateClean(users)
+        # Generate one init script and one clean script that will handle all users
+        initScript=_generateAccount(users)
+        cleanScript=_generateClean(users)
 
-    # config.logger.info('scriptList = "%s" ' % (scriptList))
-    # config.logger.info('scriptList2 = "%s" ' % (scriptList2))
+        #HOST = "pi@128.89.91.174"
     
+        # Copy over and execute each account generation script
+        subprocess.call(['chmod', '+x', initScript])
+        subprocess.call(['scp', initScript, '%s:/home/pi/temp/initScript.sh' % HOST])
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, "sudo", "./temp/initScript.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
-    #HOST = "pi@128.89.91.174"
-    
-    # Copy over and execute each account generation script
-    subprocess.call(['chmod', '+x', initScript])
-    subprocess.call(['scp', initScript, '%s:/home/pi/temp/initScript.sh' % HOST])
-    ssh = subprocess.Popen(["ssh", "%s" % HOST, "sudo", "./temp/initScript.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
-    # Change the state of the "vm"	
-    for vm in vms_to_be_provisioned:
-        vm.setAllocationState(constants.provisioned)
-	vm.setOperationalState(constants.ready)
+        # Change the state of the "vm"	
+        for vm in vms_to_be_provisioned:
+            vm.setAllocationState(constants.provisioned)
+	    vm.setOperationalState(constants.ready)
 
-    # Copy over and execute the clean-up script
-    subprocess.call(['chmod', '+x', cleanScript])
-    subprocess.call(['scp', cleanScript, '%s:/home/pi/temp/clean.sh' % HOST])
+        # Copy over and execute the clean-up script
+        subprocess.call(['chmod', '+x', cleanScript])
+        subprocess.call(['scp', cleanScript, '%s:/home/pi/temp/clean.sh' % HOST])
 
     return None
 
@@ -281,43 +274,43 @@ def deleteSlivers(geni_slice, slivers):
     return_val = True  # Value returned by this method.  Be optimistic!
 
     mani_rspec = geni_slice._manifest_rspec
-    temp = mani_rspec.split('"')
-    pi_name = temp[13]
-    # config.logger.info("<><><><> PI NAME = %s" % pi_name)
+    if mani_rspec != None :
+        temp = mani_rspec.split('"')
+        pi_name = temp[13]
 
-    # retrieve proper ip address based on pi name
-    pi_list = config.rpi_metadata
-    pidata = pi_list[pi_name]
-    public_ipv4 = pidata['public_ipv4']
-    #config.logger.info("public_ipv4 = %s" % public_ipv4)
+        # retrieve proper ip address based on pi name
+        pi_list = config.rpi_metadata
+        pidata = pi_list[pi_name]
+        public_ipv4 = pidata['public_ipv4']
+        #config.logger.info("public_ipv4 = %s" % public_ipv4)
     
-    HOST = "pi@%s" % public_ipv4
-    #config.logger.info("HOST = %s" % HOST) 
+        HOST = "pi@%s" % public_ipv4
+        #config.logger.info("HOST = %s" % HOST) 
 
-    # We delete all the VMs before we delete the links.
-    # Walk through the list of sliver_objects and create two list:
-    # links_to_be_deleted and vms_to_be_deleted
-    links_to_be_deleted = list()
-    vms_to_be_deleted = list()
-    for sliver in slivers :
-        if isinstance(sliver, resources.NetworkLink) :
-            # sliver is a link object
-            links_to_be_deleted.append(sliver)
-        elif isinstance(sliver, resources.VirtualMachine) :
-            # sliver is a vm object
-            vms_to_be_deleted.append(sliver)
-    config.logger.info('Deleting %s links and %s vms' % \
+        # We delete all the VMs before we delete the links.
+        # Walk through the list of sliver_objects and create two list:
+        # links_to_be_deleted and vms_to_be_deleted
+        links_to_be_deleted = list()
+        vms_to_be_deleted = list()
+        for sliver in slivers :
+            if isinstance(sliver, resources.NetworkLink) :
+                # sliver is a link object
+                links_to_be_deleted.append(sliver)
+            elif isinstance(sliver, resources.VirtualMachine) :
+                # sliver is a vm object
+                vms_to_be_deleted.append(sliver)
+        config.logger.info('Deleting %s links and %s vms' % \
                            (len(links_to_be_deleted),
                             len(vms_to_be_deleted)))
 
-    # For each VM to be deleted, delete the VM and its associated network ports
-    for vm in vms_to_be_deleted  :
-        success = _deleteVM(vm, HOST)
-        if success :
-            vm.setAllocationState(constants.unallocated)
-            vm.setOperationalState(constants.stopping)
-        else :
-            return_val = False
+        # For each VM to be deleted, delete the VM and its associated network ports
+        for vm in vms_to_be_deleted  :
+            success = _deleteVM(vm, HOST)
+            if success :
+                vm.setAllocationState(constants.unallocated)
+                vm.setOperationalState(constants.stopping)
+            else :
+                return_val = False
 
 
     return return_val
