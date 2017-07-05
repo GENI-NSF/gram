@@ -18,45 +18,45 @@
 ### Workflow: 
 
 4. List Resources
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 listresources
-  **NOTE**: The above command should return the pi nodes contained within this AM.
-  **NOTE**: The property "available" should show you if the resource is currently able to be allocated
-  **NOTE**: If "unavailable" the property "owner" should show you the slice that is using the pi
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 listresources
+- **NOTE**: The above command should return the pi nodes contained within this AM.
+- **NOTE**: The property "available" should show you if the resource is currently able to be allocated
+- **NOTE**: If "unavailable" the property "owner" should show you the slice that is using the pi
 5. Create Slice
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 createslice <slicename>
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 createslice <slicename>
 6. Renewslice
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 renewslice <slicename> <YYYYMMDD>
-  **NOTE**: Currently, this will return an error, but still properly set the expiration time
-  **NOTE**: Assuming the error is "can't subtract offset-naive and offset-aware datetimes"
-  **NOTE**: The above command only renews the slice, not any slivers contained within
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 renewslice <slicename> <YYYYMMDD>
+- **NOTE**: Currently, this will return an error, but still properly set the expiration time
+- **NOTE**: Assuming the error is "can't subtract offset-naive and offset-aware datetimes"
+- **NOTE**: The above command only renews the slice, not any slivers contained within
 7. Allocate Resources
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 allocate <slicename> <rspec>
-  **NOTE**: Rspecs can be found under the /gram/rspecs directory.
-  **NOTE**: One exists for any combination of rpi-1 through rpi-4.
-  **NOTE**: i.e. ../../gram/rspecs/rpi1_req.rsepc and ../../gram/rspecs/rpi2and4_req.rspec
-  **NOTE**: Currently only rpi1_req.rspec has the ipaddress labeled, as it is the only one connected at the moment
-  **NOTE**: The "pi-tag" key is what separates the execution thread for pi-specific handling
-  **NOTE**: Make sure the public_ipv4 matches the one found in the listresources step, under the experimental interface
-  **NOTE**: The "VM" that is "made" is currently the way that slivers are handled.
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 allocate <slicename> <rspec>
+- **NOTE**: Rspecs can be found under the /gram/rspecs directory.
+- **NOTE**: One exists for any combination of rpi-1 through rpi-4.
+- **NOTE**: i.e. ../../gram/rspecs/rpi1_req.rsepc and ../../gram/rspecs/rpi2and4_req.rspec
+- **NOTE**: Currently only rpi1_req.rspec has the ipaddress labeled, as it is the only one connected at the moment
+- **NOTE**: The "pi-tag" key is what separates the execution thread for pi-specific handling
+- **NOTE**: Make sure the public_ipv4 matches the one found in the listresources step, under the experimental interface
+- **NOTE**: The "VM" that is "made" is currently the way that slivers are handled.
 8. Renew sliver
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 renew <slicename> <YYYYMMDD>
-  **NOTE**: The above command will renew all slivers in the slice
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 renew <slicename> <YYYYMMDD>
+- **NOTE**: The above command will renew all slivers in the slice
 9. Provision slice
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 provision <slicename>
-  **NOTE**: This will generate an account on the specified pi for each user listed in the omni-config file
-  **NOTE**: Boscontroller will SSH in as pi@ADDRESS_OF_PI to establish the environment
-  **NOTE**: Currently all users have sudo powers
-  **NOTE**: At this point the user should be able to ssh in with ssh USERNAME@ADDRESS_OF_PI
-  **NOTE**: The ADDRESS_OF_PI should be visible in the manifest rspec returned after provisioning
-  **NOTE**: The user should not have to enter a password, but may have to accept the keys with "yes"
-  **NOTE**: If necessary, ssh -i /path/to/specific/key USERNAME@ADDRESS_OF_PI
-  **NOTE**: Log out of the pi before running the delete script
-  **NOTE**: If you do not, then your user won't be deleted properly, and your next init will fail
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 provision <slicename>
+- **NOTE**: This will generate an account on the specified pi for each user listed in the omni-config file
+- **NOTE**: Boscontroller will SSH in as pi@ADDRESS_OF_PI to establish the environment
+- **NOTE**: Currently all users have sudo powers
+- **NOTE**: At this point the user should be able to ssh in with ssh USERNAME@ADDRESS_OF_PI
+- **NOTE**: The ADDRESS_OF_PI should be visible in the manifest rspec returned after provisioning
+- **NOTE**: The user should not have to enter a password, but may have to accept the keys with "yes"
+- **NOTE**: If necessary, ssh -i /path/to/specific/key USERNAME@ADDRESS_OF_PI
+- **NOTE**: Log out of the pi before running the delete script
+- **NOTE**: If you do not, then your user won't be deleted properly, and your next init will fail
 10. Delete slice
-  1. python omni.py -V 3 -a http://128.89.91.170:7010 delete <slicename>
-  **NOTE**: The above command will delete all slivers in the slice
-  **NOTE**: It will also clean up the directory and ssh access on the pi
-  **NOTE**: It will also re-adjust the current state of pis and make them able to be allocated once again
+- 1. python omni.py -V 3 -a http://128.89.91.170:7010 delete <slicename>
+- **NOTE**: The above command will delete all slivers in the slice
+- **NOTE**: It will also clean up the directory and ssh access on the pi
+- **NOTE**: It will also re-adjust the current state of pis and make them able to be allocated once again
 
 ### Additional Notes
 
