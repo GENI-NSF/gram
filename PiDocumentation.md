@@ -60,10 +60,8 @@
 
 ### Additional Notes
 
-- **While SSH'd into the pi:**
 - **NOTE**: Again, currently all users have sudo access
 - **NOTE**: When this sliver is deleted, your home directory will be removed
-
 - **NOTE**: If your slivers expire, or the AM or CH shuts down, before you delete the slice:
 - **NOTE**: you may need to create the slice again, allocate an unallocated node to that slice,
 - **NOTE**: and then delete that slice, it should clear up all of the nodes as well as the pi on which you
@@ -72,27 +70,26 @@
 - **DEV-NOTE**: Additionally, the rpi_config file or the snapshot can be hard-edited.
 - **DEV-NOTE**: Only the availability and owner are dumped/restored via snapshots, using the persistent state attribute
 - **DEV-NOTE**: When configuring other pis for this process, you must edit the dhcpcd.conf file with the information. i.e.: 
-(At the bottom of the file)
+  (At the bottom of the file)
 
-interface eth0
+  interface eth0
 
-static ip_address=128.89.91.174/27
-static routers=128.89.91.162
-static domain_name_servers=128.89.91.10
+  static ip_address=128.89.91.174/27 
+  static routers=128.89.91.162
+  static domain_name_servers=128.89.91.10
 
-interface eth1
+  interface eth1
 
-static ip_address=10.10.5.104/24
+  static ip_address=10.10.5.104/24
 
-interface eth2
+  interface eth2
 
-static ip_address=10.10.6.104/24
+  static ip_address=10.10.6.104/24
 
-interface eth3
+  interface eth3
 
-static ip_address=10.10.8.104/24
+  static ip_address=10.10.8.104/24
 
 - **DEV-NOTE**: eth0 is always the actual ethernet port.
 - **DEV-NOTE**: The USB ports are labeled from eth1-eth4 in the order of top left, bottom left, top right, bottom right, upon reboot.
-- **DEV-NOTE**: Currently this code will only work when allocating a single pi, because of the way we select the host name in
-- **DEV-NOTE**: provision_interface.py
+- **DEV-NOTE**: Currently this code will only work when allocating a single pi, because of the way we select the host name in provision_interface.py
