@@ -3,8 +3,8 @@
 ### Initialize:
 
 1. SSH into boscontroller
-  1. ssh gram@128.89.91.170
-  2. supply password
+- 1. ssh gram@128.89.91.170
+- 2. supply password
 2. Activate the GCF clearinghouse
   1. python gcf/src/gcf-ch.py
 3. On a different terminal, activate the GENI Aggregate Manager
