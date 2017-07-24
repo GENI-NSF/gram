@@ -11,8 +11,8 @@
 - 1. ssh into boscontroller (see step 1)
 - 2. source admin-openrc (sets environmental variables)
 - 3. python gram/src/gram-am.py --config_file ~/gram/src/gram/am/gram/rpi_config.json
-- **NOTE**: The above steps 3-b and 3-c are currently aliased to "st2" on boscontroller
-- **NOTE**: Step 3-c activated the Aggregate Manager, but passed in a different config file
+- **NOTE**: The above steps 3-2 and 3-3 are currently aliased to "st2" on boscontroller
+- **NOTE**: Step 3-3 activated the Aggregate Manager, but passed in a different config file
 - **NOTE**: rpi_config.json currently has the initial configuration info for the raspberry pis
 
 ### Workflow: 
@@ -43,30 +43,28 @@
 - **NOTE**: The above command will renew all slivers in the slice
 9. Provision slice
 - 1. python omni.py -V 3 -a http://128.89.91.170:7010 provision <slicename>
-- **NOTE**: This will generate an account on the specified pi for each user listed in the omni-config file
+- **NOTE**: This will generate an account on the specified pi(s) for each user listed in the omni-config file
 - **NOTE**: Boscontroller will SSH in as pi@ADDRESS_OF_PI to establish the environment
 - **NOTE**: Currently all users have sudo powers
 - **NOTE**: At this point the user should be able to ssh in with ssh USERNAME@ADDRESS_OF_PI
 - **NOTE**: The ADDRESS_OF_PI should be visible in the manifest rspec returned after provisioning
 - **NOTE**: The user should not have to enter a password, but may have to accept the keys with "yes"
 - **NOTE**: If necessary, ssh -i /path/to/specific/key USERNAME@ADDRESS_OF_PI
-- **NOTE**: Log out of the pi before running the delete script
-- **NOTE**: If you do not, then your user won't be deleted properly, and your next init will fail
+- **NOTE**: Installing XQuarts or another terminal software and using ssh -X grants increased functionality
 10. Delete slice
 - 1. python omni.py -V 3 -a http://128.89.91.170:7010 delete <slicename>
 - **NOTE**: The above command will delete all slivers in the slice
-- **NOTE**: It will also clean up the directory and ssh access on the pi
+- **NOTE**: It will also restore the file systems of the pis to a clean state, and reboot the pis.
 - **NOTE**: It will also re-adjust the current state of pis and make them able to be allocated once again
 
 ### Additional Notes
 
 - **NOTE**: Again, currently all users have sudo access
-- **NOTE**: When this sliver is deleted, your home directory will be removed
+- **NOTE**: When this sliver is deleted, your ssh access will be deleted
 - **NOTE**: If your slivers expire, or the AM or CH shuts down, before you delete the slice:
 - **NOTE**: you may need to create the slice again, allocate an unallocated node to that slice,
 - **NOTE**: and then delete that slice, it should clear up all of the nodes as well as the pi on which you
 - **NOTE**: were working on.
-- **NOTE**: WE CANNOT ENTIRELY RESTORE STATE, WE ONLY REMOVE DIRECTORY, SSH, AND SUDO ACCESS
 - **DEV-NOTE**: Additionally, the rpi_config file or the snapshot can be hard-edited.
 - **DEV-NOTE**: Only the availability and owner are dumped/restored via snapshots, using the persistent state attribute
 - **DEV-NOTE**: When configuring other pis for this process, you must edit the dhcpcd.conf file with the information. i.e.: 
@@ -92,4 +90,3 @@
 
 - **DEV-NOTE**: eth0 is always the actual ethernet port.
 - **DEV-NOTE**: The USB ports are labeled from eth1-eth4 in the order of top left, bottom left, top right, bottom right, upon reboot.
-- **DEV-NOTE**: Currently this code will only work when allocating a single pi, because of the way we select the host name in provision_interface.py

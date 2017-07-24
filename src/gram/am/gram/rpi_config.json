@@ -62,9 +62,9 @@
    "sliver_type": "raw-pc",
    "disk_image":
        {
-	"name":"urn:publicid:IDN+boscontroller.gram.gpolab.com+image+emulab-ops:you_image",
-	"os":"Fedora",
-	"version":"15",
+	"name":"urn:publicid:IDN+boscontroller.gram.gpolab.com+image+emulab-ops:Raspbian",
+	"os":"Raspbian",
+	"version":"Jesse",
 	"description":"Description for your image"
         }
    },
@@ -80,6 +80,9 @@
 	"exclusive":"True",
 	"available":"True",
         "public_ipv4": "128.89.91.174",
+	"MAC": "b8:27:eb:43:97:10",
+	"NFS": "1",
+	"minicom": "5",
         "vlan": "2001",
 	"interface": 
 		{
@@ -96,7 +99,10 @@
 	"owner":"",
 	"exclusive":"True",
 	"available":"True",
- 	"public_ipv4": "128.89.91.175",
+ 	"MAC": "b8:27:eb:43:97:10",
+	"NFS": "1",
+	"minicom": "5",
+        "public_ipv4": "128.89.73.6",
         "vlan": "2002",
 	"interface":
 		{
@@ -113,8 +119,11 @@
 	"owner":"",
 	"exclusive":"True",
 	"available":"True",
- 	"public_ipv4": "128.89.91.176",
-        "vlan": "2003",
+ 	"public_ipv4": "128.89.73.77",
+       	"MAC": "b8:27:eb:ba:79:bd",
+	"NFS": "2",
+	"minicom": "3",
+	"vlan": "2003",
 	"interface": 
 		{
 		 "eth0":{"interface_component_id":"urn:publicid:IDN+boscontroller.gram.gpolab.bbn.com+interface+rpi-3:eth0","role":"experimental","public_ipv4":"128.89.91.176"},
