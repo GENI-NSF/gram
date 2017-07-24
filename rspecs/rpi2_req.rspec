@@ -7,6 +7,6 @@
         xsi:schemaLocation="http://www.geni.net/resources/rspec/3
         http://www.geni.net/resources/rspec/3/request.xsd">
 
-  <node client_id="rpi-2" exclusive="false" pi_tag="yes">
+  <node client_id="rpi-2" exclusive="false" pi_tag="yes" public_ipv4="128.89.73.6">
   </node>
 </rspec>
