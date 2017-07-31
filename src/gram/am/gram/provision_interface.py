@@ -266,7 +266,7 @@ def _deleteVM(NFS, minicom) :
     config.logger.info("COMMAND WAS: %s " % (command))
     # Delete the "VM" by overwriting the file system and power cycling the outlet
     # SSH -t accesses the server laptop using a pseudo terminal to allow for minicom to run
-    ssh = subprocess.Popen(["ssh", "-t", "aorta@128.89.73.69", "sudo", command], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    ssh = subprocess.Popen(["ssh", "-t", "aorta@128.89.72.91", "sudo", command], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = ssh.stdout.readlines()
     if result == []:
         error = ssh.stderr.readlines()

@@ -11,7 +11,6 @@
   </node>
   <node client_id="rpi-3" exclusive="false" pi_tag="yes" public_ipv4="128.89.72.170">
   </node>
-  <node client_id="rpi-4" exclusive="false" pi_tag="yes" public_ipv4="128.89.72.171">
+  <node client_id="rpi-5" exclusive="false" pi_tag="yes" public_ipv4="128.89.72.172">
   </node>
-
 </rspec>
