@@ -13,12 +13,12 @@
 - sudo 777 chmod /tftpbootbackup
 - sudo mkdir /nfs/clientbackup
 - If you want a static ip address, such as 10.42.0.212:
--  sudo nano /etc/network/interfaces
--  replace "iface eth0 inet manual" with:
--   auto eno1 (or whatever you choose)
--   iface eno1 inet static
--   address 10.42.0.212 (or whatever you choose)
--   netmask 255.255.255.0
+  - sudo nano /etc/network/interfaces
+  - replace "iface eth0 inet manual" with:
+  - auto eno1 (or whatever you choose)
+  - iface eno1 inet static
+  - address 10.42.0.212 (or whatever you choose)
+  - netmask 255.255.255.0
 
 #### Step 3: Create the original NFS: (On any Raspberry Pi 3 with the formatted SD card)
 - Install the OS.
@@ -63,27 +63,27 @@
 - sudo nano /etc/dnsmasq.conf
 - remove everything in dnsmasq.conf file
 - Add the following lines:
--  interface=eno1 (or whatever you named it)
--  port=0
--  log-dhcp
--  enable-tftp
--  dhcp-boot=bootcode.bin
--  tftp-root=/tftpboot
--  pxe-service=0,"Raspberry Pi Boot"
--  tftp-unique-root    (This allows for a separate tftproot based on ip address)
--  dhcp-option=3       (This disables the dhcp server from advertising as the default gateway)
--  dhcp-range=10.42.0.10, 10.42.0.100, 6h (customize as needed)
--  dhcp-host=PI_MAC_ADDRESS,IP_ADDRESS_TO_BE_ASSIGNED (i.e. dhcp-host=b8:27:eb:43:97:10,10.42.0.101)
--  ^ repeat the above line for each pi that is to be a client, using their MAC address and a chosen ip address to be assigned
+  - interface=eno1 (or whatever you named it)
+  - port=0
+  - log-dhcp
+  - enable-tftp
+  - dhcp-boot=bootcode.bin
+  - tftp-root=/tftpboot
+  - pxe-service=0,"Raspberry Pi Boot"
+  - tftp-unique-root    (This allows for a separate tftproot based on ip address)
+  - dhcp-option=3       (This disables the dhcp server from advertising as the default gateway)
+  - dhcp-range=10.42.0.10, 10.42.0.100, 6h (customize as needed)
+  - dhcp-host=PI_MAC_ADDRESS,IP_ADDRESS_TO_BE_ASSIGNED (i.e. dhcp-host=b8:27:eb:43:97:10,10.42.0.101)
+  - ^ repeat the above line for each pi that is to be a client, using their MAC address and a chosen ip address to be assigned
 - sudo systemctl enable dnsmasq.service
 - sudo ststemctl restart dnsmasq.service
 
 #### Step 7: Server NFS Configuration: (On your server)
 - sudo nano /nfs/clientbackup/etc/network/interfaces
 - add the following three lines to create an additional interface, to be used with a USB to Ethernet dongle
--  auto eth1
--  allow-hotplug eth1
--  iface eth1 inet dhcp
+  - auto eth1
+  - allow-hotplug eth1
+  - iface eth1 inet dhcp
 - sudo nano /nfs/clientbackup/etc/fstab and remove /dev/mmcbkp1 and /dev/mmcbkp2 lines, leaving only proc
 - Now make an /nfs/client directory for each pi, i.e. /nfs/client1 and /nfs/client2
 - rsync the contents of /nfs/clientbackup into each of the other /nfs/clientX directories
@@ -95,9 +95,9 @@
 - In each /tftpboot/IP_ADDRESS directory, you will find a cmdline.txt file
 - edit each file:
 - from root= onwards, replace it with
--  root=/dev/nfs nfsroot=10.42.0.212:/nfs/client1 rw ip=dhcp rootwait elevator=deadline
--  replace 10.42.0.212 with your server ip address and replace /nfs/client1 with whichever client directory you created for it
--  Make sure each pi has its own /nfs/client directory and that it is properly specified in the cmdline.txt nfsroot argument
+  - root=/dev/nfs nfsroot=10.42.0.212:/nfs/client1 rw ip=dhcp rootwait elevator=deadline
+  - replace 10.42.0.212 with your server ip address and replace /nfs/client1 with whichever client directory you created for it
+  - Make sure each pi has its own /nfs/client directory and that it is properly specified in the cmdline.txt nfsroot argument
 - for each /nfs/clientX directory created:
 - echo "/nfs/clientX *(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
 - sudo systemctl enable rpcbind
@@ -112,11 +112,11 @@
 
 #### If you want to use Static IP Addresses for the Public-facing Side
 - Underneath the "allow hotplug eth1" of the nfs/clientX/etc/network/interfaces file, add:
--  address x.x.x.x
--  netmask x.x.x.x
--  gateway x.x.x.x
--  dns-nameservers x.x.x.x y.y.y.y
--  dns-search website.com
+  - address x.x.x.x
+  - netmask x.x.x.x
+  - gateway x.x.x.x
+  - dns-nameservers x.x.x.x y.y.y.y
+  - dns-search website.com
 
 #### To Clean with the Same Image
 - sudo rm -rf /nfs/clientX
