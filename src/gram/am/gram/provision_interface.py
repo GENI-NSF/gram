@@ -46,6 +46,7 @@ from xml.dom.minidom import *
 
 # Modification of the method found in openstack_interface
 # Used to allow SSH access to the allocated raspberry pis
+# And to restore their file systems to a clean state after upon deletion
 def provisionResources(geni_slice, slivers, users, gram_manager) :
     """
         Allocate network and VM resources for this slice.
@@ -58,54 +59,16 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
         Returns an error message string on failure.  Failure to provision 
         any sliver results in the entire provision call being rolled back.
     """
-    # We provision all the links before we provision the VMs
-    # Walk through the list of sliver_objects in slivers and create two list:
-    # links_to_be_provisioned and vms_to_be_provisioned
-    links_to_be_provisioned = list()
+    # Walk through the list of sliver_objects in slivers and create a list:
+    # vms_to_be_provisioned
     vms_to_be_provisioned = list()
     for sliver in slivers :
         if isinstance(sliver, resources.VirtualMachine) :
             # sliver is a vm object
             vms_to_be_provisioned.append(sliver)
-    config.logger.info('Provisioning %s links and %s vms' % \
-                           (len(links_to_be_provisioned), 
-                            len(vms_to_be_provisioned))) 
+    config.logger.info('Provisioning %s vms' % \
+                           (len(vms_to_be_provisioned))) 
 
-
-    used_ips = []
-    for vm in vms_to_be_provisioned :
-        for nic in vm.getNetworkInterfaces() :
-            nic.enable()
-            if nic.getIPAddress():
-               used_ips.append(netaddr.IPAddress(nic.getIPAddress())) 
-
-        for nic in vm.getNetworkInterfaces() :
-            if not nic.getIPAddress():
-                link = nic.getLink()
-                if link == None :
-                   # NIC is not connected to a link.  Go to next NIC
-                    break
-
-                subnet = link.getSubnet()
-                if not subnet:
-                    subnet = geni_slice.generateSubnetAddress()
-                    while subnet in subnets_used:
-                        subnet = geni_slice.generateSubnetAddress()
-                    link.setSubnet(subnet)
-                subnet_addr = netaddr.IPNetwork(subnet)
-                for i in range(1,len(subnet_addr)):
-                    if not subnet_addr[i] in used_ips:
-                        nic.setIPAddress(str(subnet_addr[i]))
-                        nic.setNetmask('255.255.255.0')
-                        used_ips.append(subnet_addr[i])
-                        break
-                
-    # For each VM, assign IP addresses to all its interfaces that are
-    # connected to a network link
-    for vm in vms_to_be_provisioned :
-        for nic in vm.getNetworkInterfaces() :
-            nic.enable()
- 
     create_return = _createAllPiVMs(vms_to_be_provisioned,
                                   users, gram_manager, geni_slice)
     return create_return
@@ -113,41 +76,45 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
 # Method where Pis are "provisioned"
 def _createAllPiVMs(vms_to_be_provisioned, users, gram_manager, geni_slice):
     
-    # Parse manifest rspec to get currently allocated pi name
-    # Currently only valid for single pi requests
+    pi_list = config.rpi_metadata
+    pi_names = []
+
+    # Parse manifest rspec to get currently allocated pi name(s)
     mani_rspec = geni_slice._manifest_rspec
+    #config.logger.info("MANIFEST RSPEC = %s" % mani_rspec)
     if mani_rspec != None :
-        temp = mani_rspec.split('"')
-        pi_name = temp[13]
+        temp = mani_rspec.split('client_id')
+	for segment in temp:
+	    section = segment.split('"')
+	    x =  section[1]
+	    #config.logger.info("SECTION[1] = %s" % x)
+	    flag = 0
+	    for pi in pi_list:
+	        if pi == x:
+		    flag = 1
+	    if flag == 1:
+		pi_names.append(x)
 
-        # retrieve proper ip address based on pi name
-        pi_list = config.rpi_metadata
-        pidata = pi_list[pi_name]
-        public_ipv4 = pidata['public_ipv4']
-        #config.logger.info("public_ipv4 = %s" % public_ipv4)
-    
-        HOST = "pi@%s" % public_ipv4
-        #config.logger.info("host = %s" % HOST) 
- 
-        # Generate one init script and one clean script that will handle all users
+        # Generate one init script that will handle all users
         initScript=_generateAccount(users)
-        cleanScript=_generateClean(users)
 
-        #HOST = "pi@128.89.91.174"
+	for pi_name in pi_names:
+        
+            # retrieve proper ip address based on pi name
+            pidata = pi_list[pi_name]
+            public_ipv4 = pidata['public_ipv4']
     
-        # Copy over and execute each account generation script
-        subprocess.call(['chmod', '+x', initScript])
-        subprocess.call(['scp', initScript, '%s:/home/pi/temp/initScript.sh' % HOST])
-        ssh = subprocess.Popen(["ssh", "%s" % HOST, "sudo", "./temp/initScript.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            HOST = "pi@%s" % public_ipv4
     
+            # Copy over and execute each account generation script
+            subprocess.call(['chmod', '+x', initScript])
+            subprocess.call(['scp', initScript, '%s:/home/pi/temp/initScript.sh' % HOST])
+            ssh = subprocess.Popen(["ssh", "%s" % HOST, "sudo", "./temp/initScript.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
         # Change the state of the "vm"	
         for vm in vms_to_be_provisioned:
             vm.setAllocationState(constants.provisioned)
-	    vm.setOperationalState(constants.ready)
-
-        # Copy over and execute the clean-up script
-        subprocess.call(['chmod', '+x', cleanScript])
-        subprocess.call(['scp', cleanScript, '%s:/home/pi/temp/clean.sh' % HOST])
+            vm.setOperationalState(constants.ready)
 
     return None
 
@@ -219,50 +186,6 @@ def _generateAccount(users) :
 
     return scriptFilename
 
-def _generateClean(users) :
-    """ Generate a script that removes the user and deletes their home directory and SSH access
-    """
-
-    userName = ""
-    userNames = []
-    scriptFilename = ""
-
-    # Create a list of all usernames except for gramuser
-    for user in users :
-        for key in user.keys() :
-            if key == "urn" :
-	        if user[key] == "urn:publicid:IDN+geni:boscontroller:gcf+user+gramuser" :
-		    pass
-	        else :
-		    userName = user[key]
-		    userName = userName.split("+")[-1]
-		    userNames.append(userName)
-
-    if userNames != [] :
-	# Open the script file for writing
-	tempscriptfile = tempfile.NamedTemporaryFile(delete=False)
-	scriptFilename = '%s' % tempscriptfile.name
-        try:
-            scriptFile = open(scriptFilename, 'w')
-        except IOError:
-            config.logger.error("Failed to open file that creates metadata: %s" % scriptFilename)
-            return ""
-
-        # Use sh script
-        scriptFile.write('#!/bin/sh \n')
-
-        for name in userNames:
-       	    # Only install the user account if there is a user to install
-	    if name != "" :
-        	# Delete user and home directory
-        	scriptFile.write('deluser --remove-home %s \n' % name)
-        	# Remove users from sudoers list
-        	scriptFile.write('sed -i "s/%s  ALL=(ALL) NOPASSWD:ALL//g" /etc/sudoers \n' % name)
-
-        scriptFile.close()
-
-    return scriptFilename
-
 def deleteSlivers(geni_slice, slivers):
     """
         Delete the specified sliver_objects (slivers).  All slivers belong
@@ -272,67 +195,85 @@ def deleteSlivers(geni_slice, slivers):
         Returns False if one or more slivers did not get deleted.
     """
     return_val = True  # Value returned by this method.  Be optimistic!
-
-    mani_rspec = geni_slice._manifest_rspec
-    if mani_rspec != None :
-        temp = mani_rspec.split('"')
-        pi_name = temp[13]
-
-        # retrieve proper ip address based on pi name
-        pi_list = config.rpi_metadata
-        pidata = pi_list[pi_name]
-        public_ipv4 = pidata['public_ipv4']
-        #config.logger.info("public_ipv4 = %s" % public_ipv4)
+    success = True
     
-        HOST = "pi@%s" % public_ipv4
-        #config.logger.info("HOST = %s" % HOST) 
+    pi_list = config.rpi_metadata
+    pi_names = []
 
-        # We delete all the VMs before we delete the links.
-        # Walk through the list of sliver_objects and create two list:
-        # links_to_be_deleted and vms_to_be_deleted
-        links_to_be_deleted = list()
+    # Parse manifest rspec to get currently allocated pi name(s)
+    mani_rspec = geni_slice._manifest_rspec
+    #config.logger.info("MANIFEST RSPEC = %s" % mani_rspec)
+    if mani_rspec != None :
+	
+        temp = mani_rspec.split('client_id')
+	for segment in temp:
+	    section = segment.split('"')
+	    x =  section[1]
+	    #config.logger.info("SECTION[1] = %s" % x)
+	    flag = 0
+	    for pi in pi_list:
+	        if pi == x:
+		    flag = 1
+	    if flag == 1:
+		pi_names.append(x)
+
+	for pi_name in pi_names:
+        
+            # retrieve proper ip address based on pi name
+            pidata = pi_list[pi_name]
+            public_ipv4 = pidata['public_ipv4']
+	    NFS = pidata['NFS'] # note, it is X, not clientX, so use accordingly
+	    minicom = pidata['minicom']
+            #config.logger.info("public_ipv4 = %s" % public_ipv4)
+    
+            HOST = "pi@%s" % public_ipv4
+            #config.logger.info("HOST = %s" % HOST) 
+	    #config.logger.info("NFS = %s" % NFS)
+	    #config.logger.info("MINICOM = %s" % minicom)
+ 
+	    success = _deleteVM(NFS, minicom)
+
+        # Walk through the list of sliver_objects and create a list:
+        # vms_to_be_deleted
         vms_to_be_deleted = list()
         for sliver in slivers :
-            if isinstance(sliver, resources.NetworkLink) :
-                # sliver is a link object
-                links_to_be_deleted.append(sliver)
-            elif isinstance(sliver, resources.VirtualMachine) :
+            if isinstance(sliver, resources.VirtualMachine) :
                 # sliver is a vm object
                 vms_to_be_deleted.append(sliver)
-        config.logger.info('Deleting %s links and %s vms' % \
-                           (len(links_to_be_deleted),
-                            len(vms_to_be_deleted)))
+        config.logger.info('Deleting %s vms' % \
+                           (len(vms_to_be_deleted)))
 
         # For each VM to be deleted, delete the VM and its associated network ports
         for vm in vms_to_be_deleted  :
-            success = _deleteVM(vm, HOST)
             if success :
                 vm.setAllocationState(constants.unallocated)
                 vm.setOperationalState(constants.stopping)
             else :
                 return_val = False
 
-
     return return_val
 
-def _deleteVM(vm_object, HOST) :
+def _deleteVM(NFS, minicom) :
     """
         Delete the OpenStack VM that corresponds to this vm_object.
         Delete the network ports associated with the VM
 
-        Returns True of VM was successfully deleted.  False otherwise.
+        Returns True if VM was successfully deleted.  False otherwise.
     """
     return_val = True
-
-    # Delete the "VM" by executing the clean script
-    ssh = subprocess.Popen(["ssh", "%s" % HOST, "sudo", "./temp/clean.sh"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # command to be executed, specifying correct NFS client number and minicom outlet number
+    command = './tempgram/provision.sh client%s %s' % (NFS, minicom)
+    config.logger.info("COMMAND WAS: %s " % (command))
+    # Delete the "VM" by overwriting the file system and power cycling the outlet
+    # SSH -t accesses the server laptop using a pseudo terminal to allow for minicom to run
+    ssh = subprocess.Popen(["ssh", "-t", "aorta@128.89.72.91", "sudo", command], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = ssh.stdout.readlines()
     if result == []:
         error = ssh.stderr.readlines()
         config.logger.info("Error: %s" % error)
 	return_val = False
     else:
-        config.logger.info("RESULT IS HERE: %s" % result)
+        config.logger.info("Successful execution")
+        #config.logger.info("RESULT IS HERE: %s" % result)
 
     return return_val
-
