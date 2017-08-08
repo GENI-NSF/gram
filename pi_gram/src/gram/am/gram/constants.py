@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------
-# Copyright (c) 2013 Raytheon BBN Technologies
+# Copyright (c) 2013-2016 Raytheon BBN Technologies
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and/or hardware specification (the "Work") to
@@ -20,23 +20,38 @@
 # OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
 # IN THE WORK.
 #----------------------------------------------------------------------
-description "GRAM Aggregate Manager Service"
-author "Jeanne Ohren <johren@bbn.com>"
 
-start on runlevel [2345]
-stop on runlevel [016]
+# A series of constants for GRAM-internal processing
+# These things are not to be changed, even at config time.
+# Any thing that might be user configurable should be in config.py
+
+# Allocation states for slivers
+unallocated = 'geni_unallocated'
+allocated = 'geni_allocated'
+provisioned = 'geni_provisioned'
+
+# Operational states for slivers
+notready = 'geni_notready'
+configuring = 'geni_configuring'
+ready = 'geni_ready'
+failed = 'geni_failed'
+stopping = 'geni_stopping'
 
 
-pre-start script
+# Error codes returned by this aggregate manager
+# GENI standard codes.
+SUCCESS = 0
+REQUEST_PARSE_FAILED = 1        # aka BADARGS
+UNKNOWN_SLICE = 12              # aka SEARCHFAILED
+UNSUPPORTED = 13                
+RESOURCE_BUSY = 14
+SLICE_ALREADY_EXISTS = 17       # aka ALREADYEXISTS
+OUT_OF_RANGE = 19               # typically for time mismatches
+VLAN_UNAVAILABLE = 24
 
-    mkdir -p -m0755 /var/run/gram-am
-end script
+# GRAM specific codes
+OPENSTACK_ERROR = 100
 
-env PYTHONPATH=/opt/gcf/src:/home/gram/gram/src
-env OS_TENANT_NAME=admin
-env OS_USERNAME=admin
-env OS_PASSWORD=admin_pass
-env OS_AUTH_URL="http://localhost:5000/v2.0/"
-
-exec su -s /bin/sh -c "exec python /home/gram/gram/src/gram-am.py" gram 
-
+# We manage the IP address space for the control and management networks
+control_netmask = "255.255.255.0"
+management_netmask = "255.255.255.0"

@@ -56,7 +56,7 @@ def init() :
     """
     # Get the UUID of the GRAM management network
     mgmt_net_name = config.management_network_name 
-    cmd_string = '%s net-list' % config.network_type
+    cmd_string = 'openstack network list'
     try :
         output = _execCommand(cmd_string)
     except :
@@ -271,7 +271,9 @@ def provisionResources(geni_slice, slivers, users, gram_manager) :
             link.setOperationalState(constants.ready)
 
     # Find the VLANs used by this slice
-    nets_info = _getNetsForTenant(tenant_uuid)
+    nets_info = _getNetsForTenant(tenant_uuid, tenant_name,
+                                  admin_user_info['admin_name'],
+                                  admin_user_info['admin_pwd'])
     if nets_info == None :
         # Failed to get information on networks  Cleanup actions before 
         # we return:
@@ -548,9 +550,11 @@ def _createTenant(tenant_name) :
         Create an OpenStack tenant and return the uuid of this new tenant.
     """
     # Create a tenant
-    cmd_string = 'keystone tenant-create --name %s' % tenant_name
+    #cmd_string = 'keystone tenant-create --name %s' % tenant_name
+    cmd_string = 'openstack project create  %s' % tenant_name
     try :
-        output = _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         return None
     else :
@@ -562,7 +566,7 @@ def _deleteTenantByUUID(tenant_uuid) :
     """
         Delete the tenant with the given uuid.
     """
-    cmd_string = 'keystone tenant-delete %s' % tenant_uuid
+    cmd_string = 'openstack project delete %s' % tenant_uuid
     try :
         _execCommand(cmd_string)
     except :
@@ -578,17 +582,19 @@ def _createTenantAdmin(tenant_name, tenant_uuid) :
     admin_name = 'admin-' + tenant_name
     if len(admin_name) > 63:
         admin_name = str(uuid.uuid4())
-    cmd_string = 'keystone user-create --name %s --pass %s --enabled true --tenant-id %s' % (admin_name, config.tenant_admin_pwd, tenant_uuid)
+    #cmd_string = 'keystone user-create --name %s --pass %s --enabled true --tenant-id %s' % (admin_name, config.tenant_admin_pwd, tenant_uuid)
+    cmd_string = 'openstack user create --password %s --enable --project %s %s' % (config.tenant_admin_pwd, tenant_uuid, admin_name)
                                 
     try :
-        output = _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         # Failed to create admin account
-        config.logger.error('Exception during keystone user-create')
+        config.logger.error('Exception during openstack user create')
         return {}
     else :
         # Extract the admin's uuid from the output
-        admin_uuid = _getValueByPropertyName(output, 'id')
+        admin_uuid = _getValueByPropertyName(output, 'name')
         if admin_uuid == None :
             # Failed to create admin account
             config.logger.error('_createTenantAdmin: Cannot find uuid for admin')
@@ -596,9 +602,10 @@ def _createTenantAdmin(tenant_name, tenant_uuid) :
 
     # We now give this new user the role of adminstrator for this tenant
     # First, get a list of roles configured for this installation
-    cmd_string = 'keystone role-list'
+    cmd_string = 'openstack role list'
     try :
-        output = _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         # Failed to get a list of roles.  Undo what we've done until now:
         #      - delete the admin user
@@ -610,8 +617,10 @@ def _createTenantAdmin(tenant_name, tenant_uuid) :
         admin_role_uuid = _getUUIDByName(output, 'admin')
 
     # Now assign this new user the 'admin' role for this tenant
-    cmd_string= 'keystone user-role-add --user-id=%s --role-id=%s --tenant-id=%s' % \
-        (admin_uuid, admin_role_uuid, tenant_uuid)
+    #cmd_string= 'keystone user-role-add --user-id=%s --role-id=%s --tenant-id=%s' % \
+        #(admin_uuid, admin_role_uuid, tenant_uuid)
+    cmd_string= 'openstack role add --user %s --project %s admin' % \
+        (admin_uuid, tenant_uuid)
     try :
         output = _execCommand(cmd_string) 
     except :
@@ -632,9 +641,13 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
     """
     secgroup_name = '%s_secgrp' % tenant_name
 
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, tenant_name)
+    #cmd_string += ' secgroup-create %s tenant-security-group' % secgroup_name
+
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-create %s tenant-security-group' % secgroup_name
+    cmd_string += ' security group create %s' % secgroup_name
     try :
         _execCommand(cmd_string) 
     except :
@@ -643,9 +656,12 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
         return None
     
     # Add a rule to the tenant sec group enabling SSH traffic
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, tenant_name)
+    #cmd_string += ' secgroup-add-rule %s tcp 22 22 0.0.0.0/0 ' % secgroup_name
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-add-rule %s tcp 22 22 0.0.0.0/0 ' % secgroup_name
+    cmd_string += ' security group rule create --proto tcp --dst-port 22 %s' % secgroup_name
     try :
         _execCommand(cmd_string)
     except :
@@ -656,9 +672,12 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
         return None
             
     # Add a rule to the tenant sec group enabling ICMP traffic (ping, etc)
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, tenant_name)
+    #cmd_string += ' secgroup-add-rule %s icmp -1 -1 0.0.0.0/0 ' % secgroup_name
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-add-rule %s icmp -1 -1 0.0.0.0/0 ' % secgroup_name
+    cmd_string += ' security group rule create --proto icmp  %s' % secgroup_name
     try :
         _execCommand(cmd_string)
     except :
@@ -669,9 +688,13 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
         return None
 
     # For VMs with external control plane IP's, add a rule to route all ports > 30000
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, tenant_name)
+    #cmd_string += ' secgroup-add-rule %s tcp 30000 65535 0.0.0.0/0 ' % secgroup_name
+
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-add-rule %s tcp 30000 65535 0.0.0.0/0 ' % secgroup_name
+    cmd_string += ' security group rule create --proto tcp --dst-port 30000:65535  %s' % secgroup_name
     try :
         _execCommand(cmd_string)
     except :
@@ -682,9 +705,13 @@ def _createTenantSecurityGroup(tenant_name, admin_name, admin_pwd) :
         return None
 
     # For VMs with external control plane IP's, add a rule to route all ports > 30000
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, tenant_name)
+    #cmd_string += ' secgroup-add-rule %s udp 30000 65535 0.0.0.0/0 ' % secgroup_name
+
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-add-rule %s udp 30000 65535 0.0.0.0/0 ' % secgroup_name
+    cmd_string += ' security group rule create --proto udp --dst-port 30000:65535  %s' % secgroup_name
     try :
         _execCommand(cmd_string)
     except :
@@ -705,9 +732,13 @@ def _deleteTenantSecurityGroup(admin_name, admin_pwd, tenant_name,
     if secgrp_name == None:
         return
  
-    cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, tenant_name)
+    #cmd_string += ' secgroup-delete %s' % secgrp_name
+
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
         % (admin_name, admin_pwd, tenant_name)
-    cmd_string += ' secgroup-delete %s' % secgrp_name
+    cmd_string += ' security group delete %s' % secgrp_name
 
     # We may need to make multiple attempts to delete a security group.  This
     # often happens when a VM using this security group has not yet been 
@@ -736,7 +767,7 @@ def _deleteUserByUUID(user_uuid) :
     """
         Delete the user account for the user with the specified uuid.
     """
-    cmd_string = 'keystone user-delete %s' % user_uuid
+    cmd_string = 'openstack user delete %s' % user_uuid
     try :
         _execCommand(cmd_string)
     except :
@@ -749,11 +780,15 @@ def _createRouter(tenant_name, router_name) :
     """
         Create an OpenStack router and return the uuid of this new router.
     """
-    cmd_string = '%s router-create --tenant-id %s %s' % \
-        (config.network_type, tenant_name, router_name)
+    #cmd_string = '%s router-create --tenant-id %s %s' % \
+    #    (config.network_type, tenant_name, router_name)
+
+    cmd_string = 'openstack router create --project %s %s' % \
+        (tenant_name, router_name)
 
     try :
-        output = _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         # Failed to create router.
         config.logger.error('Failed to create router %s' % router_name)
@@ -778,10 +813,12 @@ def _createNetworkForLink(link_object,used_ips=None) :
     # Create a network with the exprimenter specified name for the link
     tenant_uuid = slice_object.getTenantUUID()
     network_name = link_object.getName()
-    cmd_string = '%s net-create %s --tenant-id %s --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id %s' % (config.network_type, network_name, tenant_uuid, link_object.getVLANTag())
+    #cmd_string = '%s net-create %s --tenant-id %s --provider:network_type vlan --provider:physical_network physnet1 --provider:segmentation_id %s' % (config.network_type, network_name, tenant_uuid, link_object.getVLANTag())
+    cmd_string = 'openstack network create --project %s --provider-network-type vlan --provider-physical-network physnet1 --provider-segment %s %s' % (tenant_uuid, link_object.getVLANTag(), network_name)
                                                            
     try :
-        output = _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         # Failed to create a network for this link.  Cleanup actions:
         #    - None
@@ -828,10 +865,14 @@ def _createNetworkForLink(link_object,used_ips=None) :
     end_ip = str(subnet_ip[-3])
 
 
-    cmd_string = '%s subnet-create --tenant-id %s --gateway %s  --allocation-pool start=%s,end=%s  %s %s' % \
-        (config.network_type, tenant_uuid, gateway_addr, start_ip,end_ip,network_uuid, subnet_addr)
+    #cmd_string = '%s subnet-create --tenant-id %s --gateway %s  --allocation-pool start=%s,end=%s  %s %s' % \
+    #    (config.network_type, tenant_uuid, gateway_addr, start_ip,end_ip,network_uuid, subnet_addr)
+
+    cmd_string = 'openstack subnet create --project %s --subnet-range %s --network %s --gateway %s --allocation-pool start=%s,end=%s subnet-%s' % \
+        (tenant_uuid, subnet_addr, network_uuid, gateway_addr, start_ip, end_ip, str(subnet_ip[0]))
     try :
-        output = _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         # Failed to create a subnet.  Cleanup actions:
         #    - Delete the network that was created
@@ -850,11 +891,15 @@ def _createNetworkForLink(link_object,used_ips=None) :
 
     # Add an interface for this link to the tenant router 
     router_name = slice_object.getTenantRouterName()
-    cmd_string = '%s router-interface-add %s %s' % (config.network_type,
-                                                    router_name,
+    #cmd_string = '%s router-interface-add %s %s' % (config.network_type,
+    #                                                router_name,
+    #                                                subnet_uuid)
+
+    cmd_string = 'openstack router add subnet %s %s' % (router_name,
                                                     subnet_uuid)
     try :
-        _execCommand(cmd_string) 
+        output = _execCommand(cmd_string)
+        print output
     except :
         # Failed to create interface.  Cleanup actions:
         #    - Delete the network created.  The subnet will be 
@@ -880,15 +925,16 @@ def _deleteNetworkLink(slice_object, net_uuid) :
             if link.getNetworkUUID() == net_uuid:
                 subnet_uuid = link.getSubnetUUID()
         router_name = slice_object.getTenantRouterName()
-        cmd_string = '%s router-interface-delete %s %s' % (config.network_type, router_name, subnet_uuid)
+        #cmd_string = '%s router-interface-delete %s %s' % (config.network_type, router_name, subnet_uuid)
+        cmd_string = 'openstack router remove subnet %s %s' % (router_name, subnet_uuid)
         try:
             _execCommand(cmd_string)
         except:
-            config.logger.error("Failed to delete router interface %s %s" % (router_name, subnet_uuid))
+            config.logger.error("Failed to delete router subnet %s %s" % (router_name, subnet_uuid))
 
         # Delete the router before deleting the net/subnet
         router_uuid = slice_object.getTenantRouterUUID()
-        cmd_string = '%s router-delete %s' % (config.network_type, router_uuid)
+        cmd_string = 'openstack router delete %s' % (router_uuid)
         try:
             _execCommand(cmd_string)
         except:
@@ -896,7 +942,8 @@ def _deleteNetworkLink(slice_object, net_uuid) :
         
 
 
-        cmd_string = '%s net-delete %s' % (config.network_type, net_uuid)
+        #cmd_string = '%s net-delete %s' % (config.network_type, net_uuid)
+        cmd_string = 'openstack network delete %s' % (net_uuid)
         try :
             _execCommand(cmd_string)
         except :
@@ -904,11 +951,39 @@ def _deleteNetworkLink(slice_object, net_uuid) :
             config.logger.error('Failed to delete network with uuid %s' % \
                                     net_uuid)
             return False # Failure
+
+
+        #admin_name, admin_pwd, admin_uuid = slice_object.getTenantAdminInfo()
+        #tenant_name = slice_object.getTenantName()
+        #secgrp_name = slice_object.getSecurityGroup()
+
+        #cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
+        #             % (admin_name, admin_pwd, tenant_name)
+        #cmd_string += ' security group delete %s' % secgrp_name
+        #try:
+        #    _execCommand(cmd_string)
+        #except :
+            # Failed to delete network.  Not much we can do.
+        #    config.logger.error('Failed to delete security group %s' % \
+        #    secgrp_name)
+        #    return False # Failure
+
+        #cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s' \
+        #             % (admin_name, admin_pwd, tenant_name)
+        #cmd_string += ' security group delete default'
+        #try:
+        #    _execCommand(cmd_string)
+        #except :
+            # Failed to delete security group.  Not much we can do.
+        #    config.logger.error('Failed to delete default security group default')
+        #    return False # Failure
+        
         return True # Success
 
 
-def _getNetsForTenant(tenant_uuid):
-    cmd_string = '%s net-list -- --tenant_id=%s' % (config.network_type, tenant_uuid)
+def _getNetsForTenant(tenant_uuid, tenant_name, admin_name, admin_pwd):
+    #cmd_string = '%s net-list -- --tenant_id=%s' % (config.network_type, tenant_uuid)
+    cmd_string = 'openstack --os-username %s --os-password %s --os-project-name %s network list' % (admin_name, admin_pwd, tenant_name)
     try :
         output = _execCommand(cmd_string)
     except :
@@ -926,9 +1001,11 @@ def _getNetsForTenant(tenant_uuid):
         name = line_parts[2].strip()
         subnets = line_parts[3].strip()
 
-        cmd_string = '%s net-show %s' % (config.network_type, net_id)
+        #cmd_string = '%s net-show %s' % (config.network_type, net_id)
+        cmd_string = 'openstack network show %s' % (net_id)
         try :
             net_output = _execCommand(cmd_string)
+            print net_output
         except :
             config.logger.error('Failed to get info on network %s' %  net_id)
             return None
@@ -956,10 +1033,13 @@ def _getNetsForTenant(tenant_uuid):
 def _getPortsForTenant(tenant_uuid,device_id=None):
     if device_id != None:
         cmd_string = '%s port-list -- --tenant_id=%s --device_id=%s' % (config.network_type, tenant_uuid,device_id)
+        #cmd_string = 'openstack port list --project %s --router %s' % (tenant_uuid, device_id)
     else:
         cmd_string = '%s port-list -- --tenant_id=%s' % (config.network_type, tenant_uuid)
+        #cmd_string = 'openstack port list --project %s' % (tenant_uuid)
     try :
         output = _execCommand(cmd_string)
+        print output
     except :
         config.logger.error('Failed to get port list for tenant %s' % \
                                 tenant_uuid)
@@ -985,9 +1065,12 @@ def _createVM(vm_object, users, placement_hint):
     slice_object = vm_object.getSlice()
     admin_name, admin_pwd, admin_uuid  = slice_object.getTenantAdminInfo()
     tenant_uuid = slice_object.getTenantUUID()
+    tenant_name = slice_object.getTenantName()
     os_image_id = _getImageUUID(vm_object.getOSImageName())
     vm_flavor_id = _getFlavorID(vm_object.getVMFlavor())
     vm_name = vm_object.getName()
+    router_uuid = slice_object.getTenantRouterUUID()
+    router_name = slice_object.getTenantRouterName()
 
     # Assumption: The management network is a /24 network
     # Meta-data services code makes a similar assumption
@@ -996,19 +1079,28 @@ def _createVM(vm_object, users, placement_hint):
 
     # Create ports for the experiment data networks
     vm_net_infs = vm_object.getNetworkInterfaces()
+    current_nic_count = 0
     for nic in vm_net_infs :
         if nic.isEnabled() :
+            current_nic_count = current_nic_count + 1
+            print current_nic_count
+            print 'len is ' + str(len(vm_net_infs) + 1)
             link_object = nic.getLink()
             if link_object == None: continue
             net_uuid = link_object.getNetworkUUID()
             nic_ip_addr = nic.getIPAddress()
             subnet_uuid = link_object.getSubnetUUID()
+            port_name = 'port-' + nic.getIPAddress()
             if nic.getIPAddress():
-                cmd_string = '%s port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (config.network_type, tenant_uuid, subnet_uuid,nic.getIPAddress(), net_uuid)
+                #cmd_string = '%s port-create --tenant-id %s --fixed-ip subnet_id=%s,ip_address=%s %s' % (config.network_type, tenant_uuid, subnet_uuid, nic.getIPAddress(), net_uuid)
+                cmd_string = 'openstack port create --project %s --fixed-ip subnet=%s,ip-address=%s --network %s %s' % (tenant_name, subnet_uuid, nic.getIPAddress(), net_uuid, port_name)
             else:
-                cmd_string = '%s port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (config.network_type, tenant_uuid, subnet_uuid, net_uuid)
-            output = _execCommand(cmd_string) 
+                #cmd_string = '%s port-create --tenant-id %s --fixed-ip subnet_id=%s %s' % (config.network_type, tenant_uuid, subnet_uuid, net_uuid)
+                cmd_string = 'openstack port create --project %s --fixed-ip subnet=%s --network %s %s' % (tenant_name, subnet_uuid, net_uuid, port_name)
+            output = _execCommand(cmd_string)
+            print output
             nic.setUUID(_getValueByPropertyName(output, 'id'))
+
 
     # Now grab and set the mac addresses from the port list
     ports_info = _getPortsForTenant(tenant_uuid)
@@ -1028,6 +1120,14 @@ def _createVM(vm_object, users, placement_hint):
         % (admin_name, admin_pwd, slice_object.getTenantName())
     cmd_string += (' boot %s --config-drive=true --poll --image %s --flavor %s' % \
                        (vm_name, os_image_id, vm_flavor_id))
+
+    #RRH - maybe move to openstack server create  --flavor m1.nano --image cirros --nic net-id=GRAM-mgmt-net --nic port-id=port1 \
+        #--security-group geni:gram1-control:gcf+slice+ali1_secgrp --key-name mykey exp-host1
+    #cmd_string = 'nova --os-username=%s --os-password=%s --os-tenant-name=%s' \
+    #    % (admin_name, admin_pwd, slice_object.getTenantName())
+    #cmd_string += (' boot %s --config-drive=true --poll --image %s --flavor %s' % \
+    #                   (vm_name, os_image_id, vm_flavor_id))
+
 
     component_name = vm_object.getComponentName()
     if component_name:
@@ -1050,10 +1150,10 @@ def _createVM(vm_object, users, placement_hint):
                                                          mgmt_net_prefix, 
                                                          userdata_filename)
     if metadata_cmd_count > 0 :
-        cmd_string += (' --user_data %s' % zipped_userdata_filename)
+        cmd_string += (' --user-data %s' % zipped_userdata_filename)
 
     # Add security group support
-    cmd_string += ' --security_groups %s' % slice_object.getSecurityGroup()
+    cmd_string += ' --security-groups %s' % slice_object.getSecurityGroup()
     
     # Tell nova to create a NIC on the VM that is connected to the GRAM 
     # management network
@@ -1117,6 +1217,7 @@ def _createVM(vm_object, users, placement_hint):
     cmd_string = 'nova show %s' % vm_uuid
     try :
         output = _execCommand(cmd_string)
+        print output
     except :
         config.logger.error('Failed to get properties for vm %s' % vm_uuid)
         return None
@@ -1277,7 +1378,7 @@ def _getUserUUID(user_name) :
     """
         Return the UUID of the specified OpenStrack user.
     """
-    cmd_string = 'keystone user-list'
+    cmd_string = 'openstack user list'
     output = _execCommand(cmd_string) 
 
     # Extract and return the uuid of the admin user 
@@ -1407,7 +1508,7 @@ def _getComputeNodeCount() :
 # Get dictionary of hostnames : hostname => list of services
 def _listHosts(onlyForService=None):
     hosts = {}
-    command_string = 'nova host-list'
+    command_string = 'openstack host list'
     output = _execCommand(command_string)
     output_lines = output.split('\n')
     for i in range(3, len(output_lines)-2):
@@ -1438,7 +1539,7 @@ def _listFlavors():
 # Get dictionary of all supported images (id => name)
 def _listImages():
     images ={}
-    command_string = "nova image-list"
+    command_string = "openstack image list"
     #output = _execCommand(command_string)
     output = resources.GramImageInfo.get_image_list()
     #print output2
@@ -1690,33 +1791,33 @@ def get_all_tenant_info():
     result = {} 
 
     # Get all tenants
-    cmd_string = "keystone tenant-list"
+    cmd_string = "openstack project list"
     output = _execCommand(cmd_string)
     tenant_info = _parseTableOutput(output)
 
     # Tenant ID's correspond to slices
     tenant_ids = []
-    for i in range(len(tenant_info['name'])):
-        tenant_name = tenant_info['name'][i]
+    for i in range(len(tenant_info['Name'])):
+        tenant_name = tenant_info['Name'][i]
         if tenant_name not in ['admin', 'service']:
-            tenant_ids.append(tenant_info['id'][i])
+            tenant_ids.append(tenant_info['ID'][i])
 
     # Users are admins on slices
-    cmd_string = "keystone user-list"
+    cmd_string = "openstack user list"
     output = _execCommand(cmd_string)
 #    print "USER-LIST %s" % output
     users_info = _parseTableOutput(output)
 #    print "USERS_INFO = %s" % users_info
     user_uuids_by_tenant_id = {}
-    for i in range(len(users_info['id'])):
-        if users_info['name'][i] not in \
+    for i in range(len(users_info['ID'])):
+        if users_info['Name'][i] not in \
                 ['admin', 'cinder', 'glance', 'nova', config.network_type]:
-            user_uuid = users_info['id'][i]
-            user_cmd_string = 'keystone user-get %s' % user_uuid
+            user_uuid = users_info['ID'][i]
+            user_cmd_string = 'openstack user show %s' % user_uuid
             user_output = _execCommand(user_cmd_string)
             user_info = _parseTableOutput(user_output)
-            for j in range(len(user_info['Property'])):
-                if user_info['Property'][j] == 'tenantId':
+            for j in range(len(user_info['Field'])):
+                if user_info['Field'][j] == 'default_project_id':
                     user_tenant_uuid = user_info['Value'][j]
                     user_uuids_by_tenant_id[user_tenant_uuid] = [user_uuid]
 
@@ -1729,8 +1830,8 @@ def get_all_tenant_info():
         output = _execCommand(cmd_string)
         vms_info = _parseTableOutput(output)
         vm_uuids = []
-        if 'ID' in vms_info:
-            vm_uuids = vms_info['ID']
+        if 'id' in vms_info:
+            vm_uuids = vms_info['id']
         result[tenant_id]['vm_uuids'] = vm_uuids
 
         cmd_string = '%s router-list -F id --tenant_id=%s' % (config.network_type, tenant_id)

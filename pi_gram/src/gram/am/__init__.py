@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------
-# Copyright (c) 2013 Raytheon BBN Technologies
+# Copyright (c) 2013-2016 Raytheon BBN Technologies
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and/or hardware specification (the "Work") to
@@ -20,23 +20,4 @@
 # OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
 # IN THE WORK.
 #----------------------------------------------------------------------
-description "GRAM Aggregate Manager Service"
-author "Jeanne Ohren <johren@bbn.com>"
-
-start on runlevel [2345]
-stop on runlevel [016]
-
-
-pre-start script
-
-    mkdir -p -m0755 /var/run/gram-am
-end script
-
-env PYTHONPATH=/opt/gcf/src:/home/gram/gram/src
-env OS_TENANT_NAME=admin
-env OS_USERNAME=admin
-env OS_PASSWORD=admin_pass
-env OS_AUTH_URL="http://localhost:5000/v2.0/"
-
-exec su -s /bin/sh -c "exec python /home/gram/gram/src/gram-am.py" gram 
 

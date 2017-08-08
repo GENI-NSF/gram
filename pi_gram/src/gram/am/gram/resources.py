@@ -77,17 +77,17 @@ class GramImageInfo :
       if not GramImageInfo._compute_hosts:
           GramImageInfo._compute_hosts = open_stack_interface._listHosts('compute')
 
-      cmd = 'nova image-list'
+      cmd = 'openstack image list'
       try :
           GramImageInfo._image_list = _execCommand(cmd)
           GramImageInfo._last_update = datetime.datetime.utcnow()
       except :
-          config.logger.error('Failed to execute "nova image-list"')
-      cmd = 'nova flavor-list'
+          config.logger.error('Failed to execute "openstack image list"')
+      cmd = 'openstack flavor list'
       try:
           GramImageInfo._flavor_list = _execCommand(cmd)
       except:
-          config.logger.error('Failed to execute "nova flavor-list"')
+          config.logger.error('Failed to execute "openstack flavor list"')
 
   @staticmethod
   def get_image_list():

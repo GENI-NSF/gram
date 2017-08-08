@@ -1,5 +1,7 @@
+#!/usr/bin/python
+
 #----------------------------------------------------------------------
-# Copyright (c) 2013 Raytheon BBN Technologies
+# Copyright (c) 2013-2016 Raytheon BBN Technologies
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and/or hardware specification (the "Work") to
@@ -20,23 +22,48 @@
 # OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS
 # IN THE WORK.
 #----------------------------------------------------------------------
-description "GRAM Aggregate Manager Service"
-author "Jeanne Ohren <johren@bbn.com>"
-
-start on runlevel [2345]
-stop on runlevel [016]
 
 
-pre-start script
+import json
+import sys
 
-    mkdir -p -m0755 /var/run/gram-am
-end script
+from vmoc.VMOCConfig import VMOCSliceConfiguration, VMOCVLANConfiguration
 
-env PYTHONPATH=/opt/gcf/src:/home/gram/gram/src
-env OS_TENANT_NAME=admin
-env OS_USERNAME=admin
-env OS_PASSWORD=admin_pass
-env OS_AUTH_URL="http://localhost:5000/v2.0/"
+# Usage register_controller.sh slice [vlan controller ....] [unregister]
 
-exec su -s /bin/sh -c "exec python /home/gram/gram/src/gram-am.py" gram 
+if len(sys.argv) < 2:
+    print "Usage: register_controller.py slice [vlan controller ...] [unregister]"
+    sys.exit()
+
+print sys.argv[1]
+print sys.argv[2]
+
+slice_id = sys.argv[1]
+vlan_controllers = json.loads(sys.argv[2])
+vlan_configs = []
+for i in range(len(vlan_controllers)):
+    if i == 2*(i/2):
+        vlan_tag = vlan_controllers[i]
+        controller_url = vlan_controllers[i+1]
+        vlan_config = \
+            VMOCVLANConfiguration(vlan_tag=vlan_tag, \
+                                      controller_url=controller_url)
+        vlan_configs.append(vlan_config)
+
+slice_config = \
+    VMOCSliceConfiguration(slice_id=slice_id, vlan_configs=vlan_configs)
+
+unregister = False
+if len(sys.argv)>3: 
+    unregister = bool(sys.argv[3])
+
+print str(slice_config)
+
+command = 'register'
+if unregister: command = 'unregister'
+
+command = command + " " + json.dumps(slice_config.__attr__())
+
+print command
+
 
