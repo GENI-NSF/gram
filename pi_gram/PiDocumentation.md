@@ -69,6 +69,7 @@
 - **DEV-NOTE**: The ip address of the provision server is referenced in the provision_interface.py file.
 - **DEV-NOTE**: The ip addresses of the pis are hard coded into the rpi_config.json file.
 - **DEV-NOTE**: When changing ip addresses, be careful to change the dnsmasq.conf file, the tftpboot directory names, the tftpboot/IP_ADDRESS/cmdline.txt nfs root reference, and/or the backupint/clientX /etc/network/interfaces file.
+- **DEV-NOTE**: To use minicom, that user must be added to the dialout group
 
 - **DEV-NOTE**: The directories on the provision server that are used are:
 - **DEV-NOTE**: NFS: Holds all the file systems
